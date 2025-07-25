@@ -4,8 +4,9 @@ import {
   type Project,
   type ProjectAgent,
 } from "@elizaos/core";
-import starterPlugin from "./plugin.ts";
 import { character } from "./character.ts";
+import evmPlugin from "./plugin-evm/src/index.ts";
+
 
 const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
   logger.info("Initializing character");
@@ -15,7 +16,7 @@ const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
 export const projectAgent: ProjectAgent = {
   character,
   init: async (runtime: IAgentRuntime) => await initCharacter({ runtime }),
-  // plugins: [starterPlugin], <-- Import custom plugins here
+  plugins: [evmPlugin],
 };
 const project: Project = {
   agents: [projectAgent],
