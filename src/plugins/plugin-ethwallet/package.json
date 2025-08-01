@@ -1,0 +1,33 @@
+{
+  "name": "@elizaos/plugin-ethwallet",
+  "version": "0.1.0",
+  "description": "Ethereum and EVM chain wallet plugin for ElizaOS",
+  "main": "index.ts",
+  "keywords": [
+    "ethereum",
+    "wallet",
+    "evm",
+    "blockchain",
+    "elizaos",
+    "base",
+    "arbitrum",
+    "polygon"
+  ],
+  "dependencies": {
+    "ethers": "^6.13.0"
+  },
+  "peerDependencies": {
+    "@elizaos/core": "*"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "jest"
+  },
+  "author": "ElizaOS Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elizaos/eliza.git",
+    "directory": "src/plugins/ethwallet"
+  }
+} 

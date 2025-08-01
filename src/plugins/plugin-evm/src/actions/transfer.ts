@@ -9,7 +9,7 @@ import {
   composePromptFromState,
   elizaLogger,
   ActionResult,
-} from '@elizaos/core';
+} from "@elizaos/core";
 import {
   type Hex,
   formatEther,
@@ -18,12 +18,13 @@ import {
   encodeFunctionData,
   parseUnits,
   type Address,
-} from 'viem';
-import { getToken } from '@lifi/sdk';
+} from "viem";
+import { getToken } from "@lifi/sdk";
 
-import { type WalletProvider, initWalletProvider } from '../providers/wallet';
-import { transferTemplate } from '../templates';
-import type { Transaction, TransferParams } from '../types';
+import { type WalletProvider, initWalletProvider } from "../providers/wallet";
+import { transferTemplate } from "../templates";
+import type { Transaction, TransferParams } from "../types";
+import { getEntityWallet } from "../../../../utils/entity";
 
 // Exported for tests
 export class TransferAction {
@@ -33,7 +34,7 @@ export class TransferAction {
     const walletClient = this.walletProvider.getWalletClient(params.fromChain);
 
     if (!walletClient.account) {
-      throw new Error('Wallet account is not available');
+      throw new Error("Wallet account is not available");
     }
 
     const chainConfig = this.walletProvider.getChainConfigs(params.fromChain);
@@ -47,8 +48,9 @@ export class TransferAction {
       // Check if this is a token transfer or native transfer
       if (
         params.token &&
-        params.token !== 'null' &&
-        params.token.toUpperCase() !== chainConfig.nativeCurrency.symbol.toUpperCase()
+        params.token !== "null" &&
+        params.token.toUpperCase() !==
+          chainConfig.nativeCurrency.symbol.toUpperCase()
       ) {
         // This is an ERC20 token transfer
         console.log(
@@ -56,30 +58,37 @@ export class TransferAction {
         );
 
         // First, resolve the token address
-        const tokenAddress = await this.resolveTokenAddress(params.token, chainConfig.id);
+        const tokenAddress = await this.resolveTokenAddress(
+          params.token,
+          chainConfig.id
+        );
 
         // Check if token was resolved properly
-        if (tokenAddress === params.token && !tokenAddress.startsWith('0x')) {
+        if (tokenAddress === params.token && !tokenAddress.startsWith("0x")) {
           throw new Error(
             `Token ${params.token} not found on ${params.fromChain}. Please check the token symbol.`
           );
         }
 
         // Get token decimals
-        const decimalsAbi = parseAbi(['function decimals() view returns (uint8)']);
-        const decimals = await this.walletProvider.getPublicClient(params.fromChain).readContract({
-          address: tokenAddress as Address,
-          abi: decimalsAbi,
-          functionName: 'decimals',
-        });
+        const decimalsAbi = parseAbi([
+          "function decimals() view returns (uint8)",
+        ]);
+        const decimals = await this.walletProvider
+          .getPublicClient(params.fromChain)
+          .readContract({
+            address: tokenAddress as Address,
+            abi: decimalsAbi,
+            functionName: "decimals",
+          });
 
         // Parse amount with correct decimals
         const amountInTokenUnits = parseUnits(params.amount, decimals);
 
         // Encode the ERC20 transfer function
         const transferData = encodeFunctionData({
-          abi: parseAbi(['function transfer(address to, uint256 amount)']),
-          functionName: 'transfer',
+          abi: parseAbi(["function transfer(address to, uint256 amount)"]),
+          functionName: "transfer",
           args: [params.toAddress, amountInTokenUnits],
         });
 
@@ -95,7 +104,7 @@ export class TransferAction {
 
         to = params.toAddress;
         value = parseEther(params.amount);
-        data = params.data || ('0x' as Hex);
+        data = params.data || ("0x" as Hex);
       }
 
       const transactionParams = {
@@ -117,7 +126,8 @@ export class TransferAction {
         data: data,
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       throw new Error(`Transfer failed: ${errorMessage}`);
     }
   }
@@ -127,12 +137,15 @@ export class TransferAction {
     chainId: number
   ): Promise<string> {
     // If it's already a valid address (starts with 0x and is 42 chars), return as is
-    if (tokenSymbolOrAddress.startsWith('0x') && tokenSymbolOrAddress.length === 42) {
+    if (
+      tokenSymbolOrAddress.startsWith("0x") &&
+      tokenSymbolOrAddress.length === 42
+    ) {
       return tokenSymbolOrAddress;
     }
 
     // If it's the zero address (native token), return as is
-    if (tokenSymbolOrAddress === '0x0000000000000000000000000000000000000000') {
+    if (tokenSymbolOrAddress === "0x0000000000000000000000000000000000000000") {
       return tokenSymbolOrAddress;
     }
 
@@ -166,10 +179,10 @@ const buildTransferDetails = async (
       const chainConfig = wp.getChainConfigs(chain as any);
       return `${chain}: ${balance} ${chainConfig.nativeCurrency.symbol}`;
     })
-    .join(', ');
+    .join(", ");
 
-  state = await runtime.composeState(_message, ['RECENT_MESSAGES'], true);
-  state.supportedChains = chains.join(' | ');
+  state = await runtime.composeState(_message, ["RECENT_MESSAGES"], true);
+  state.supportedChains = chains.join(" | ");
 
   const context = composePromptFromState({
     state,
@@ -183,7 +196,9 @@ const buildTransferDetails = async (
   const parsedXml = parseKeyValueXml(xmlResponse);
 
   if (!parsedXml) {
-    throw new Error('Failed to parse XML response from LLM for transfer details.');
+    throw new Error(
+      "Failed to parse XML response from LLM for transfer details."
+    );
   }
 
   const transferDetails = parsedXml as unknown as TransferParams;
@@ -196,9 +211,9 @@ const buildTransferDetails = async (
 
   if (!existingChain) {
     throw new Error(
-      'The chain ' +
+      "The chain " +
         transferDetails.fromChain +
-        ' not configured yet. Add the chain or choose one from configured: ' +
+        " not configured yet. Add the chain or choose one from configured: " +
         chains.toString()
     );
   }
@@ -210,9 +225,9 @@ const buildTransferDetails = async (
 };
 
 export const transferAction: Action = {
-  name: 'EVM_TRANSFER_TOKENS',
+  name: "EVM_TRANSFER_TOKENS",
   description:
-    'Transfer native tokens (ETH, BNB, etc.) or ERC20 tokens (USDC, USDT, etc.) between addresses on the same chain',
+    "Transfer native tokens (ETH, BNB, etc.) or ERC20 tokens (USDC, USDT, etc.) between addresses on the same chain",
   handler: async (
     runtime: IAgentRuntime,
     message: Memory,
@@ -224,21 +239,40 @@ export const transferAction: Action = {
       state = (await runtime.composeState(message)) as State;
     }
 
-    const walletProvider = await initWalletProvider(runtime);
+    const walletResult = await getEntityWallet(
+      runtime,
+      message,
+      "DEPLOY_TOKEN",
+      callback
+    );
+    if (!walletResult.success) {
+      return walletResult.result;
+    }
+    const walletPrivateKey = walletResult.walletPrivateKey;
+
+    const walletProvider = await initWalletProvider(runtime, walletPrivateKey);
     const action = new TransferAction(walletProvider);
 
     // Compose transfer context
-    const paramOptions = await buildTransferDetails(state, message, runtime, walletProvider);
+    const paramOptions = await buildTransferDetails(
+      state,
+      message,
+      runtime,
+      walletProvider
+    );
 
     try {
       const transferResp = await action.transfer(paramOptions);
 
       // Determine token symbol for display
-      const chainConfig = walletProvider.getChainConfigs(paramOptions.fromChain);
+      const chainConfig = walletProvider.getChainConfigs(
+        paramOptions.fromChain
+      );
       const tokenSymbol =
         paramOptions.token &&
-        paramOptions.token !== 'null' &&
-        paramOptions.token.toUpperCase() !== chainConfig.nativeCurrency.symbol.toUpperCase()
+        paramOptions.token !== "null" &&
+        paramOptions.token.toUpperCase() !==
+          chainConfig.nativeCurrency.symbol.toUpperCase()
           ? paramOptions.token.toUpperCase()
           : chainConfig.nativeCurrency.symbol;
 
@@ -268,7 +302,7 @@ export const transferAction: Action = {
           recipientAddress: transferResp.to,
         },
         data: {
-          actionName: 'EVM_TRANSFER_TOKENS',
+          actionName: "EVM_TRANSFER_TOKENS",
           transactionHash: transferResp.hash,
           fromAddress: transferResp.from,
           toAddress: transferResp.to,
@@ -278,9 +312,10 @@ export const transferAction: Action = {
         },
       };
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       const failureText = `❌ Error transferring tokens: ${errorMessage}`;
-      console.error('Error during token transfer:', errorMessage);
+      console.error("Error during token transfer:", errorMessage);
       if (callback) {
         callback({
           text: `Error transferring tokens: ${errorMessage}`,
@@ -296,7 +331,7 @@ export const transferAction: Action = {
           errorMessage,
         },
         data: {
-          actionName: 'EVM_TRANSFER_TOKENS',
+          actionName: "EVM_TRANSFER_TOKENS",
           error: errorMessage,
         },
         error: error instanceof Error ? error : new Error(String(error)),
@@ -304,26 +339,30 @@ export const transferAction: Action = {
     }
   },
   validate: async (runtime: IAgentRuntime) => {
-    const privateKey = runtime.getSetting('EVM_PRIVATE_KEY');
-    return typeof privateKey === 'string' && privateKey.startsWith('0x');
+    return true;
   },
   examples: [
     [
       {
-        name: 'assistant',
+        name: "assistant",
         content: {
           text: "I'll help you transfer 1 ETH to 0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
-          action: 'EVM_TRANSFER_TOKENS',
+          action: "EVM_TRANSFER_TOKENS",
         },
       },
       {
-        name: 'user',
+        name: "user",
         content: {
-          text: 'Transfer 1 ETH to 0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-          action: 'EVM_TRANSFER_TOKENS',
+          text: "Transfer 1 ETH to 0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
+          action: "EVM_TRANSFER_TOKENS",
         },
       },
     ],
   ],
-  similes: ['EVM_TRANSFER', 'EVM_SEND_TOKENS', 'EVM_TOKEN_TRANSFER', 'EVM_MOVE_TOKENS'],
+  similes: [
+    "EVM_TRANSFER",
+    "EVM_SEND_TOKENS",
+    "EVM_TOKEN_TRANSFER",
+    "EVM_MOVE_TOKENS",
+  ],
 };

@@ -21,6 +21,7 @@ import { type WalletProvider, initWalletProvider } from '../providers/wallet';
 import { swapTemplate } from '../templates';
 import type { SwapParams, SwapQuote, Transaction } from '../types';
 import type { BebopRoute } from '../types/index';
+import { getEntityWallet } from '../../../../utils/entity';
 
 export { swapTemplate };
 
@@ -719,7 +720,17 @@ export const swapAction = {
     _options?: any,
     callback?: HandlerCallback
   ): Promise<ActionResult> => {
-    const walletProvider = await initWalletProvider(runtime);
+    const walletResult = await getEntityWallet(
+      runtime,
+      _message,
+      "DEPLOY_TOKEN",
+      callback
+    );
+    if (!walletResult.success) {
+      return walletResult.result;
+    }
+    const walletPrivateKey = walletResult.walletPrivateKey;
+    const walletProvider = await initWalletProvider(runtime, walletPrivateKey);
     const action = new SwapAction(walletProvider);
 
     try {
@@ -827,8 +838,7 @@ export const swapAction = {
   },
   template: swapTemplate,
   validate: async (runtime: IAgentRuntime) => {
-    const privateKey = runtime.getSetting('EVM_PRIVATE_KEY');
-    return typeof privateKey === 'string' && privateKey.startsWith('0x');
+    return true;
   },
   examples: [
     [

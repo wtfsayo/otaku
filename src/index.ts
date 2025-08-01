@@ -5,7 +5,10 @@ import {
   type ProjectAgent,
 } from "@elizaos/core";
 import { character } from "./character.ts";
-import evmPlugin from "./plugin-evm/src/index.ts";
+import clankerPlugin from "./plugins//plugin-clanker/src/plugin.ts";
+import evmPlugin from "./plugins/plugin-evm/src/index.ts";
+import morphoPlugin from "./plugins/plugin-morpho/src/plugin.ts";
+import ethWalletPlugin from "./plugins/plugin-ethwallet/index.ts";
 
 
 const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
@@ -16,7 +19,7 @@ const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
 export const projectAgent: ProjectAgent = {
   character,
   init: async (runtime: IAgentRuntime) => await initCharacter({ runtime }),
-  plugins: [evmPlugin],
+  plugins: [evmPlugin, clankerPlugin, morphoPlugin, ethWalletPlugin],
 };
 const project: Project = {
   agents: [projectAgent],
