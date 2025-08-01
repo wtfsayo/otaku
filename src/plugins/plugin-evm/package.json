@@ -1,0 +1,122 @@
+{
+  "name": "@elizaos/plugin-evm",
+  "version": "1.0.12",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "@elizaos/source": "./src/index.ts",
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@elizaos/core": "latest",
+    "@lifi/data-types": "5.15.5",
+    "@lifi/sdk": "^3.7.9",
+    "@lifi/types": "^17.18.0",
+    "tsup": "8.5.0"
+  },
+  "devDependencies": {
+    "prettier": "3.5.3",
+    "typescript": "5.8.2",
+    "vitest": "^3.1.1"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --format esm --dts --watch",
+    "test": "vitest run",
+    "lint": "prettier --write ./src",
+    "format": "prettier --write ./src",
+    "format:check": "prettier --check ./src"
+  },
+  "peerDependencies": {
+    "whatwg-url": "7.1.0"
+  },
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "EVM_PRIVATE_KEY": {
+        "type": "string",
+        "description": "Hex-encoded private key (starting with 0x) used by the WalletProvider to sign governance proposal and bridge transactions.",
+        "required": true,
+        "sensitive": true
+      },
+      "ETHEREUM_PROVIDER_<CHAINNAME>": {
+        "type": "string",
+        "description": "Custom RPC URL for the specified EVM chain (e.g., ETHEREUM_PROVIDER_MAINNET). Used when generating chain configurations.",
+        "required": false,
+        "sensitive": false
+      },
+      "EVM_PROVIDER_<CHAINNAME>": {
+        "type": "string",
+        "description": "Custom RPC URL for the specified EVM chain (e.g., EVM_PROVIDER_BASE). Fallback option if ETHEREUM_PROVIDER_<CHAINNAME> is not provided.",
+        "required": false,
+        "sensitive": false
+      },
+      "TEE_MODE": {
+        "type": "string",
+        "description": "Controls whether the Trusted Execution Environment (TEE) mode is enabled. Determines if a TEE-derived wallet should be used.",
+        "required": false,
+        "default": "OFF",
+        "sensitive": false
+      },
+      "WALLET_SECRET_SALT": {
+        "type": "string",
+        "description": "Salt value used to deterministically derive an ECDSA keypair inside the TEE when TEE_MODE is enabled.",
+        "required": false,
+        "sensitive": true
+      },
+      "TEST_PRIVATE_KEY": {
+        "type": "string",
+        "description": "Hex-encoded private key used by tests to initialize the WalletProvider. If not provided, a new random key is generated.",
+        "required": false,
+        "default": "Randomly generated private key when unset",
+        "sensitive": true
+      },
+      "FUNDED_TEST_PRIVATE_KEY": {
+        "type": "string",
+        "description": "Hex-encoded private key for a pre-funded wallet used to run live integration bridge tests.",
+        "required": false,
+        "sensitive": true
+      },
+      "SEPOLIA_RPC_URL": {
+        "type": "string",
+        "description": "Optional custom RPC endpoint URL for the Sepolia testnet used in tests.",
+        "required": false,
+        "default": "https://ethereum-sepolia-rpc.publicnode.com",
+        "sensitive": false
+      },
+      "BASE_SEPOLIA_RPC_URL": {
+        "type": "string",
+        "description": "Optional custom RPC endpoint URL for the Base Sepolia testnet used in tests.",
+        "required": false,
+        "default": "https://sepolia.base.org",
+        "sensitive": false
+      },
+      "OP_SEPOLIA_RPC_URL": {
+        "type": "string",
+        "description": "Optional custom RPC endpoint URL for the Optimism Sepolia testnet used in tests.",
+        "required": false,
+        "default": "https://sepolia.optimism.io",
+        "sensitive": false
+      }
+    }
+  },
+  "gitHead": "646c632924826e2b75c2304a75ee56959fe4a460",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elizaos-plugins/plugin-evm.git"
+  }
+}

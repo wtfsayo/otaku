@@ -4,8 +4,12 @@ import {
   type Project,
   type ProjectAgent,
 } from "@elizaos/core";
-import starterPlugin from "./plugin.ts";
 import { character } from "./character.ts";
+import clankerPlugin from "./plugins//plugin-clanker/src/plugin.ts";
+import evmPlugin from "./plugins/plugin-evm/src/index.ts";
+import morphoPlugin from "./plugins/plugin-morpho/src/plugin.ts";
+import ethWalletPlugin from "./plugins/plugin-ethwallet/index.ts";
+
 
 const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
   logger.info("Initializing character");
@@ -15,7 +19,7 @@ const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
 export const projectAgent: ProjectAgent = {
   character,
   init: async (runtime: IAgentRuntime) => await initCharacter({ runtime }),
-  // plugins: [starterPlugin], <-- Import custom plugins here
+  plugins: [evmPlugin, clankerPlugin, morphoPlugin, ethWalletPlugin],
 };
 const project: Project = {
   agents: [projectAgent],

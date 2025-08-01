@@ -1,0 +1,112 @@
+{
+  "name": "@elizaos/plugin-morpho",
+  "description": "Morpho protocol integration plugin for ElizaOS - optimized lending and borrowing through peer-to-peer matching",
+  "version": "1.2.5",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "packageType": "plugin",
+  "platform": "node",
+  "license": "MIT",
+  "author": "ElizaOS",
+  "keywords": [
+    "plugin",
+    "elizaos",
+    "morpho",
+    "defi",
+    "lending",
+    "borrowing",
+    "base",
+    "ethereum"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elizaos/eliza"
+  },
+  "homepage": "https://elizaos.ai",
+  "bugs": {
+    "url": "https://github.com/elizaos/eliza/issues"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    ".npmignore",
+    "package.json",
+    "tsup.config.ts"
+  ],
+  "dependencies": {
+    "@elizaos/core": "latest",
+    "@morpho-org/blue-sdk": "^4.4.0",
+    "@morpho-org/blue-sdk-viem": "^3.1.1",
+    "@morpho-org/morpho-ts": "^2.4.1",
+    "bignumber.js": "^9.1.2",
+    "viem": "^2.8.0",
+    "zod": "3.24.2"
+  },
+  "devDependencies": {
+    "@types/bignumber.js": "^5.0.4",
+    "@types/bun": "^1.2.19",
+    "tsup": "8.5.0",
+    "typescript": "5.8.2"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "lint": "tsc --noEmit",
+    "format": "prettier --write ./src",
+    "format:check": "prettier --check ./src",
+    "test": "bun test tests/",
+    "test:unit": "bun test tests/morpho-service.test.ts tests/actions.test.ts tests/validation.test.ts",
+    "test:integration": "bun test tests/integration.test.ts",
+    "test:watch": "bun test tests/ --watch",
+    "test:coverage": "bun test tests/ --coverage"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "resolutions": {
+    "zod": "3.24.2"
+  },
+  "agentConfig": {
+    "pluginType": "elizaos:plugin:1.0.0",
+    "pluginParameters": {
+      "MORPHO_API_KEY": {
+        "type": "string",
+        "description": "API key for Morpho protocol access",
+        "required": false
+      },
+      "BASE_RPC_URL": {
+        "type": "string",
+        "description": "Base L2 RPC endpoint URL",
+        "required": true
+      },
+      "WALLET_PRIVATE_KEY": {
+        "type": "string",
+        "description": "Private key for the wallet (development/testing only)",
+        "required": true
+      },
+      "MAX_GAS_FOR_MATCHING": {
+        "type": "string",
+        "description": "Maximum gas to spend on P2P matching",
+        "required": false,
+        "default": "500000"
+      },
+      "MATCHING_EFFICIENCY_THRESHOLD": {
+        "type": "number",
+        "description": "Minimum efficiency threshold for P2P matching (0-1)",
+        "required": false,
+        "default": 0.7
+      }
+    }
+  }
+}

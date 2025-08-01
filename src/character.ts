@@ -12,7 +12,7 @@ export const character: Character = {
     // Core plugins first
     "@elizaos/plugin-sql",
     "@elizaos/plugin-defillama",
-
+    
     // Text-only plugins (no embedding support)
     ...(process.env.ANTHROPIC_API_KEY?.trim()
       ? ["@elizaos/plugin-anthropic"]
@@ -45,7 +45,7 @@ export const character: Character = {
     ...(!process.env.IGNORE_BOOTSTRAP ? ["@elizaos/plugin-bootstrap"] : []),
 
     // Ollama as universal fallback (always included for local AI capabilities)
-    "@elizaos/plugin-ollama",
+    // "@elizaos/plugin-ollama",
   ],
   settings: {
     secrets: {},
