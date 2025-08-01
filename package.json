@@ -57,6 +57,7 @@
     "start": "elizaos start",
     "dev": "elizaos dev",
     "build": "tsc --noEmit && tsup",
+    "clean": "rm -rf dist .eliza .cache bun.lock node_modules",
     "lint": "prettier --write ./src",
     "type-check": "tsc --noEmit",
     "type-check:watch": "tsc --noEmit --watch",
