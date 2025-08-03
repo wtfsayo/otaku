@@ -60,12 +60,12 @@ export const tokenDeployAction: Action = {
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
-    _state: State | undefined
+    _state: State | undefined,
   ): Promise<boolean> => {
     try {
       // Check if services are available
       const clankerService = runtime.getService(
-        ClankerService.serviceType
+        ClankerService.serviceType,
       ) as ClankerService;
 
       if (!clankerService) {
@@ -85,7 +85,7 @@ export const tokenDeployAction: Action = {
         "token",
       ];
       const hasDeploymentIntent = deploymentKeywords.some((keyword) =>
-        text.includes(keyword)
+        text.includes(keyword),
       );
 
       return hasDeploymentIntent;
@@ -101,7 +101,7 @@ export const tokenDeployAction: Action = {
     _state: State | undefined,
     _options: any,
     callback?: HandlerCallback,
-    _responses?: Memory[]
+    _responses?: Memory[],
   ): Promise<ActionResult> => {
     try {
       logger.info("Handling DEPLOY_TOKEN action");
@@ -111,7 +111,7 @@ export const tokenDeployAction: Action = {
         runtime,
         message,
         "DEPLOY_TOKEN",
-        callback
+        callback,
       );
       if (!walletResult.success) {
         return walletResult.result;
@@ -120,7 +120,7 @@ export const tokenDeployAction: Action = {
 
       // Get services
       const clankerService = runtime.getService(
-        ClankerService.serviceType
+        ClankerService.serviceType,
       ) as ClankerService;
 
       if (!clankerService) {
@@ -132,6 +132,17 @@ export const tokenDeployAction: Action = {
       const prompt = getTokenDeployXmlPrompt(text);
       const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
       const parsed = parseKeyValueXml(response);
+
+      if (!parsed) {
+        logger.error(
+          "Failed to parse token deployment parameters from message.",
+          parsed,
+        );
+        throw new Error(
+          "Failed to parse token deployment parameters from message. Please provide token name and symbol clearly.",
+        );
+      }
+
       const params = mapXmlDeployFields(parsed);
 
       // Validate parameters
@@ -146,19 +157,22 @@ export const tokenDeployAction: Action = {
       const deployParams = validation.data;
 
       // Deploy token
-      const result = await clankerService.deployToken({
-        name: deployParams.name,
-        symbol: deployParams.symbol,
-        vanity: deployParams.vanity,
-        image: deployParams.image,
-        metadata: deployParams.metadata,
-        context: deployParams.context,
-        pool: deployParams.pool,
-        fees: deployParams.fees,
-        rewards: deployParams.rewards,
-        vault: deployParams.vault,
-        devBuy: deployParams.devBuy,
-      }, walletPrivateKey);
+      const result = await clankerService.deployToken(
+        {
+          name: deployParams.name,
+          symbol: deployParams.symbol,
+          vanity: deployParams.vanity,
+          image: deployParams.image,
+          metadata: deployParams.metadata,
+          context: deployParams.context,
+          pool: deployParams.pool,
+          fees: deployParams.fees,
+          rewards: deployParams.rewards,
+          vault: deployParams.vault,
+          devBuy: deployParams.devBuy,
+        },
+        walletPrivateKey,
+      );
 
       // Prepare response
       const responseText =
@@ -257,6 +271,10 @@ export const tokenDeployAction: Action = {
 };
 
 function mapXmlDeployFields(parsed: any): any {
+  if (!parsed) {
+    throw new Error("Parsed data is null or undefined");
+  }
+
   const rawUrls: string[] = [];
 
   if (parsed.socialMediaUrls?.url) {
