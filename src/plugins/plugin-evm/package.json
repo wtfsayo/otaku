@@ -23,9 +23,6 @@
   ],
   "dependencies": {
     "@elizaos/core": "latest",
-    "@lifi/data-types": "5.15.5",
-    "@lifi/sdk": "^3.7.9",
-    "@lifi/types": "^17.18.0",
     "tsup": "8.5.0"
   },
   "devDependencies": {
