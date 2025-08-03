@@ -277,14 +277,14 @@ function mapXmlDeployFields(parsed: any): any {
 
   const rawUrls: string[] = [];
 
-  if (parsed.socialMediaUrls?.url) {
+  if (parsed?.socialMediaUrls?.url) {
     if (Array.isArray(parsed.socialMediaUrls.url)) {
       rawUrls.push(...parsed.socialMediaUrls.url);
     } else if (typeof parsed.socialMediaUrls.url === "string") {
       rawUrls.push(parsed.socialMediaUrls.url);
     }
-  } else if (typeof parsed.url === "string") {
-    rawUrls.push(parsed.url); // fallback support
+  } else if (typeof parsed?.url === "string") {
+    rawUrls.push(parsed?.url); // fallback support
   }
 
   const socialMediaUrls = rawUrls.map((url: string) => {
