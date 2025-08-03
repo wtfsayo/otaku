@@ -14,7 +14,6 @@
     "polygon"
   ],
   "dependencies": {
-    "ethers": "^6.13.0"
   },
   "peerDependencies": {
     "@elizaos/core": "*"
