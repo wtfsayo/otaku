@@ -15,6 +15,31 @@ import { shortenAddress } from "../utils/format";
 import { handleError } from "../utils/errors";
 import { getEntityWallet } from "../../../../utils/entity";
 
+// Utility function to safely serialize objects with BigInt values
+function safeStringify(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (typeof obj === "bigint") {
+    return obj.toString();
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(safeStringify);
+  }
+
+  if (typeof obj === "object") {
+    const result: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = safeStringify(value);
+    }
+    return result;
+  }
+
+  return obj;
+}
+
 export function getTokenDeployXmlPrompt(userMessage: string): string {
   return `<task>Extract structured token deployment parameters from the user's message.</task>
 
@@ -131,17 +156,22 @@ export const tokenDeployAction: Action = {
       const text = message.content.text || "";
       const prompt = getTokenDeployXmlPrompt(text);
       const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+
+      logger.info("Model response for token deployment:", { response });
+
       const parsed = parseKeyValueXml(response);
 
       if (!parsed) {
         logger.error(
           "Failed to parse token deployment parameters from message.",
-          parsed,
+          { parsed, response, text },
         );
         throw new Error(
           "Failed to parse token deployment parameters from message. Please provide token name and symbol clearly.",
         );
       }
+
+      logger.info("Parsed token deployment parameters:", safeStringify(parsed));
 
       const params = mapXmlDeployFields(parsed);
 
@@ -199,13 +229,14 @@ export const tokenDeployAction: Action = {
           tokenDeployed: true,
           contractAddress: result.contractAddress,
         },
-        data: {
+        data: safeStringify({
           actionName: "DEPLOY_TOKEN",
           contractAddress: result.contractAddress,
           transactionHash: result.transactionHash,
           tokenId: result.tokenId,
-          deploymentCost: result.deploymentCost.toString(),
-        },
+          deploymentCost: result.deploymentCost,
+          result: result,
+        }),
       };
     } catch (error) {
       logger.error("Error in DEPLOY_TOKEN action:", error);
@@ -227,10 +258,11 @@ export const tokenDeployAction: Action = {
           error: true,
           errorMessage: errorResponse.message,
         },
-        data: {
+        data: safeStringify({
           actionName: "DEPLOY_TOKEN",
           error: error instanceof Error ? error.message : String(error),
-        },
+          errorStack: error instanceof Error ? error.stack : undefined,
+        }),
         error: error instanceof Error ? error : new Error(String(error)),
       };
     }
@@ -287,16 +319,8 @@ function mapXmlDeployFields(parsed: any): any {
     rawUrls.push(parsed?.url); // fallback support
   }
 
-  const socialMediaUrls = rawUrls.map((url: string) => {
-    const lower = url.toLowerCase();
-    if (lower.includes("twitter.com")) return { platform: "x", url };
-    if (lower.includes("t.me") || lower.includes("telegram"))
-      return { platform: "telegram", url };
-    if (lower.includes("discord.gg") || lower.includes("discord.com"))
-      return { platform: "discord", url };
-    if (lower.includes("github.com")) return { platform: "github", url };
-    return { platform: "website", url };
-  });
+  // According to Clanker SDK v4.0.0, socialMediaUrls should be an array of strings
+  const socialMediaUrls = rawUrls;
 
   return {
     name: parsed.name,
@@ -306,6 +330,7 @@ function mapXmlDeployFields(parsed: any): any {
     metadata: {
       description: parsed.description || undefined,
       socialMediaUrls: socialMediaUrls.length > 0 ? socialMediaUrls : undefined,
+      auditUrls: [], // Add empty auditUrls array as per v4.0.0 API
     },
     devBuy: parsed.devBuy
       ? { ethAmount: parseFloat(parsed.devBuy) }
