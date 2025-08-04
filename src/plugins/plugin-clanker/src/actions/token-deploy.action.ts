@@ -201,7 +201,8 @@ export const tokenDeployAction: Action = {
           vault: deployParams.vault,
           devBuy: deployParams.devBuy,
         },
-        walletPrivateKey,
+
+        walletPrivateKey
       );
 
       // Prepare response
