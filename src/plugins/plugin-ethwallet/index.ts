@@ -4,7 +4,7 @@ import type { Plugin } from '@elizaos/core';
 import { ethWalletCreate } from "./actions/act_eth_wallet_create";
 // import { ethWalletImport } from "./actions/act_eth_wallet_import";
 // import { ethWalletList } from "./actions/act_eth_wallet_list";
-import { ethWalletBalance } from "./actions/act_eth_wallet_balance";
+import { ethWalletInfo } from './actions/act_eth_wallet_info';
 
 // Providers
 // import { ethWalletProvider } from "./providers/ethWallet";
@@ -23,7 +23,7 @@ export const ethWalletPlugin: Plugin = {
     ethWalletCreate,
     // ethWalletImport, 
     // ethWalletList,
-    ethWalletBalance
+    ethWalletInfo
   ],
   services: [EVMChainService, EVMWalletService],
 };

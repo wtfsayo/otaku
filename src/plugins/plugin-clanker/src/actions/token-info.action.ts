@@ -8,17 +8,21 @@ import {
   State,
   logger,
   parseKeyValueXml,
-} from '@elizaos/core';
-import { ClankerService } from '../services/clanker.service';
-import { formatTokenInfo } from '../utils/format';
-import { handleError } from '../utils/errors';
-import { getEntityWallet, EntityWalletResponse } from "../../../../utils/entity";
+} from "@elizaos/core";
+import { ClankerService } from "../services/clanker.service";
+import { formatTokenInfo } from "../utils/format";
+import { handleError } from "../utils/errors";
+import {
+  getEntityWallet,
+  EntityWalletResponse,
+} from "../../../../utils/entity";
 
 export const tokenInfoAction: Action = {
-  name: 'TOKEN_INFO',
-  similes: ['GET_TOKEN_INFO', 'CHECK_TOKEN', 'TOKEN_DETAILS', 'TOKEN_STATS'],
-  description: 'Get information about tokens including price, liquidity, market cap, and other stats. Supports multiple tokens.',
-  
+  name: "TOKEN_INFO",
+  similes: ["GET_TOKEN_INFO", "CHECK_TOKEN", "TOKEN_DETAILS", "TOKEN_STATS"],
+  description:
+    "Get TOKEN MARKET DATA and statistics including price, liquidity, market cap, trading volume, and holder information. This action is for TOKEN-SPECIFIC queries (not wallet balance/holdings). Use when users ask about token prices, market data, or trading statistics. Supports multiple tokens and token addresses.",
+
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
@@ -26,15 +30,17 @@ export const tokenInfoAction: Action = {
   ): Promise<boolean> => {
     try {
       // Check if service is available
-      const clankerService = runtime.getService(ClankerService.serviceType) as ClankerService;
+      const clankerService = runtime.getService(
+        ClankerService.serviceType
+      ) as ClankerService;
       if (!clankerService) {
-        logger.warn('Clanker service not available for token info');
+        logger.warn("Clanker service not available for token info");
         return false;
       }
-      
+
       return true;
     } catch (error) {
-      logger.error('Error validating token info action:', error);
+      logger.error("Error validating token info action:", error);
       return false;
     }
   },
@@ -49,44 +55,53 @@ export const tokenInfoAction: Action = {
   ): Promise<ActionResult> => {
     try {
       // Get entity wallet address
-      const walletResult = await getEntityWallet(
+      const walletResult = (await getEntityWallet(
         runtime,
         message,
         "DEPLOY_TOKEN",
         callback
-      ) as EntityWalletResponse;
+      )) as EntityWalletResponse;
       if (!walletResult.success) {
         return walletResult.result;
       }
       const walletAddress = walletResult.walletAddress;
-      logger.info('Handling TOKEN_INFO action');
-      
+      logger.info("Handling TOKEN_INFO action");
+
       // Get service
-      const clankerService = runtime.getService(ClankerService.serviceType) as ClankerService;
+      const clankerService = runtime.getService(
+        ClankerService.serviceType
+      ) as ClankerService;
       if (!clankerService) {
-        throw new Error('Clanker service not available');
+        throw new Error("Clanker service not available");
       }
 
-      const text = message.content.text || '';
+      const text = message.content.text || "";
       const prompt = getTokenInfoXmlPrompt(text);
-      const rawResponse = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+      const rawResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+        prompt,
+      });
       const parsed = parseKeyValueXml(rawResponse);
-      const tokensRaw: string = parsed?.tokens || '';
+      const tokensRaw: string = parsed?.tokens || "";
 
-      if (!tokensRaw) throw new Error('No tokens found in user message');
+      if (!tokensRaw) throw new Error("No tokens found in user message");
 
       const tokens = tokensRaw
-        .split(',')
-        .map(t => t.trim())
+        .split(",")
+        .map((t) => t.trim())
         .filter(Boolean);
 
-      if (!tokens.length) throw new Error('No valid tokens parsed from message');
+      if (!tokens.length)
+        throw new Error("No valid tokens parsed from message");
 
-      let responseText = '📊 Token Information\n\n';
+      let responseText = "📊 Token Information\n\n";
 
       for (const tokenInput of tokens) {
         try {
-          const address = await resolveTokenInput(tokenInput, clankerService, walletAddress);
+          const address = await resolveTokenInput(
+            tokenInput,
+            clankerService,
+            walletAddress
+          );
           const tokenInfo = await clankerService.getTokenInfo(address);
 
           responseText += formatTokenInfo(tokenInfo);
@@ -100,7 +115,7 @@ export const tokenInfoAction: Action = {
       if (callback) {
         await callback({
           text: responseText,
-          actions: ['TOKEN_INFO'],
+          actions: ["TOKEN_INFO"],
           source: message.content.source,
         });
       }
@@ -109,16 +124,16 @@ export const tokenInfoAction: Action = {
         text: responseText,
         success: true,
         values: { tokenInfoFetched: true },
-        data: { actionName: 'TOKEN_INFO', tokens },
+        data: { actionName: "TOKEN_INFO", tokens },
       };
     } catch (error) {
-      logger.error('Error in TOKEN_INFO action:', error);
+      logger.error("Error in TOKEN_INFO action:", error);
       const errorResponse = handleError(error);
-      
+
       if (callback) {
         await callback({
           text: `❌ Failed to get token information: ${errorResponse.message}`,
-          actions: ['TOKEN_INFO'],
+          actions: ["TOKEN_INFO"],
           source: message.content.source,
         });
       }
@@ -132,55 +147,55 @@ export const tokenInfoAction: Action = {
           errorMessage: errorResponse.message,
         },
         data: {
-          actionName: 'TOKEN_INFO',
+          actionName: "TOKEN_INFO",
           error: error instanceof Error ? error.message : String(error),
         },
         error: error instanceof Error ? error : new Error(String(error)),
-      };      
+      };
     }
   },
 
   examples: [
     [
       {
-        name: 'User',
+        name: "User",
         content: {
-          text: 'Get info for token 0x1234567890abcdef1234567890abcdef12345678',
+          text: "Get info for token 0x1234567890abcdef1234567890abcdef12345678",
         },
       },
       {
-        name: 'Assistant',
+        name: "Assistant",
         content: {
-          text: '📊 Token Information\n\nToken: Example Token (EXT)\nAddress: 0x1234...5678\nPrice: $0.50\nMarket Cap: $5,000,000\nLiquidity: $500,000\nHolders: 1,234\n24h Volume: $250,000',
-          actions: ['TOKEN_INFO'],
-        },
-      },
-    ],
-    [
-      {
-        name: 'User',
-        content: {
-          text: 'What is the price and liquidity of 0xabcdef1234567890abcdef1234567890abcdef12?',
-        },
-      },
-      {
-        name: 'Assistant',
-        content: {
-          text: '📊 Token Information\n\nToken: Based Token (BASE)\nAddress: 0xabcd...ef12\nPrice: $0.001\nMarket Cap: $100,000\nLiquidity: $50,000\nHolders: 500\n24h Volume: $10,000',
-          actions: ['TOKEN_INFO'],
+          text: "📊 Token Information\n\nToken: Example Token (EXT)\nAddress: 0x1234...5678\nPrice: $0.50\nMarket Cap: $5,000,000\nLiquidity: $500,000\nHolders: 1,234\n24h Volume: $250,000",
+          actions: ["TOKEN_INFO"],
         },
       },
     ],
     [
       {
-        name: 'User',
-        content: { text: 'Give me info for PEPE and USDC' },
+        name: "User",
+        content: {
+          text: "What is the price and liquidity of 0xabcdef1234567890abcdef1234567890abcdef12?",
+        },
       },
       {
-        name: 'Assistant',
+        name: "Assistant",
         content: {
-          text: '📊 Token Information\n\nToken: PEPE...\nToken: USDC...',
-          actions: ['TOKEN_INFO'],
+          text: "📊 Token Information\n\nToken: Based Token (BASE)\nAddress: 0xabcd...ef12\nPrice: $0.001\nMarket Cap: $100,000\nLiquidity: $50,000\nHolders: 500\n24h Volume: $10,000",
+          actions: ["TOKEN_INFO"],
+        },
+      },
+    ],
+    [
+      {
+        name: "User",
+        content: { text: "Give me info for PEPE and USDC" },
+      },
+      {
+        name: "Assistant",
+        content: {
+          text: "📊 Token Information\n\nToken: PEPE...\nToken: USDC...",
+          actions: ["TOKEN_INFO"],
         },
       },
     ],
@@ -213,8 +228,11 @@ async function resolveTokenInput(
   clankerService: ClankerService,
   walletAddress: string
 ): Promise<string> {
-  if (input.startsWith('0x')) return input;
-  const resolved = await clankerService.resolveTokenAddressBySymbol(input, walletAddress);
+  if (input.startsWith("0x")) return input;
+  const resolved = await clankerService.resolveTokenAddressBySymbol(
+    input,
+    walletAddress
+  );
   if (!resolved) {
     throw new Error(`Unknown token symbol: ${input}`);
   }
