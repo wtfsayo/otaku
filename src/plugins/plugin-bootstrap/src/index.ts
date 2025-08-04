@@ -74,7 +74,7 @@ IMPORTANT PROVIDER SELECTION RULES:
 - If the message asks about the environment or world context, include "WORLD" in your providers list
 - If no additional context is needed, you may leave the providers list empty.
 
-First, think about what you want to do next and plan your actions. Then, write the next message and include the actions you plan to take.
+Plan your actions based on the user's message. Your <text> must NOT include any information that is expected to come from an action — such as wallet balances, vault positions, token data, or market info. Only include what is already known. Do not guess, speculate, or reuse prior results.
 </instructions>
 
 <keys>
