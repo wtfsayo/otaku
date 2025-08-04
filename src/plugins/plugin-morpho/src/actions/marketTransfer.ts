@@ -353,11 +353,11 @@ export const marketTransferAction: Action = {
   examples: [
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Supply 1 USDC to WETH/USDC market" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Submitting your supply operation...",
           action: "MORPHO_MARKET_TRANSFER",
@@ -366,11 +366,11 @@ export const marketTransferAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Provide 0.1 WETH as collateral in WETH/USDC" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Submitting collateral supply...",
           action: "MORPHO_MARKET_TRANSFER",
@@ -379,11 +379,11 @@ export const marketTransferAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Borrow 100 USDC from WETH/USDC market" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Submitting your borrow request...",
           action: "MORPHO_MARKET_TRANSFER",
@@ -392,11 +392,11 @@ export const marketTransferAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Repay all my debt in WETH/USDC" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Submitting full debt repayment...",
           action: "MORPHO_MARKET_TRANSFER",
@@ -405,11 +405,11 @@ export const marketTransferAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Withdraw 0.5 USDC from WETH/USDC" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Submitting withdrawal...",
           action: "MORPHO_MARKET_TRANSFER",
@@ -418,11 +418,11 @@ export const marketTransferAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Remove 0.05 WETH collateral from WETH/USDC" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Submitting collateral withdrawal...",
           action: "MORPHO_MARKET_TRANSFER",
@@ -431,11 +431,11 @@ export const marketTransferAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Repay 50 USDC in WETH/USDC market" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Submitting partial repayment...",
           action: "MORPHO_MARKET_TRANSFER",
@@ -444,11 +444,11 @@ export const marketTransferAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Lend 2 USDC to earn yield in WETH/USDC" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Submitting your supply operation...",
           action: "MORPHO_MARKET_TRANSFER",

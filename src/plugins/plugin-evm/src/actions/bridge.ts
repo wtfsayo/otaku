@@ -718,7 +718,7 @@ export const bridgeAction = {
     const walletResult = await getEntityWallet(
       runtime,
       _message,
-      "DEPLOY_TOKEN",
+      "EVM_BRIDGE_TOKENS",
       callback
     );
     if (!walletResult.success) {
@@ -837,11 +837,16 @@ export const bridgeAction = {
   examples: [
     [
       {
-        name: "user",
-        user: "user",
+        name: "{{name1}}",
         content: {
-          text: "Bridge 1 ETH from Ethereum to Base with gas optimization",
-          action: "CROSS_CHAIN_TRANSFER",
+          text: "Bridge 1 ETH from Ethereum to Base",
+        },
+      },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "✅ Successfully bridged 1 ETH from Ethereum to Base\n\nTransaction Hash: 0xabc...def",
+          actions: ["EVM_BRIDGE_TOKENS"],
         },
       },
     ],

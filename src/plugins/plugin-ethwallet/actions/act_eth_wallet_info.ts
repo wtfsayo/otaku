@@ -201,10 +201,6 @@ export const ethWalletInfo: Action = {
         responseText += `**Explorer:** [View on Explorer](${explorerUrl})\n`;
       }
 
-      responseText += `\n💰 **Balance Details:**\n`;
-      responseText += `• Native Balance: ${balance.nativeBalanceFormatted} ${nativeSymbol}\n`;
-      responseText += `• Wei/Raw: ${balance.nativeBalance}\n`;
-
       if (balance.tokens && balance.tokens.length > 0) {
         responseText += `• Token Holdings: ${balance.tokens.length} different tokens found\n`;
 
@@ -281,13 +277,13 @@ export const ethWalletInfo: Action = {
   examples: [
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: {
           text: "Check wallet 0x742d35Cc6634C0532925a3b8D84CB6Cef29100f7",
         },
       },
       {
-        name: "{{user2}}",
+        name: "{{name2}}",
         content: {
           text: "I'll check that wallet information for you!",
           action: "ETH_WALLET_INFO",
@@ -296,13 +292,13 @@ export const ethWalletInfo: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: {
           text: "Show my wallet balance",
         },
       },
       {
-        name: "{{user2}}",
+        name: "{{name2}}",
         content: {
           text: "Let me show you your wallet information!",
           action: "ETH_WALLET_INFO",

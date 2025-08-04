@@ -149,11 +149,11 @@ export const marketInfoAction: Action = {
   examples: [
     [
       {
-        name: '{{user1}}',
+        name: '{{name1}}',
         content: { text: 'What are the current rates for wstETH / WETH on Morpho?' }
       },
       {
-        name: '{{agent}}',
+        name: '{{name2}}',
         content: {
           text: 'Here are the current wstETH / WETH market rates on Morpho...',
           action: 'GET_MORPHO_MARKET_INFO'
@@ -162,11 +162,11 @@ export const marketInfoAction: Action = {
     ],
     [
       {
-        name: '{{user1}}',
+        name: '{{name1}}',
         content: { text: 'Show me all market data' }
       },
       {
-        name: '{{agent}}',
+        name: '{{name2}}',
         content: {
           text: 'Here is the complete market overview...',
           action: 'GET_MORPHO_MARKET_INFO'
@@ -175,11 +175,11 @@ export const marketInfoAction: Action = {
     ],
     [
       {
-        name: '{{user1}}',
+        name: '{{name1}}',
         content: { text: 'Check this market: 0x3a4048c64ba1b375330d376b1ce40e4047d03b47ab4d48af484edec9fec801ba' }
       },
       {
-        name: '{{agent}}',
+        name: '{{name2}}',
         content: {
           text: 'Here’s the current data for the requested market...',
           action: 'GET_MORPHO_MARKET_INFO'

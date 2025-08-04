@@ -155,11 +155,11 @@ import {
     examples: [
       [
         {
-          name: '{{user1}}',
+          name: '{{name1}}',
           content: { text: 'Show vault data' }
         },
         {
-          name: '{{agent}}',
+          name: '{{name2}}',
           content: {
             text: 'Here is the complete vault overview...',
             action: 'GET_MORPHO_VAULT_INFO'
@@ -168,11 +168,11 @@ import {
       ],
       [
         {
-          name: '{{user1}}',
+          name: '{{name1}}',
           content: { text: 'Show data for Metronome msETH Vault' }
         },
         {
-          name: '{{agent}}',
+          name: '{{name2}}',
           content: {
             text: 'Here is the data for Metronome msETH Vault...',
             action: 'GET_MORPHO_VAULT_INFO'
@@ -181,11 +181,11 @@ import {
       ],
       [
         {
-          name: '{{user1}}',
+          name: '{{name1}}',
           content: { text: 'Check this vault: 0x43Cd00De63485618A5CEEBE0de364cD6cBeB26E7' }
         },
         {
-          name: '{{agent}}',
+          name: '{{name2}}',
           content: {
             text: 'Here’s the current data for the requested vault...',
             action: 'GET_MORPHO_VAULT_INFO'

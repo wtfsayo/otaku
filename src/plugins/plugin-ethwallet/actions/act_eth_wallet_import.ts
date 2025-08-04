@@ -211,13 +211,13 @@ export const ethWalletImport: Action = {
   examples: [
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: {
           text: "Import wallet with private key 0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
         },
       },
       {
-        name: "{{user2}}",
+        name: "{{name2}}",
         content: {
           text: "I'll import that Ethereum wallet for you right away!",
           action: "ETH_WALLET_IMPORT",
@@ -226,13 +226,13 @@ export const ethWalletImport: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: {
           text: "Restore my Base wallet using this key: 0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890",
         },
       },
       {
-        name: "{{user2}}",
+        name: "{{name2}}",
         content: {
           text: "Importing your Base wallet now!",
           action: "ETH_WALLET_IMPORT",

@@ -158,13 +158,13 @@ export const tokenInfoAction: Action = {
   examples: [
     [
       {
-        name: "User",
+        name: "{{name1}}",
         content: {
           text: "Get info for token 0x1234567890abcdef1234567890abcdef12345678",
         },
       },
       {
-        name: "Assistant",
+        name: "{{name2}}",
         content: {
           text: "📊 Token Information\n\nToken: Example Token (EXT)\nAddress: 0x1234...5678\nPrice: $0.50\nMarket Cap: $5,000,000\nLiquidity: $500,000\nHolders: 1,234\n24h Volume: $250,000",
           actions: ["TOKEN_INFO"],
@@ -173,13 +173,13 @@ export const tokenInfoAction: Action = {
     ],
     [
       {
-        name: "User",
+        name: "{{name1}}",
         content: {
           text: "What is the price and liquidity of 0xabcdef1234567890abcdef1234567890abcdef12?",
         },
       },
       {
-        name: "Assistant",
+        name: "{{name2}}",
         content: {
           text: "📊 Token Information\n\nToken: Based Token (BASE)\nAddress: 0xabcd...ef12\nPrice: $0.001\nMarket Cap: $100,000\nLiquidity: $50,000\nHolders: 500\n24h Volume: $10,000",
           actions: ["TOKEN_INFO"],
@@ -188,11 +188,11 @@ export const tokenInfoAction: Action = {
     ],
     [
       {
-        name: "User",
+        name: "{{name1}}",
         content: { text: "Give me info for PEPE and USDC" },
       },
       {
-        name: "Assistant",
+        name: "{{name2}}",
         content: {
           text: "📊 Token Information\n\nToken: PEPE...\nToken: USDC...",
           actions: ["TOKEN_INFO"],

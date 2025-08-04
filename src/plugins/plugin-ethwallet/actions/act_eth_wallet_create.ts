@@ -233,13 +233,13 @@ export const ethWalletCreate: Action = {
   examples: [
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: {
           text: "Create an Ethereum wallet for me",
         },
       },
       {
-        name: "{{user2}}",
+        name: "{{name2}}",
         content: {
           text: "I'll create a new Ethereum wallet for you right away!",
           action: "ETH_WALLET_CREATE",
@@ -248,13 +248,13 @@ export const ethWalletCreate: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: {
           text: "I need a Base chain wallet",
         },
       },
       {
-        name: "{{user2}}",
+        name: "{{name2}}",
         content: {
           text: "Creating a Base wallet for you now!",
           action: "ETH_WALLET_CREATE",
