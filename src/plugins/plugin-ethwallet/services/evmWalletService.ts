@@ -1,6 +1,11 @@
 import { IAgentRuntime, Service, logger } from "@elizaos/core";
 import { ethers } from "ethers";
-import { EVMWallet, WalletCreationResult, WalletBalance } from "../types";
+import {
+  EVMWallet,
+  WalletCreationResult,
+  WalletBalance,
+  TokenBalance,
+} from "../types";
 import { getChainConfig, SUPPORTED_EVM_CHAINS } from "../config/chains";
 
 export class EVMWalletService extends Service {
@@ -114,18 +119,137 @@ export class EVMWalletService extends Service {
       const balanceWei = await provider.getBalance(address);
       const balanceFormatted = ethers.formatEther(balanceWei);
 
+      // Fetch token balances using Alchemy approach (like clanker service)
+      const tokens = await this.getAllTokensInWallet(
+        address,
+        chainConfig.rpcUrl
+      );
+
       return {
         address,
         chain: chainName,
         nativeBalance: balanceWei.toString(),
         nativeBalanceFormatted: balanceFormatted,
-        tokens: [], // TODO: Implement token balance fetching
+        tokens,
       };
     } catch (error) {
       logger.error(
         `Error getting balance for ${address} on ${chainName}:`,
         error
       );
+      return null;
+    }
+  }
+
+  /**
+   * Get ALL tokens in wallet using Alchemy API (copied from clanker service)
+   */
+  async getAllTokensInWallet(
+    walletAddress: string,
+    rpcUrl: string
+  ): Promise<TokenBalance[]> {
+    try {
+      // Check if this is an Alchemy endpoint
+      if (!rpcUrl.includes("alchemy.com")) {
+        logger.debug("Not an Alchemy endpoint, skipping token balance fetch");
+        return [];
+      }
+
+      // Step 1: Fetch token balances via Alchemy
+      const response = await fetch(rpcUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "alchemy_getTokenBalances",
+          params: [walletAddress],
+        }),
+      });
+
+      const json = (await response.json()) as any;
+      const balances = json?.result?.tokenBalances || [];
+
+      if (!Array.isArray(balances)) {
+        logger.debug("Unexpected response format from Alchemy");
+        return [];
+      }
+
+      const tokenBalances: TokenBalance[] = [];
+
+      // Step 2: Loop and enrich token info (only non-zero balances)
+      for (const { contractAddress, tokenBalance } of balances) {
+        try {
+          // Only process tokens with non-zero balance
+          if (BigInt(tokenBalance) > 0n) {
+            const tokenInfo = await this.getTokenInfo(contractAddress, rpcUrl);
+            if (tokenInfo) {
+              const balanceFormatted = ethers.formatUnits(
+                tokenBalance,
+                tokenInfo.decimals
+              );
+
+              tokenBalances.push({
+                contractAddress,
+                symbol: tokenInfo.symbol,
+                name: tokenInfo.name,
+                balance: tokenBalance,
+                balanceFormatted,
+                decimals: tokenInfo.decimals,
+              });
+            }
+          }
+        } catch (err) {
+          logger.debug(`⚠️ Skipping token ${contractAddress}:`, err);
+        }
+      }
+
+      logger.info(
+        `✅ Found ${tokenBalances.length} tokens with non-zero balance`
+      );
+      return tokenBalances;
+    } catch (error) {
+      logger.debug("Failed to fetch wallet tokens from Alchemy:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get token info for a specific contract address
+   */
+  async getTokenInfo(
+    address: string,
+    rpcUrl: string
+  ): Promise<{
+    symbol: string;
+    name: string;
+    decimals: number;
+  } | null> {
+    try {
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+
+      // Query token contract directly
+      const tokenAbi = [
+        "function name() view returns (string)",
+        "function symbol() view returns (string)",
+        "function decimals() view returns (uint8)",
+      ];
+
+      const token = new ethers.Contract(address, tokenAbi, provider);
+
+      const [name, symbol, decimals] = await Promise.all([
+        token.name(),
+        token.symbol(),
+        token.decimals(),
+      ]);
+
+      return {
+        name,
+        symbol,
+        decimals,
+      };
+    } catch (error) {
+      logger.debug("Failed to get token info:", error);
       return null;
     }
   }

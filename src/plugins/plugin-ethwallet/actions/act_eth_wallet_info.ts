@@ -202,20 +202,15 @@ export const ethWalletInfo: Action = {
       }
 
       if (balance.tokens && balance.tokens.length > 0) {
-        responseText += `• Token Holdings: ${balance.tokens.length} different tokens found\n`;
+        responseText += `\n🪙 **Token Holdings (${balance.tokens.length} ${balance.tokens.length === 1 ? "token" : "tokens"}):**\n`;
 
-        // Show top 5 tokens if available
-        const topTokens = balance.tokens.slice(0, 5);
-        responseText += `\n🪙 **Top Token Holdings:**\n`;
-        topTokens.forEach((token: any) => {
-          const tokenBalance = token.balance || "0";
+        balance.tokens.forEach((token: any) => {
+          const formattedBalance = token.balanceFormatted || "0";
           const tokenSymbol = token.symbol || "Unknown";
-          responseText += `• ${tokenBalance} ${tokenSymbol}\n`;
+          responseText += `• ${formattedBalance} ${tokenSymbol}\n`;
         });
-
-        if (balance.tokens.length > 5) {
-          responseText += `• ... and ${balance.tokens.length - 5} more tokens\n`;
-        }
+      } else {
+        responseText += `\n💰 **Token Holdings:** No tokens with balance found\n`;
       }
 
       callback?.({
