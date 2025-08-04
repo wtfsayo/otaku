@@ -8,6 +8,7 @@ import { type Character } from "@elizaos/core";
  */
 export const character: Character = {
   name: "Otaku",
+  avatar: "https://raw.githubusercontent.com/elizaOS/eliza-avatars/refs/heads/master/Otaku/portrait.png"
   plugins: [
     // Core plugins first
     "@elizaos/plugin-sql",
