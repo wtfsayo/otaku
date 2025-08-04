@@ -31,7 +31,20 @@ export const walletStatusProvider: Provider = {
             walletExists: true,
             requiresWalletCreation: false,
           },
-          text: `User has wallet: ${entity.metadata.wallet.address}`,
+          text: `✅ WALLET DETECTED
+
+This user has an active wallet associated with their account.
+
+WALLET ADDRESS: ${entity.metadata.wallet.address}
+
+You MAY proceed with blockchain actions (e.g., token deployment, swaps, transfers) using this wallet.
+
+AGENT PERMISSIONS:
+- ✅ You can use tools and take actions involving blockchain features.
+- ✅ This wallet address should be used for all user-specific blockchain operations.
+- ✅ Assume the wallet has been securely created and is ready for use.
+
+No wallet creation is required. Proceed as normal.`,
         };
       }
 
