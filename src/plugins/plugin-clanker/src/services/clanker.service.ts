@@ -152,16 +152,11 @@ export class ClankerService extends Service {
       // Add pool configuration if provided, otherwise use standard positions
       if (params.pool) {
         tokenConfig.pool = params.pool;
-      } else {
-        // Use standard meme coin positions by default
-        tokenConfig.positions = POOL_POSITIONS.Standard;
       }
 
       // Add fee configuration if provided, otherwise use dynamic basic
       if (params.fees) {
         tokenConfig.fees = params.fees;
-      } else {
-        tokenConfig.fees = FEE_CONFIGS.DynamicBasic;
       }
 
       // Add rewards configuration if provided
@@ -183,8 +178,8 @@ export class ClankerService extends Service {
 
       // Deploy the token using Clanker SDK
       const deployResult = await retryTransaction(async () => {
-        logger.info(
-          "Deploying token with config:",
+        console.log(
+          "####################################### Deploying token with config:",
           JSON.stringify(tokenConfig, null, 2),
         );
 
