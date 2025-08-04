@@ -146,19 +146,22 @@ export const tokenDeployAction: Action = {
       const deployParams = validation.data;
 
       // Deploy token
-      const result = await clankerService.deployToken({
-        name: deployParams.name,
-        symbol: deployParams.symbol,
-        vanity: deployParams.vanity,
-        image: deployParams.image,
-        metadata: deployParams.metadata,
-        context: deployParams.context,
-        pool: deployParams.pool,
-        fees: deployParams.fees,
-        rewards: deployParams.rewards,
-        vault: deployParams.vault,
-        devBuy: deployParams.devBuy,
-      }, walletPrivateKey);
+      const result = await clankerService.deployToken(
+        {
+          name: deployParams.name,
+          symbol: deployParams.symbol,
+          vanity: deployParams.vanity,
+          image: deployParams.image,
+          metadata: deployParams.metadata,
+          context: deployParams.context,
+          pool: deployParams.pool,
+          fees: deployParams.fees,
+          rewards: deployParams.rewards,
+          vault: deployParams.vault,
+          devBuy: deployParams.devBuy,
+        },
+        walletPrivateKey
+      );
 
       // Prepare response
       const responseText =
