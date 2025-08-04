@@ -40,12 +40,6 @@ export const character: Character = {
     ...(process.env.TELEGRAM_BOT_TOKEN?.trim()
       ? ["@elizaos/plugin-telegram"]
       : []),
-
-    // Bootstrap plugin
-    ...(!process.env.IGNORE_BOOTSTRAP ? ["@elizaos/plugin-bootstrap"] : []),
-
-    // Ollama as universal fallback (always included for local AI capabilities)
-    // "@elizaos/plugin-ollama",
   ],
   settings: {
     secrets: {},
