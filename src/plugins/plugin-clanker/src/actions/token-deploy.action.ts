@@ -15,6 +15,31 @@ import { shortenAddress } from "../utils/format";
 import { handleError } from "../utils/errors";
 import { getEntityWallet } from "../../../../utils/entity";
 
+// Utility function to safely serialize objects with BigInt values
+function safeStringify(obj: any): any {
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+
+  if (typeof obj === "bigint") {
+    return obj.toString();
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map(safeStringify);
+  }
+
+  if (typeof obj === "object") {
+    const result: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      result[key] = safeStringify(value);
+    }
+    return result;
+  }
+
+  return obj;
+}
+
 export function getTokenDeployXmlPrompt(userMessage: string): string {
   return `<task>Extract structured token deployment parameters from the user's message.</task>
 
@@ -60,12 +85,12 @@ export const tokenDeployAction: Action = {
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
-    _state: State | undefined
+    _state: State | undefined,
   ): Promise<boolean> => {
     try {
       // Check if services are available
       const clankerService = runtime.getService(
-        ClankerService.serviceType
+        ClankerService.serviceType,
       ) as ClankerService;
 
       if (!clankerService) {
@@ -85,7 +110,7 @@ export const tokenDeployAction: Action = {
         "token",
       ];
       const hasDeploymentIntent = deploymentKeywords.some((keyword) =>
-        text.includes(keyword)
+        text.includes(keyword),
       );
 
       return hasDeploymentIntent;
@@ -101,7 +126,7 @@ export const tokenDeployAction: Action = {
     _state: State | undefined,
     _options: any,
     callback?: HandlerCallback,
-    _responses?: Memory[]
+    _responses?: Memory[],
   ): Promise<ActionResult> => {
     try {
       logger.info("Handling DEPLOY_TOKEN action");
@@ -111,7 +136,7 @@ export const tokenDeployAction: Action = {
         runtime,
         message,
         "DEPLOY_TOKEN",
-        callback
+        callback,
       );
       if (!walletResult.success) {
         return walletResult.result;
@@ -120,7 +145,7 @@ export const tokenDeployAction: Action = {
 
       // Get services
       const clankerService = runtime.getService(
-        ClankerService.serviceType
+        ClankerService.serviceType,
       ) as ClankerService;
 
       if (!clankerService) {
@@ -131,7 +156,23 @@ export const tokenDeployAction: Action = {
       const text = message.content.text || "";
       const prompt = getTokenDeployXmlPrompt(text);
       const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+
+      logger.info("Model response for token deployment:", { response });
+
       const parsed = parseKeyValueXml(response);
+
+      if (!parsed) {
+        logger.error(
+          "Failed to parse token deployment parameters from message.",
+          { parsed, response, text },
+        );
+        throw new Error(
+          "Failed to parse token deployment parameters from message. Please provide token name and symbol clearly.",
+        );
+      }
+
+      logger.info("Parsed token deployment parameters:", safeStringify(parsed));
+
       const params = mapXmlDeployFields(parsed);
 
       // Validate parameters
@@ -160,6 +201,7 @@ export const tokenDeployAction: Action = {
           vault: deployParams.vault,
           devBuy: deployParams.devBuy,
         },
+
         walletPrivateKey
       );
 
@@ -188,13 +230,14 @@ export const tokenDeployAction: Action = {
           tokenDeployed: true,
           contractAddress: result.contractAddress,
         },
-        data: {
+        data: safeStringify({
           actionName: "DEPLOY_TOKEN",
           contractAddress: result.contractAddress,
           transactionHash: result.transactionHash,
           tokenId: result.tokenId,
-          deploymentCost: result.deploymentCost.toString(),
-        },
+          deploymentCost: result.deploymentCost,
+          result: result,
+        }),
       };
     } catch (error) {
       logger.error("Error in DEPLOY_TOKEN action:", error);
@@ -216,10 +259,11 @@ export const tokenDeployAction: Action = {
           error: true,
           errorMessage: errorResponse.message,
         },
-        data: {
+        data: safeStringify({
           actionName: "DEPLOY_TOKEN",
           error: error instanceof Error ? error.message : String(error),
-        },
+          errorStack: error instanceof Error ? error.stack : undefined,
+        }),
         error: error instanceof Error ? error : new Error(String(error)),
       };
     }
@@ -260,28 +304,24 @@ export const tokenDeployAction: Action = {
 };
 
 function mapXmlDeployFields(parsed: any): any {
+  if (!parsed) {
+    throw new Error("Parsed data is null or undefined");
+  }
+
   const rawUrls: string[] = [];
 
-  if (parsed.socialMediaUrls?.url) {
+  if (parsed?.socialMediaUrls?.url) {
     if (Array.isArray(parsed.socialMediaUrls.url)) {
       rawUrls.push(...parsed.socialMediaUrls.url);
     } else if (typeof parsed.socialMediaUrls.url === "string") {
       rawUrls.push(parsed.socialMediaUrls.url);
     }
-  } else if (typeof parsed.url === "string") {
-    rawUrls.push(parsed.url); // fallback support
+  } else if (typeof parsed?.url === "string") {
+    rawUrls.push(parsed?.url); // fallback support
   }
 
-  const socialMediaUrls = rawUrls.map((url: string) => {
-    const lower = url.toLowerCase();
-    if (lower.includes("twitter.com")) return { platform: "x", url };
-    if (lower.includes("t.me") || lower.includes("telegram"))
-      return { platform: "telegram", url };
-    if (lower.includes("discord.gg") || lower.includes("discord.com"))
-      return { platform: "discord", url };
-    if (lower.includes("github.com")) return { platform: "github", url };
-    return { platform: "website", url };
-  });
+  // According to Clanker SDK v4.0.0, socialMediaUrls should be an array of strings
+  const socialMediaUrls = rawUrls;
 
   return {
     name: parsed.name,
@@ -291,6 +331,7 @@ function mapXmlDeployFields(parsed: any): any {
     metadata: {
       description: parsed.description || undefined,
       socialMediaUrls: socialMediaUrls.length > 0 ? socialMediaUrls : undefined,
+      auditUrls: [], // Add empty auditUrls array as per v4.0.0 API
     },
     devBuy: parsed.devBuy
       ? { ethAmount: parseFloat(parsed.devBuy) }
