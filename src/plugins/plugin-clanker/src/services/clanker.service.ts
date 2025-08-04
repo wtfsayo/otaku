@@ -178,8 +178,8 @@ export class ClankerService extends Service {
 
       // Deploy the token using Clanker SDK
       const deployResult = await retryTransaction(async () => {
-        console.log(
-          "####################################### Deploying token with config:",
+        logger.info(
+          "Deploying token with config:",
           JSON.stringify(tokenConfig, null, 2),
         );
 
