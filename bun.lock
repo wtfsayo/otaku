@@ -9,7 +9,7 @@
         "@elizaos/plugin-anthropic": "1.0.4",
         "@elizaos/plugin-bootstrap": "latest",
         "@elizaos/plugin-coinmarketcap": "1.0.1",
-        "@elizaos/plugin-defillama": "^1.3.3",
+        "@elizaos/plugin-defillama": "^1.3.5",
         "@elizaos/plugin-google-genai": "^1.0.1",
         "@elizaos/plugin-ollama": "^1.2.1",
         "@elizaos/plugin-openai": "1.0.8",
@@ -89,7 +89,7 @@
 
     "@elizaos/plugin-coinmarketcap": ["@elizaos/plugin-coinmarketcap@1.0.1", "", { "dependencies": { "@elizaos/core": "latest", "axios": "^1.6.7", "zod": "^3.22.4" } }, "sha512-i/+hFnTeusd/eIUWOhvcXnZULJSzUFXujuwC608YHQ8PtPa7ec60jXNnhAmr+5jQh7Dgf2krGKmglbjES3EDDQ=="],
 
-    "@elizaos/plugin-defillama": ["@elizaos/plugin-defillama@1.3.3", "", { "dependencies": { "@elizaos/core": "^1.3.1", "zod": "3.24.2" } }, "sha512-GktiEBg0OZ9btPo0e6oX9DYrGP3yiRpmi+EUSwFLdKqKDh7sdt2Ly0sNJYCJ6d2Ip+axbWN7jky85iL7w3/FiQ=="],
+    "@elizaos/plugin-defillama": ["@elizaos/plugin-defillama@1.3.5", "", { "dependencies": { "@elizaos/core": "^1.3.1", "zod": "3.24.2" } }, "sha512-x6eyB0v4bppEmKciBZ1yWMjmcVykpEqaflwpb5lMjONZlG8T6+xX6/dZz6hpRLPYOuaViWQkfQQp9petSVORLw=="],
 
     "@elizaos/plugin-google-genai": ["@elizaos/plugin-google-genai@1.0.2", "", { "dependencies": { "@elizaos/core": "^1.0.0", "@google/genai": "^1.5.1", "undici": "^7.9.0" } }, "sha512-xAi4vRfpXAa8M7C6kLXkANYVhpB8g7sbW2kLKd0NTxTBRYeJi4Y5LcgpUZw4HkBdFJ9r/tr4yfKkqXlqiKL9AA=="],
 
