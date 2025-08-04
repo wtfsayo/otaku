@@ -245,11 +245,11 @@ export const vaultTransferAction: Action = {
   examples: [
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Deposit 1 USDC into Spark USDC Vault" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Submitting your deposit...",
           action: "MORPHO_VAULT_TRANSFER",
@@ -258,11 +258,11 @@ export const vaultTransferAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Withdraw 1 from Spark USDC Vault" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Submitting your withdrawal...",
           action: "MORPHO_VAULT_TRANSFER",
@@ -271,13 +271,13 @@ export const vaultTransferAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: {
           text: "Deposit into 0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A amount 2",
         },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Submitting your deposit...",
           action: "MORPHO_VAULT_TRANSFER",

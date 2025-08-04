@@ -129,13 +129,13 @@ export const ethWalletList: Action = {
   examples: [
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: {
           text: "List my ETH wallets",
         },
       },
       {
-        name: "{{user2}}",
+        name: "{{name2}}",
         content: {
           text: "Here are your wallet options and supported chains!",
           action: "ETH_WALLET_LIST",
@@ -144,13 +144,13 @@ export const ethWalletList: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: {
           text: "Show wallet information",
         },
       },
       {
-        name: "{{user2}}",
+        name: "{{name2}}",
         content: {
           text: "I'll show you the available wallet information!",
           action: "ETH_WALLET_LIST",

@@ -178,11 +178,11 @@ export const vaultPositionsAction: Action = {
   examples: [
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Show my vaults" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Here are your vault balances and APYs...",
           action: "GET_MORPHO_VAULT_POSITIONS",
@@ -191,11 +191,11 @@ export const vaultPositionsAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Vault positions only" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Here are your vault positions...",
           action: "GET_MORPHO_VAULT_POSITIONS",
@@ -204,11 +204,11 @@ export const vaultPositionsAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "What’s my balance in the Spark USDC Vault?" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Here is your Spark USDC Vault token balance and APYs...",
           action: "GET_MORPHO_VAULT_POSITIONS",
@@ -217,13 +217,13 @@ export const vaultPositionsAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: {
           text: "Show the vault at 0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A",
         },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Here is your position in that vault...",
           action: "GET_MORPHO_VAULT_POSITIONS",

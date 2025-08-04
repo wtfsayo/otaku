@@ -202,11 +202,11 @@ export const marketPositionsAction: Action = {
   examples: [
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Show me my market positions" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Here are your open market positions...",
           action: "GET_MORPHO_MARKET_POSITIONS",
@@ -215,11 +215,11 @@ export const marketPositionsAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: { text: "Do I have a position on wstETH / WETH?" },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Here is your position on wstETH / WETH...",
           action: "GET_MORPHO_MARKET_POSITIONS",
@@ -228,13 +228,13 @@ export const marketPositionsAction: Action = {
     ],
     [
       {
-        name: "{{user1}}",
+        name: "{{name1}}",
         content: {
           text: "Check my market position on 0x3a4048c64ba1b375330d376b1ce40e4047d03b47ab4d48af484edec9fec801ba",
         },
       },
       {
-        name: "{{agent}}",
+        name: "{{name2}}",
         content: {
           text: "Here’s your position for the requested market...",
           action: "GET_MORPHO_MARKET_POSITIONS",

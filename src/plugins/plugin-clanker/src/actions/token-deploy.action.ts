@@ -272,13 +272,13 @@ export const tokenDeployAction: Action = {
   examples: [
     [
       {
-        name: "User",
+        name: "{{name1}}",
         content: {
           text: 'Deploy a new token called "Based Token" with symbol BASE and 1 million supply',
         },
       },
       {
-        name: "Assistant",
+        name: "{{name2}}",
         content: {
           text: "✅ Token deployed successfully!\n\nToken: Based Token (BASE)\nContract: 0x1234...5678\nTotal Supply: 1,000,000,000 BASE (1B tokens)\nTransaction: 0xabcd...ef01\nView on Clanker World: https://clanker.world/clanker/0x1234...5678",
           actions: ["DEPLOY_TOKEN"],
@@ -287,13 +287,13 @@ export const tokenDeployAction: Action = {
     ],
     [
       {
-        name: "User",
+        name: "{{name1}}",
         content: {
           text: "Create a memecoin called PEPE with 69 billion tokens",
         },
       },
       {
-        name: "Assistant",
+        name: "{{name2}}",
         content: {
           text: "✅ Token deployed successfully!\n\nToken: PEPE (PEPE)\nContract: 0x5678...1234\nTotal Supply: 1,000,000,000 PEPE (1B tokens)\nTransaction: 0xef01...abcd\nView on Clanker World: https://clanker.world/clanker/0x5678...1234",
           actions: ["DEPLOY_TOKEN"],

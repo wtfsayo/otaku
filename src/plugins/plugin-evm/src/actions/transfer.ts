@@ -242,7 +242,7 @@ export const transferAction: Action = {
     const walletResult = await getEntityWallet(
       runtime,
       message,
-      "DEPLOY_TOKEN",
+      "EVM_TRANSFER_TOKENS",
       callback
     );
     if (!walletResult.success) {
@@ -344,21 +344,36 @@ export const transferAction: Action = {
   examples: [
     [
       {
-        name: "assistant",
+        name: "{{name1}}",
         content: {
-          text: "I'll help you transfer 1 ETH to 0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
-          action: "EVM_TRANSFER_TOKENS",
+          text: "Transfer 1 ETH to 0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
         },
       },
       {
-        name: "user",
+        name: "{{name2}}",
         content: {
-          text: "Transfer 1 ETH to 0x742d35Cc6634C0532925a3b844Bc454e4438f44e",
-          action: "EVM_TRANSFER_TOKENS",
+          text: "✅ Successfully transferred 1 ETH to 0x742d35Cc6634C0532925a3b844Bc454e4438f44e\nTransaction Hash: 0xabc...1234",
+          actions: ["EVM_TRANSFER_TOKENS"],
+        },
+      },
+    ],
+    [
+      {
+        name: "{{name1}}",
+        content: {
+          text: "Send 100 USDC to 0x5aAeb6053F3E94C9b9a09f33669435E7Ef1BeAed on Polygon",
+        },
+      },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "✅ Successfully transferred 100 USDC to 0x5aAeb6053F3E94C9b9a09f33669435E7Ef1BeAed\nTransaction Hash: 0xdef...5678",
+          actions: ["EVM_TRANSFER_TOKENS"],
         },
       },
     ],
   ],
+  
   similes: [
     "EVM_TRANSFER",
     "EVM_SEND_TOKENS",

@@ -801,7 +801,7 @@ export const swapAction = {
     const walletResult = await getEntityWallet(
       runtime,
       _message,
-      "DEPLOY_TOKEN",
+      "EVM_SWAP_TOKENS",
       callback
     );
     if (!walletResult.success) {
@@ -933,14 +933,35 @@ export const swapAction = {
   examples: [
     [
       {
-        name: "user",
-        user: "user",
+        name: "{{name1}}",
         content: {
           text: "Swap 1 WETH for USDC on Arbitrum",
-          action: "TOKEN_SWAP",
+        },
+      },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "✅ Successfully swapped 1 WETH for USDC on arbitrum\nTransaction Hash: 0xabc...def",
+          actions: ["EVM_SWAP_TOKENS"],
+        },
+      },
+    ],
+    [
+      {
+        name: "{{name1}}",
+        content: {
+          text: "Convert 50% of my ETH to DAI on Base",
+        },
+      },
+      {
+        name: "{{name2}}",
+        content: {
+          text: "✅ Successfully swapped 0.5 ETH for DAI on base\nTransaction Hash: 0xdef...123",
+          actions: ["EVM_SWAP_TOKENS"],
         },
       },
     ],
   ],
+  
   similes: ["TOKEN_SWAP", "EXCHANGE_TOKENS", "TRADE_TOKENS"],
 };
