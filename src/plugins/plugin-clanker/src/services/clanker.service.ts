@@ -15,14 +15,11 @@ import {
   TokenInfo,
   ClankerConfig,
   ErrorCode,
-  POOL_POSITIONS,
-  FEE_CONFIGS,
+  NATIVE_TOKEN_ADDRESSES
 } from "../types";
 import { ClankerError } from "../utils/errors";
 import { retryTransaction } from "../utils/transactions";
 import { loadClankerConfig } from "../utils/config";
-
-const NATIVE_TOKEN_ADDRESSES = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
 
 const BASE_KNOWN_TOKENS: Record<string, string> = {
   'eth': NATIVE_TOKEN_ADDRESSES,
