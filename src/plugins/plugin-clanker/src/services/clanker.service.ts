@@ -22,6 +22,17 @@ import { ClankerError } from "../utils/errors";
 import { retryTransaction } from "../utils/transactions";
 import { loadClankerConfig } from "../utils/config";
 
+const NATIVE_TOKEN_ADDRESSES = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE';
+
+const BASE_KNOWN_TOKENS: Record<string, string> = {
+  'eth': NATIVE_TOKEN_ADDRESSES,
+  'ethereum': NATIVE_TOKEN_ADDRESSES,
+  'native': NATIVE_TOKEN_ADDRESSES,
+  'weth': '0x4200000000000000000000000000000000000006',
+  'usdc': '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+  'usdt': '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2',
+} as const;
+
 export class ClankerService extends Service {
   static serviceType = "clanker";
   capabilityDescription = "";
@@ -293,6 +304,10 @@ export class ClankerService extends Service {
       return cached;
     }
 
+    if (address === NATIVE_TOKEN_ADDRESSES) {
+      return await this.getNativeEthInfo();
+    }
+
     try {
       // Query token contract directly
       const tokenAbi = [
@@ -347,6 +362,37 @@ export class ClankerService extends Service {
       );
     }
   }
+
+  async getNativeEthInfo(): Promise<TokenInfo> {
+    try {
+      const response = await fetch(
+        "https://api.coingecko.com/api/v3/coins/ethereum"
+      );
+      const data = await response.json() as any;
+  
+      return {
+        address: NATIVE_TOKEN_ADDRESSES,
+        name: data.name,
+        symbol: data.symbol.toUpperCase(),
+        decimals: 18,
+        totalSupply: BigInt(0), // Not available
+        price: data.market_data.current_price.usd,
+        priceUsd: data.market_data.current_price.usd,
+        liquidity: 0, // Not applicable for native
+        volume24h: data.market_data.total_volume.usd,
+        marketCap: data.market_data.market_cap.usd,
+        createdAt: Date.now(),
+      };
+    } catch (error) {
+      logger.error("Failed to fetch ETH info from Coingecko:", error);
+      throw new ClankerError(
+        ErrorCode.NETWORK_ERROR,
+        "Failed to fetch ETH metadata",
+        error,
+      );
+    }
+  }
+  
 
   async getAllTokensInWallet(walletAddress: string): Promise<TokenInfo[]> {
     // ⚠️ This function is only supported if using Alchemy.
@@ -413,14 +459,8 @@ export class ClankerService extends Service {
     const query = symbolOrName.toLowerCase();
 
     // 1. Check known tokens
-    const knownTokens: Record<string, string> = {
-      eth: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
-      weth: "0x4200000000000000000000000000000000000006",
-      usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-    };
-
-    if (knownTokens[query]) {
-      return knownTokens[query];
+    if (BASE_KNOWN_TOKENS[query]) {
+      return BASE_KNOWN_TOKENS[query];
     }
 
     // 2. Check cache

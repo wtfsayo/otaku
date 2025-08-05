@@ -7,12 +7,17 @@ import {
   HandlerCallback,
   ActionResult,
   ModelType,
-  parseKeyValueXml
-} from '@elizaos/core';
-import { MorphoService } from '../services';
-import { MorphoMarketData } from '../types';
-import { fmtPct, shortHex, fmtUSD } from './utils';
-
+  parseKeyValueXml,
+} from "@elizaos/core";
+import { MorphoService } from "../services";
+import { MorphoMarketData } from "../types";
+import {
+  fmtPct,
+  shortHex,
+  fmtUSD,
+  formatDataList,
+  formatItemDetails,
+} from "./utils";
 
 /* =========================
  * Prompt helper
@@ -42,13 +47,22 @@ Rules:
  * Action: GET_MORPHO_MARKET_INFO
  * ========================= */
 export const marketInfoAction: Action = {
-  name: 'GET_MORPHO_MARKET_INFO',
-  similes: ['MARKET_INFO', 'MARKET_DATA', 'RATES', 'MORPHO_RATES', 'CHECK_RATES'],
-  description: 'Get current market data, rates, and stats for Morpho markets (no positions)',
+  name: "GET_MORPHO_MARKET_INFO",
+  similes: [
+    "MARKET_INFO",
+    "MARKET_DATA",
+    "RATES",
+    "MORPHO_RATES",
+    "CHECK_RATES",
+  ],
+  description:
+    "Get current market data, rates, and stats for Morpho markets (no positions)",
   validate: async (runtime: IAgentRuntime) => {
-    const morphoService = runtime.getService(MorphoService.serviceType) as MorphoService;
+    const morphoService = runtime.getService(
+      MorphoService.serviceType
+    ) as MorphoService;
     if (!morphoService) {
-      logger.error('Required services not available');
+      logger.error("Required services not available");
       return false;
     }
     return true;
@@ -60,27 +74,35 @@ export const marketInfoAction: Action = {
     options?: any,
     callback?: HandlerCallback
   ): Promise<ActionResult> => {
-    logger.info('Starting Morpho market info action');
+    logger.info("Starting Morpho market info action");
 
     try {
-      const userText = message.content.text || '';
+      const userText = message.content.text || "";
       const prompt = getMarketXmlPrompt(userText);
-      const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+      const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+        prompt,
+      });
       const parsed = parseKeyValueXml(xmlResponse);
       const params = { market: parsed?.market || undefined };
 
-      const service = runtime.getService(MorphoService.serviceType) as MorphoService;
+      const service = runtime.getService(
+        MorphoService.serviceType
+      ) as MorphoService;
       const markets = await service.getMarketData(params.market);
 
       if (!markets.length) {
-        const errorText = `❌ No market data${params.market ? ` for ${params.market}` : ''} found.`;
-        const data = { actionName: 'GET_MORPHO_MARKET_INFO', params, markets: [] };
+        const errorText = `❌ No market data${params.market ? ` for ${params.market}` : ""} found.`;
+        const data = {
+          actionName: "GET_MORPHO_MARKET_INFO",
+          params,
+          markets: [],
+        };
         if (callback) {
           await callback({
             text: errorText,
-            actions: ['GET_MORPHO_MARKET_INFO'],
+            actions: ["GET_MORPHO_MARKET_INFO"],
             source: message.content.source,
-            data
+            data,
           });
         }
         return {
@@ -90,23 +112,23 @@ export const marketInfoAction: Action = {
           values: {
             marketsFetched: false,
             marketsCount: 0,
-            requestedMarket: params.market ?? null
-          }
+            requestedMarket: params.market ?? null,
+          },
         };
       }
 
       const text = params.market
-        ? markets.map(m => formatDetailedMarketView(m, service)).join('\n\n')
-        : formatMarketsTable(markets);
+        ? markets.map((m) => formatDetailedMarketView(m, service)).join("\n\n")
+        : formatMarketsList(markets);
 
-      const data = { actionName: 'GET_MORPHO_MARKET_INFO', params, markets };
+      const data = { actionName: "GET_MORPHO_MARKET_INFO", params, markets };
 
       if (callback) {
         await callback({
           text,
-          actions: ['GET_MORPHO_MARKET_INFO'],
+          actions: ["GET_MORPHO_MARKET_INFO"],
           source: message.content.source,
-          data
+          data,
         });
       }
 
@@ -117,20 +139,20 @@ export const marketInfoAction: Action = {
         values: {
           marketsFetched: true,
           marketsCount: markets.length,
-          requestedMarket: params.market ?? null
-        }
+          requestedMarket: params.market ?? null,
+        },
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       const text = `❌ Failed to get market info: ${msg}`;
-      const data = { actionName: 'GET_MORPHO_MARKET_INFO', error: msg };
+      const data = { actionName: "GET_MORPHO_MARKET_INFO", error: msg };
 
       if (callback) {
         await callback({
           text,
-          actions: ['GET_MORPHO_MARKET_INFO'],
+          actions: ["GET_MORPHO_MARKET_INFO"],
           source: message.content.source,
-          data
+          data,
         });
       }
 
@@ -141,103 +163,109 @@ export const marketInfoAction: Action = {
         data,
         values: {
           error: true,
-          marketsFetched: false
-        }
+          marketsFetched: false,
+        },
       };
     }
   },
   examples: [
     [
       {
-        name: '{{name1}}',
-        content: { text: 'What are the current rates for wstETH / WETH on Morpho?' }
+        name: "{{name1}}",
+        content: {
+          text: "What are the current rates for wstETH / WETH on Morpho?",
+        },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'Here are the current wstETH / WETH market rates on Morpho...',
-          action: 'GET_MORPHO_MARKET_INFO'
-        }
-      }
+          text: "Here are the current wstETH / WETH market rates on Morpho...",
+          action: "GET_MORPHO_MARKET_INFO",
+        },
+      },
     ],
     [
       {
-        name: '{{name1}}',
-        content: { text: 'Show me all market data' }
+        name: "{{name1}}",
+        content: { text: "Show me all market data" },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'Here is the complete market overview...',
-          action: 'GET_MORPHO_MARKET_INFO'
-        }
-      }
+          text: "Here is the complete market overview...",
+          action: "GET_MORPHO_MARKET_INFO",
+        },
+      },
     ],
     [
       {
-        name: '{{name1}}',
-        content: { text: 'Check this market: 0x3a4048c64ba1b375330d376b1ce40e4047d03b47ab4d48af484edec9fec801ba' }
+        name: "{{name1}}",
+        content: {
+          text: "Check this market: 0x3a4048c64ba1b375330d376b1ce40e4047d03b47ab4d48af484edec9fec801ba",
+        },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'Here’s the current data for the requested market...',
-          action: 'GET_MORPHO_MARKET_INFO'
-        }
-      }
-    ]
-  ]
+          text: "Here’s the current data for the requested market...",
+          action: "GET_MORPHO_MARKET_INFO",
+        },
+      },
+    ],
+  ],
 };
 
 /* =========================
  * Formatting helpers (local)
  * ========================= */
-function formatDetailedMarketView(market: MorphoMarketData, service: MorphoService): string {
+function formatDetailedMarketView(
+  market: MorphoMarketData,
+  service: MorphoService
+): string {
   const chain = service.getChainSlug();
-  const link = market.marketId ? `https://app.morpho.org/${chain}/market/${market.marketId}/` : '';
+  const link = market.marketId
+    ? `https://app.morpho.org/${chain}/market/${market.marketId}/`
+    : "";
 
-  return [
-    `### ${market.name} — Market`,
-    ``,
-    `**Rates**  ·  Supply **${fmtPct(market.supplyRate)}**  ·  Borrow **${fmtPct(market.borrowRate)}**`,
-    `**Stats**  ·  Supplied **${fmtUSD(market.totalSupply)}**  ·  Borrowed **${fmtUSD(market.totalBorrow)}**  ·  Liquidity **${fmtUSD(market.liquidity)}**  ·  Util **${fmtPct(market.utilizationRate*100,1)}**`,
-    `**Risk**   ·  LLTV **${fmtPct(market.lltv,1)}**  ·  Penalty **${fmtPct(market.liquidationPenalty,2)}**`,
-    link ? `🔗 **Open in Morpho:** ${link}` : ''
-  ].filter(Boolean).join('\n');
+  const data = {
+    "Supply APY": fmtPct(market.supplyRate),
+    "Borrow APY": fmtPct(market.borrowRate),
+    "Total Supplied": fmtUSD(market.totalSupply),
+    "Total Borrowed": fmtUSD(market.totalBorrow),
+    "Available Liquidity": fmtUSD(market.liquidity),
+    "Utilization Rate": fmtPct(market.utilizationRate * 100, 1),
+    LLTV: fmtPct(market.lltv, 1),
+    "Liquidation Penalty": fmtPct(market.liquidationPenalty, 2),
+  };
+
+  return formatItemDetails(`${market.name} - Market`, data, link);
 }
 
-function formatMarketsTable(markets: MorphoMarketData[]): string {
+function formatMarketsList(markets: MorphoMarketData[]): string {
   if (!markets.length) {
-    return `### Morpho Markets\n\nNo market data found.`;
+    return "No market data found.";
   }
 
-  const header = [
-    `### Morpho Markets`,
-    ``,
-    `| Market | Supply APY | Borrow APY | Utilization | LLTV | Supplied | Borrowed | Liquidity | ID |`,
-    `|:--|--:|--:|--:|--:|--:|--:|--:|:--|`
-  ];
-
-  const rows = markets.map((m) => {
+  const items = markets.map((m) => {
     // rates are already in % per your service mapping
-    const supply = fmtPct(m.supplyRate);
     const borrow = fmtPct(m.borrowRate);
-
-    // utilization is 0..1 in your data; convert to %
-    const util = fmtPct((m.utilizationRate ?? 0) * 100, 1);
 
     // LLTV already in % per your mapping
     const lltv = fmtPct(m.lltv, 1);
 
     const supplied = fmtUSD(m.totalSupply);
-    const borrowed = fmtUSD(m.totalBorrow);
     const liq = fmtUSD(m.liquidity);
 
-    const id = m.marketId ? `\`${shortHex(m.marketId)}\`` : '—';
-
-    return `| ${m.name} | ${supply} | ${borrow} | ${util} | ${lltv} | ${supplied} | ${borrowed} | ${liq} | ${id} |`;
+    return {
+      name: m.name,
+      data: {
+        LLTV: lltv,
+        "Market Size": supplied,
+        "Total Liquidity": liq,
+        "Borrow Rate": borrow,
+      },
+    };
   });
 
-  return [...header, ...rows].join('\n');
+  return formatDataList("Morpho Markets", items);
 }
-
