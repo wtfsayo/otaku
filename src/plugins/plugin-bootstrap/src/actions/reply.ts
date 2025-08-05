@@ -22,20 +22,23 @@ import {
  *
  * @type {string}
  */
-const replyTemplate = `# Task: Generate dialog for the character {{agentName}}.
 
+const replyTemplate = `<task>Generate dialog and actions for the character {{agentName}}.</task>
+
+<providers>
 {{providers}}
+</providers>
 
-# Instructions: Write the next message for {{agentName}}.
+<instructions>
+Your <text> must NOT include any information that is expected to come from an action — such as wallet balances, vault positions, token data, or market info. Only include what is already known. Do not guess, speculate, or reuse prior results.
+</instructions>
+
+<keys>
 "thought" should be a short description of what the agent is thinking about and planning.
-"message" should be the next message for {{agentName}} which they will send to the conversation.
+"text" should be the text of the next message for {{agentName}} which they will send to the conversation.
+</keys>
 
-IMPORTANT CODE BLOCK FORMATTING RULES:
-- If {{agentName}} includes code examples, snippets, or multi-line code in the response, ALWAYS wrap the code with \`\`\` fenced code blocks (specify the language if known, e.g., \`\`\`python).
-- ONLY use fenced code blocks for actual code. Do NOT wrap non-code text, instructions, or single words in fenced code blocks.
-- If including inline code (short single words or function names), use single backticks (\`) as appropriate.
-- This ensures the user sees clearly formatted and copyable code when relevant.
-
+<output>
 Do NOT include any thinking, reasoning, or <think> sections in your response. 
 Go directly to the XML response format without any preamble or explanation.
 
@@ -45,7 +48,8 @@ Respond using XML format like this:
     <message>Your message here</message>
 </response>
 
-IMPORTANT: Your response must ONLY contain the <response></response> XML block above. Do not include any text, thinking, or reasoning before or after this XML block. Start your response immediately with <response> and end with </response>.`;
+IMPORTANT: Your response must ONLY contain the <response></response> XML block above. Do not include any text, thinking, or reasoning before or after this XML block. Start your response immediately with <response> and end with </response>.
+</output>`;
 
 /**
  * Represents an action that allows the agent to reply to the current conversation with a generated message.
