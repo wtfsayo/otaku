@@ -16,6 +16,7 @@ import {
   getEntityWallet,
   EntityWalletResponse,
 } from "../../../../utils/entity";
+import { NATIVE_TOKEN_ADDRESSES } from "../types";
 
 export const tokenInfoAction: Action = {
   name: "TOKEN_INFO",
@@ -105,7 +106,14 @@ export const tokenInfoAction: Action = {
           const tokenInfo = await clankerService.getTokenInfo(address);
 
           responseText += formatTokenInfo(tokenInfo);
-          responseText += `\nView on BaseScan: https://basescan.org/token/${address}\n\n`;
+
+          // Only show BaseScan link for actual contract tokens, not native ETH
+          const isNativeEth = address === NATIVE_TOKEN_ADDRESSES;
+          if (!isNativeEth) {
+            responseText += `\nView on BaseScan: https://basescan.org/token/${address}\n\n`;
+          } else {
+            responseText += `\nView on BaseScan: https://basescan.org/\n\n`;
+          }
         } catch (err) {
           logger.warn(`Failed to fetch info for token: ${tokenInput}`, err);
           responseText += `❌ Could not retrieve info for ${tokenInput}\n\n`;

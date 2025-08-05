@@ -1,4 +1,5 @@
-import { formatUnits, parseUnits } from 'ethers';
+import { formatUnits, parseUnits } from "ethers";
+import { NATIVE_TOKEN_ADDRESSES } from "../types";
 
 export function formatTokenAmount(amount: bigint, decimals: number): string {
   return formatUnits(amount, decimals);
@@ -9,9 +10,9 @@ export function parseTokenAmount(amount: string, decimals: number): bigint {
 }
 
 export function formatUsd(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
     minimumFractionDigits: 2,
     maximumFractionDigits: 6,
   }).format(amount);
@@ -38,18 +39,23 @@ export function calculatePriceImpact(
 ): number {
   const inputValue = Number(inputAmount) * inputPrice;
   const outputValue = Number(outputAmount) * outputPrice;
-  
+
   if (inputValue === 0) return 0;
-  
+
   const impact = (inputValue - outputValue) / inputValue;
   return Math.abs(impact);
 }
 
 export function formatTokenInfo(info: any): string {
-  const lines = [
-    `Token: ${info.name} (${info.symbol})`,
-    `Address: ${info.address}`,
-  ];
+  const lines = [`Token: ${info.name} (${info.symbol})`];
+
+  // Only show address for non-native tokens
+  const isNativeEth = info.address === NATIVE_TOKEN_ADDRESSES;
+  if (!isNativeEth) {
+    lines.push(`Address: ${info.address}`);
+  } else {
+    lines.push(`Type: Native ETH on Base`);
+  }
 
   if (info.price !== undefined) {
     lines.push(`Price: ${formatUsd(info.price)}`);
@@ -71,11 +77,14 @@ export function formatTokenInfo(info: any): string {
     lines.push(`24h Volume: ${formatCompactUsd(Number(info.volume24h))}`);
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
-
-export function formatBalance(balance: bigint, decimals: number, symbol: string): string {
+export function formatBalance(
+  balance: bigint,
+  decimals: number,
+  symbol: string
+): string {
   const formatted = formatTokenAmount(balance, decimals);
   return `${formatted} ${symbol}`;
 }
@@ -86,11 +95,11 @@ export function formatGasPrice(gasPrice: bigint): string {
 }
 
 export function formatCompactUsd(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    notation: 'compact',
-    compactDisplay: 'short',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    notation: "compact",
+    compactDisplay: "short",
     maximumFractionDigits: 1,
   }).format(amount);
 }
