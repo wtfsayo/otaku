@@ -36,14 +36,15 @@ Rules:
 - <fullRepayment> is only for repay operations, set to "true" for full repayment
 - Do NOT invent defaults. If user didn't specify a field, omit that tag.
 - IMPORTANT: Extract only the numeric value for <assets>, ignore token symbols like "USDC", "WETH", etc.
-- For supply operations: "supply" = lend assets to earn yield, "supplyCollateral" = provide collateral for borrowing
-- For withdraw operations: "withdraw" = withdraw supplied assets, "withdrawCollateral" = withdraw collateral
+- For supply operations: "supply" = lend loan token to earn yield, "supplyCollateral" = provide collateral token
+- For withdraw operations: "withdraw" = withdraw loan token, "withdrawCollateral" = withdraw collateral token
+- Token mapping: In "WETH/USDC" markets, USDC is loan token (supply/borrow), WETH is collateral token
 
 Examples:
 - "Supply 1 USDC to WETH/USDC market" → intent: supply, market: WETH/USDC, assets: 1
 - "Provide 0.1 WETH as collateral in WETH/USDC" → intent: supplyCollateral, market: WETH/USDC, assets: 0.1
 - "Borrow 100 USDC from WETH/USDC market" → intent: borrow, market: WETH/USDC, assets: 100
-- "Repay 2.5 usdc in WETH/USDC" → intent: repay, market: WETH/USDC, assets: 2.5
+- "Repay 2.5 USDC in WETH/USDC" → intent: repay, market: WETH/USDC, assets: 2.5
 - "Repay all my debt in WETH/USDC" → intent: repay, market: WETH/USDC, fullRepayment: true
 - "Withdraw 0.5 USDC from WETH/USDC" → intent: withdraw, market: WETH/USDC, assets: 0.5
 - "Remove 0.05 WETH collateral from WETH/USDC" → intent: withdrawCollateral, market: WETH/USDC, assets: 0.05
@@ -134,13 +135,14 @@ export const marketTransferAction: Action = {
     const fail = async (reason: string): Promise<ActionResult> => {
       const text =
         `❌ Market operation failed: ${reason}\n\n` +
-        `**How to use (specify pure numbers without units):** \n` +
-        `• **Supply**: \`Supply 1 to WETH/USDC market\` (lend to earn yield)\n` +
-        `• **Supply Collateral**: \`Provide 0.1 as collateral in WETH/USDC\`\n` +
-        `• **Borrow**: \`Borrow 100 from WETH/USDC market\`\n` +
-        `• **Repay**: \`Repay 2.5 in WETH/USDC\` or \`Repay all debt in WETH/USDC\`\n` +
-        `• **Withdraw**: \`Withdraw 0.5 from WETH/USDC\` (withdraw supplied assets)\n` +
-        `• **Withdraw Collateral**: \`Remove 0.05 collateral from WETH/USDC\``;
+        `**How to use (specify pure numbers with token symbols):** \n` +
+        `• **Supply**: \`Supply 1 USDC to WETH/USDC market\` (lend USDC to earn yield)\n` +
+        `• **Supply Collateral**: \`Provide 0.1 WETH as collateral in WETH/USDC\` (collateralize WETH)\n` +
+        `• **Borrow**: \`Borrow 100 USDC from WETH/USDC market\` (borrow USDC against WETH)\n` +
+        `• **Repay**: \`Repay 2.5 USDC in WETH/USDC\` or \`Repay all debt in WETH/USDC\`\n` +
+        `• **Withdraw**: \`Withdraw 0.5 USDC from WETH/USDC\` (withdraw supplied USDC)\n` +
+        `• **Withdraw Collateral**: \`Remove 0.05 WETH collateral from WETH/USDC\` (remove WETH collateral)\n\n` +
+        `**Note**: In WETH/USDC markets, USDC is typically the loan asset (supply/borrow) and WETH is the collateral asset.`;
       const data = { actionName: "MORPHO_MARKET_TRANSFER", error: reason };
 
       if (callback) {
@@ -359,7 +361,7 @@ export const marketTransferAction: Action = {
       {
         name: "{{name2}}",
         content: {
-          text: "Submitting your supply operation...",
+          text: "🏦 Supplying 1 USDC to earn yield in WETH/USDC market...",
           action: "MORPHO_MARKET_TRANSFER",
         },
       },
@@ -372,7 +374,7 @@ export const marketTransferAction: Action = {
       {
         name: "{{name2}}",
         content: {
-          text: "Submitting collateral supply...",
+          text: "🔐 Providing 0.1 WETH as collateral in WETH/USDC market...",
           action: "MORPHO_MARKET_TRANSFER",
         },
       },
@@ -385,7 +387,7 @@ export const marketTransferAction: Action = {
       {
         name: "{{name2}}",
         content: {
-          text: "Submitting your borrow request...",
+          text: "💸 Borrowing 100 USDC against WETH collateral...",
           action: "MORPHO_MARKET_TRANSFER",
         },
       },
@@ -393,12 +395,12 @@ export const marketTransferAction: Action = {
     [
       {
         name: "{{name1}}",
-        content: { text: "Repay all my debt in WETH/USDC" },
+        content: { text: "Repay all my USDC debt in WETH/USDC" },
       },
       {
         name: "{{name2}}",
         content: {
-          text: "Submitting full debt repayment...",
+          text: "💰 Repaying all USDC debt in WETH/USDC market...",
           action: "MORPHO_MARKET_TRANSFER",
         },
       },
@@ -411,7 +413,7 @@ export const marketTransferAction: Action = {
       {
         name: "{{name2}}",
         content: {
-          text: "Submitting withdrawal...",
+          text: "📤 Withdrawing 0.5 USDC from supply position...",
           action: "MORPHO_MARKET_TRANSFER",
         },
       },
@@ -424,7 +426,7 @@ export const marketTransferAction: Action = {
       {
         name: "{{name2}}",
         content: {
-          text: "Submitting collateral withdrawal...",
+          text: "🔓 Removing 0.05 WETH collateral from WETH/USDC market...",
           action: "MORPHO_MARKET_TRANSFER",
         },
       },
@@ -437,7 +439,7 @@ export const marketTransferAction: Action = {
       {
         name: "{{name2}}",
         content: {
-          text: "Submitting partial repayment...",
+          text: "💰 Repaying 50 USDC debt in WETH/USDC market...",
           action: "MORPHO_MARKET_TRANSFER",
         },
       },
@@ -450,7 +452,7 @@ export const marketTransferAction: Action = {
       {
         name: "{{name2}}",
         content: {
-          text: "Submitting your supply operation...",
+          text: "🏦 Lending 2 USDC to earn yield in WETH/USDC market...",
           action: "MORPHO_MARKET_TRANSFER",
         },
       },
