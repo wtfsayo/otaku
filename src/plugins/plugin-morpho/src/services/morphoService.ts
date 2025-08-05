@@ -237,6 +237,7 @@ export class MorphoService extends Service {
             hash,
             pollingInterval: 2_000,
             timeout: 120_000,
+            confirmations: 2,
           });
           console.log(
             `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
@@ -317,6 +318,7 @@ export class MorphoService extends Service {
             hash,
             pollingInterval: 2_000,
             timeout: 120_000,
+            confirmations: 2,
           });
           console.log(
             `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
@@ -403,6 +405,7 @@ export class MorphoService extends Service {
             hash,
             pollingInterval: 2_000,
             timeout: 120_000,
+            confirmations: 2,
           });
           console.log(
             `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
@@ -495,6 +498,7 @@ export class MorphoService extends Service {
             hash,
             pollingInterval: 2_000,
             timeout: 120_000,
+            confirmations: 2,
           });
           console.log(
             `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
@@ -587,6 +591,7 @@ export class MorphoService extends Service {
             hash,
             pollingInterval: 2_000,
             timeout: 120_000,
+            confirmations: 2,
           });
           console.log(
             `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
@@ -674,6 +679,7 @@ export class MorphoService extends Service {
             hash,
             pollingInterval: 2_000,
             timeout: 120_000,
+            confirmations: 2,
           });
           console.log(
             `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
@@ -1812,6 +1818,7 @@ export class MorphoService extends Service {
             hash,
             pollingInterval: 2_000,
             timeout: 120_000,
+            confirmations: 2,
           });
           console.log(
             `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
@@ -1893,6 +1900,7 @@ export class MorphoService extends Service {
             hash,
             pollingInterval: 2_000,
             timeout: 120_000,
+            confirmations: 2,
           });
           console.log(
             `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
