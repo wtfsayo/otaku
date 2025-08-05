@@ -361,34 +361,64 @@ export class ClankerService extends Service {
   }
 
   async getNativeEthInfo(): Promise<TokenInfo> {
-    try {
-      const response = await fetch(
-        "https://api.coingecko.com/api/v3/coins/ethereum"
-      );
-      const data = await response.json() as any;
+    const url = "https://api.coingecko.com/api/v3/coins/ethereum";
+    const maxRetries = 3;
   
-      return {
-        address: NATIVE_TOKEN_ADDRESSES,
-        name: data.name,
-        symbol: data.symbol.toUpperCase(),
-        decimals: 18,
-        totalSupply: BigInt(0), // Not available
-        price: data.market_data.current_price.usd,
-        priceUsd: data.market_data.current_price.usd,
-        liquidity: 0, // Not applicable for native
-        volume24h: data.market_data.total_volume.usd,
-        marketCap: data.market_data.market_cap.usd,
-        createdAt: Date.now(),
-      };
-    } catch (error) {
-      logger.error("Failed to fetch ETH info from Coingecko:", error);
-      throw new ClankerError(
-        ErrorCode.NETWORK_ERROR,
-        "Failed to fetch ETH metadata",
-        error,
-      );
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const response = await fetch(url);
+  
+        if (!response.ok) {
+          throw new Error(`HTTP error ${response.status}`);
+        }
+  
+        const data = await response.json() as any;
+  
+        if (
+          !data ||
+          typeof data.symbol !== "string" ||
+          !data.market_data ||
+          typeof data.market_data.current_price?.usd !== "number" ||
+          typeof data.market_data.total_volume?.usd !== "number" ||
+          typeof data.market_data.market_cap?.usd !== "number"
+        ) {
+          throw new Error("Unexpected API response structure");
+        }
+  
+        return {
+          address: NATIVE_TOKEN_ADDRESSES,
+          name: data.name || "Ethereum",
+          symbol: data.symbol.toUpperCase(),
+          decimals: 18,
+          totalSupply: BigInt(0), // Not available
+          price: data.market_data.current_price.usd,
+          priceUsd: data.market_data.current_price.usd,
+          liquidity: 0, // Not applicable for native
+          volume24h: data.market_data.total_volume.usd,
+          marketCap: data.market_data.market_cap.usd,
+          createdAt: Date.now(),
+        };
+      } catch (error) {
+        logger.warn(`Attempt ${attempt} failed to fetch ETH info:`, error);
+  
+        if (attempt === maxRetries) {
+          logger.error("All retries failed. Giving up.");
+          throw new ClankerError(
+            ErrorCode.NETWORK_ERROR,
+            "Failed to fetch ETH metadata",
+            error,
+          );
+        }
+  
+        // Exponential backoff with jitter (up to 1 second max delay)
+        const delay = Math.min(1000, Math.pow(2, attempt) * 100 + Math.random() * 100);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
     }
+  
+    throw new ClankerError(ErrorCode.NETWORK_ERROR, "Unreachable retry failure");
   }
+  
   
 
   async getAllTokensInWallet(walletAddress: string): Promise<TokenInfo[]> {
