@@ -34,11 +34,13 @@ Rules:
 - If a 0x-address is present for the vault, keep it as-is. Otherwise use the name/substring.
 - <assets> should be a pure number WITHOUT units or symbols (e.g., "1", "0.5", "100").
 - IMPORTANT: Extract only the numeric value for <assets>, ignore token symbols like "USDC", "WETH", etc.
+- Each vault accepts a specific underlying asset (e.g., USDC vaults accept USDC, WETH vaults accept WETH)
 
 Examples:
 - "Deposit 1 USDC into Spark USDC Vault" → intent: deposit, vault: Spark USDC Vault, assets: 1
-- "Withdraw 2.5 usdc from vault" → intent: withdraw, vault: vault, assets: 2.5
-- "Deposit 0.1 into 0x123..." → intent: deposit, vault: 0x123..., assets: 0.1
+- "Withdraw 2.5 USDC from Spark USDC Vault" → intent: withdraw, vault: Spark USDC Vault, assets: 2.5
+- "Deposit 0.1 WETH into 0x123..." → intent: deposit, vault: 0x123..., assets: 0.1
+- "Withdraw all from WETH vault" → intent: withdraw, vault: WETH vault (amount would need separate handling)
 </instructions>`;
 }
 
@@ -80,7 +82,10 @@ export const vaultTransferAction: Action = {
     const fail = async (reason: string): Promise<ActionResult> => {
       const text =
         `❌ Vault transfer failed: ${reason}\n\n` +
-        `**How to use (specify pure numbers without units):** e.g. \`Deposit 1 into Spark USDC Vault\` or \`Withdraw 2.5 from vault\``;
+        `**How to use (specify pure numbers with token symbols):** \n` +
+        `• **Deposit**: \`Deposit 1 USDC into Spark USDC Vault\` or \`Deposit 0.5 WETH into WETH Vault\`\n` +
+        `• **Withdraw**: \`Withdraw 2.5 USDC from Spark USDC Vault\` or \`Withdraw 0.1 WETH from vault\`\n\n` +
+        `**Note**: Each vault accepts a specific asset type. Check vault name for the underlying asset.`;
       const data = { actionName: "MORPHO_VAULT_TRANSFER", error: reason };
 
       if (callback) {
@@ -251,7 +256,7 @@ export const vaultTransferAction: Action = {
       {
         name: "{{name2}}",
         content: {
-          text: "Submitting your deposit...",
+          text: "💰 Depositing 1 USDC into Spark USDC Vault for automated yield...",
           action: "MORPHO_VAULT_TRANSFER",
         },
       },
@@ -259,12 +264,12 @@ export const vaultTransferAction: Action = {
     [
       {
         name: "{{name1}}",
-        content: { text: "Withdraw 1 from Spark USDC Vault" },
+        content: { text: "Withdraw 1 USDC from Spark USDC Vault" },
       },
       {
         name: "{{name2}}",
         content: {
-          text: "Submitting your withdrawal...",
+          text: "📤 Withdrawing 1 USDC from Spark USDC Vault...",
           action: "MORPHO_VAULT_TRANSFER",
         },
       },
@@ -273,13 +278,13 @@ export const vaultTransferAction: Action = {
       {
         name: "{{name1}}",
         content: {
-          text: "Deposit into 0x7BfA7C4f149E7415b73bdeDfe609237e29CBF34A amount 2",
+          text: "Deposit 0.5 WETH into Morpho WETH Vault",
         },
       },
       {
         name: "{{name2}}",
         content: {
-          text: "Submitting your deposit...",
+          text: "💰 Depositing 0.5 WETH into vault for optimized returns...",
           action: "MORPHO_VAULT_TRANSFER",
         },
       },

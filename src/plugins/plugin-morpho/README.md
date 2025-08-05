@@ -85,27 +85,48 @@ const agent = createAgent({
 
 ### Natural Language Commands
 
-The plugin understands various natural language commands:
+The plugin understands various natural language commands. **Important**: Always specify the token symbol (USDC, WETH, DAI) with amounts for clarity.
 
-#### Supply Assets
-- "Supply 1000 USDC to Morpho"
-- "I want to lend 0.5 WETH through Morpho"
-- "Deposit 500 DAI for P2P matching"
+#### Market Structure
+In Morpho Blue markets like "WETH/USDC":
+- **Loan Token** (USDC): Used for supply/borrow operations to earn yield or take loans
+- **Collateral Token** (WETH): Used for collateral operations to secure borrowing positions
+
+#### Token Operation Mapping
+- **Supply/Borrow/Withdraw/Repay**: Uses the loan token (e.g., USDC in WETH/USDC)
+- **Supply Collateral/Withdraw Collateral**: Uses the collateral token (e.g., WETH in WETH/USDC)
+
+#### Examples by Operation Type
+
+#### Supply Assets (Lend to Earn Yield)
+- "Supply 1000 USDC to WETH/USDC market"
+- "Lend 0.5 USDC to WETH/USDC for yield"
+- "Supply 500 DAI to DAI/WETH market"
+
+#### Supply Collateral  
+- "Provide 0.5 WETH as collateral in WETH/USDC"
+- "Supply 1 WETH collateral for WETH/USDC market"
+- "Add 2 WETH as collateral in WETH/DAI"
 
 #### Borrow Assets
-- "Borrow 500 USDC from Morpho"
-- "I need a loan of 0.2 WETH with better rates"
-- "Take out 1000 DAI with P2P matching"
+- "Borrow 500 USDC from WETH/USDC market"
+- "Take a loan of 200 USDC against WETH"
+- "Borrow 1000 DAI from DAI/WETH market"
 
-#### Withdraw Assets
-- "Withdraw 300 USDC from my Morpho position"
-- "Remove all my WETH from Morpho"
-- "Pull out 500 DAI with minimal impact"
+#### Withdraw Assets (Remove Supplied Funds)
+- "Withdraw 300 USDC from WETH/USDC market"
+- "Remove 100 USDC from my supply position"
+- "Withdraw 500 DAI from DAI/WETH"
+
+#### Withdraw Collateral
+- "Remove 0.1 WETH collateral from WETH/USDC"
+- "Withdraw 0.5 WETH collateral from WETH/DAI"
+- "Remove WETH collateral from market"
 
 #### Repay Loans
-- "Repay 200 USDC of my Morpho loan"
-- "Pay back all my WETH debt"
-- "Settle my DAI loan on Morpho"
+- "Repay 200 USDC in WETH/USDC market"
+- "Pay back all USDC debt in WETH/USDC"
+- "Repay 500 DAI loan in DAI/WETH"
 
 #### Vault Operations
 - "Deposit 1000 USDC into the Morpho USDC vault"
@@ -187,11 +208,12 @@ The plugin exposes the following REST endpoints:
 ### Example 1: Supply with Optimal Matching
 
 ```typescript
-// User: "I want to supply 5000 USDC to earn the best yield"
+// User: "Supply 5000 USDC to WETH/USDC market to earn yield"
 // Agent response:
-"I'll help you supply 5000 USDC to Morpho for optimized yields through peer-to-peer matching.
+"🏦 I'll supply 5000 USDC to the WETH/USDC market for optimized yields through peer-to-peer matching.
 
 📊 Transaction Details:
+- Market: WETH/USDC (supplying USDC - the loan token)
 - Transaction Hash: 0xabc...123
 - Amount Supplied: 5000 USDC
 - P2P Matched: 3500 USDC (70%)
@@ -206,16 +228,31 @@ The plugin exposes the following REST endpoints:
 ### Example 2: Efficient Borrowing
 
 ```typescript
-// User: "Borrow 1000 USDC with the lowest rate possible"
+// User: "Borrow 1000 USDC from WETH/USDC market"
 // Agent response:
-"I'll borrow 1000 USDC from Morpho with optimized rates through peer-to-peer matching.
+"💸 I'll borrow 1000 USDC from the WETH/USDC market with optimized rates through peer-to-peer matching.
 
 📊 Transaction Details:
+- Market: WETH/USDC (borrowing USDC - the loan token)
 - Amount Borrowed: 1000 USDC
 - P2P Matched: 600 USDC (60%)
 - Your Rate: 3.2%
 - Pool Rate: 4.5%
 - Rate Savings: 1.3%"
+```
+
+### Example 3: Collateral Management
+
+```typescript
+// User: "Provide 2 WETH as collateral in WETH/USDC market"
+// Agent response:
+"🔐 I'll provide 2 WETH as collateral to the WETH/USDC market.
+
+📊 Transaction Details:
+- Market: WETH/USDC (collateralizing WETH - the collateral token)
+- Amount: 2 WETH
+- Health Factor: 2.8 (Safe)
+- Max Borrowable: ~4,800 USDC"
 ```
 
 ## Error Handling
