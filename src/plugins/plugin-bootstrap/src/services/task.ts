@@ -8,7 +8,7 @@ import {
   type Memory,
   type State,
   type Task,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
 /**
  * TaskService class representing a service that schedules and executes tasks.
@@ -36,7 +36,7 @@ export class TaskService extends Service {
   private timer: NodeJS.Timeout | null = null;
   private readonly TICK_INTERVAL = 1000; // Check every second
   static serviceType = ServiceType.TASK;
-  capabilityDescription = 'The agent is able to schedule and execute tasks';
+  capabilityDescription = "The agent is able to schedule and execute tasks";
 
   /**
    * Start the TaskService with the given runtime.
@@ -57,52 +57,52 @@ export class TaskService extends Service {
   async createTestTasks() {
     // Register task worker for repeating task
     this.runtime.registerTaskWorker({
-      name: 'REPEATING_TEST_TASK',
+      name: "REPEATING_TEST_TASK",
       validate: async (_runtime, _message, _state) => {
-        logger.debug('[Bootstrap] Validating repeating test task');
+        logger.debug("[Bootstrap] Validating repeating test task");
         return true;
       },
       execute: async (_runtime, _options) => {
-        logger.debug('[Bootstrap] Executing repeating test task');
+        logger.debug("[Bootstrap] Executing repeating test task");
       },
     });
 
     // Register task worker for one-time task
     this.runtime.registerTaskWorker({
-      name: 'ONETIME_TEST_TASK',
+      name: "ONETIME_TEST_TASK",
       validate: async (_runtime, _message, _state) => {
-        logger.debug('[Bootstrap] Validating one-time test task');
+        logger.debug("[Bootstrap] Validating one-time test task");
         return true;
       },
       execute: async (_runtime, _options) => {
-        logger.debug('[Bootstrap] Executing one-time test task');
+        logger.debug("[Bootstrap] Executing one-time test task");
       },
     });
 
     // check if the task exists
-    const tasks = await this.runtime.getTasksByName('REPEATING_TEST_TASK');
+    const tasks = await this.runtime.getTasksByName("REPEATING_TEST_TASK");
 
     if (tasks.length === 0) {
       // Create repeating task
       await this.runtime.createTask({
-        name: 'REPEATING_TEST_TASK',
-        description: 'A test task that repeats every minute',
+        name: "REPEATING_TEST_TASK",
+        description: "A test task that repeats every minute",
         metadata: {
           updatedAt: Date.now(), // Use timestamp instead of Date object
           updateInterval: 1000 * 60, // 1 minute
         },
-        tags: ['queue', 'repeat', 'test'],
+        tags: ["queue", "repeat", "test"],
       });
     }
 
     // Create one-time task
     await this.runtime.createTask({
-      name: 'ONETIME_TEST_TASK',
-      description: 'A test task that runs once',
+      name: "ONETIME_TEST_TASK",
+      description: "A test task that runs once",
       metadata: {
         updatedAt: Date.now(),
       },
-      tags: ['queue', 'test'],
+      tags: ["queue", "test"],
     });
   }
 
@@ -118,7 +118,7 @@ export class TaskService extends Service {
       try {
         await this.checkTasks();
       } catch (error) {
-        logger.error('[Bootstrap] Error checking tasks:', error);
+        logger.error("[Bootstrap] Error checking tasks:", error);
       }
     }, this.TICK_INTERVAL) as unknown as NodeJS.Timeout;
   }
@@ -151,12 +151,19 @@ export class TaskService extends Service {
       if (worker.validate) {
         try {
           // Pass empty message and state since validation is time-based
-          const isValid = await worker.validate(this.runtime, {} as Memory, {} as State);
+          const isValid = await worker.validate(
+            this.runtime,
+            {} as Memory,
+            {} as State,
+          );
           if (!isValid) {
             continue;
           }
         } catch (error) {
-          logger.error(`[Bootstrap] Error validating task ${task.name}:`, error);
+          logger.error(
+            `[Bootstrap] Error validating task ${task.name}:`,
+            error,
+          );
           continue;
         }
       }
@@ -176,7 +183,7 @@ export class TaskService extends Service {
     try {
       // Get all tasks with "queue" tag
       const allTasks = await this.runtime.getTasks({
-        tags: ['queue'],
+        tags: ["queue"],
       });
 
       // validate the tasks and sort them
@@ -191,15 +198,18 @@ export class TaskService extends Service {
         let taskStartTime: number;
 
         // if tags does not contain "repeat", execute immediately
-        if (!task.tags?.includes('repeat')) {
+        if (!task.tags?.includes("repeat")) {
           // does not contain repeat
           await this.executeTask(task);
           continue;
         }
 
-        if (typeof task.updatedAt === 'number') {
+        if (typeof task.updatedAt === "number") {
           taskStartTime = task.updatedAt;
-        } else if (task.metadata?.updatedAt && typeof task.metadata.updatedAt === 'number') {
+        } else if (
+          task.metadata?.updatedAt &&
+          typeof task.metadata.updatedAt === "number"
+        ) {
           taskStartTime = task.metadata.updatedAt;
         } else if (task.updatedAt) {
           taskStartTime = new Date(task.updatedAt).getTime();
@@ -211,14 +221,14 @@ export class TaskService extends Service {
         const updateIntervalMs = task.metadata?.updateInterval ?? 0; // update immediately
 
         // if tags does not contain "repeat", execute immediately
-        if (!task.tags?.includes('repeat')) {
+        if (!task.tags?.includes("repeat")) {
           await this.executeTask(task);
           continue;
         }
 
         if (task.metadata?.updatedAt === task.metadata?.createdAt) {
-          if (task.tags?.includes('immediate')) {
-            logger.debug('[Bootstrap] Immediately running task', task.name);
+          if (task.tags?.includes("immediate")) {
+            logger.debug("[Bootstrap] Immediately running task", task.name);
             await this.executeTask(task);
             continue;
           }
@@ -227,13 +237,13 @@ export class TaskService extends Service {
         // Check if enough time has passed since last update
         if (now - taskStartTime >= updateIntervalMs) {
           logger.debug(
-            `[Bootstrap] Executing task ${task.name} - interval of ${updateIntervalMs}ms has elapsed`
+            `[Bootstrap] Executing task ${task.name} - interval of ${updateIntervalMs}ms has elapsed`,
           );
           await this.executeTask(task);
         }
       }
     } catch (error) {
-      logger.error('[Bootstrap] Error checking tasks:', error);
+      logger.error("[Bootstrap] Error checking tasks:", error);
     }
   }
 
@@ -256,7 +266,7 @@ export class TaskService extends Service {
       }
 
       // Handle repeating vs non-repeating tasks
-      if (task.tags?.includes('repeat')) {
+      if (task.tags?.includes("repeat")) {
         // For repeating tasks, update the updatedAt timestamp
         await this.runtime.updateTask(task.id, {
           metadata: {
@@ -265,7 +275,7 @@ export class TaskService extends Service {
           },
         });
         logger.debug(
-          `[Bootstrap] Updated repeating task ${task.name} (${task.id}) with new timestamp`
+          `[Bootstrap] Updated repeating task ${task.name} (${task.id}) with new timestamp`,
         );
       }
 
@@ -274,11 +284,11 @@ export class TaskService extends Service {
       //logger.debug('task.tags are', task.tags);
 
       // Handle repeating vs non-repeating tasks
-      if (!task.tags?.includes('repeat')) {
+      if (!task.tags?.includes("repeat")) {
         // For non-repeating tasks, delete the task after execution
         await this.runtime.deleteTask(task.id);
         logger.debug(
-          `[Bootstrap] Deleted non-repeating task ${task.name} (${task.id}) after execution`
+          `[Bootstrap] Deleted non-repeating task ${task.name} (${task.id}) after execution`,
         );
       }
     } catch (error) {

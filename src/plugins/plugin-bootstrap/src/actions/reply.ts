@@ -10,7 +10,7 @@ import {
   type ActionResult,
   logger,
   parseKeyValueXml,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
 /**
  * Template for generating dialog and actions for a character.
@@ -65,10 +65,10 @@ IMPORTANT: Your response must ONLY contain the <response></response> XML block a
  * @property {ActionExample[][]} examples - An array of example scenarios for the action.
  */
 export const replyAction = {
-  name: 'REPLY',
-  similes: ['GREET', 'REPLY_TO_MESSAGE', 'SEND_REPLY', 'RESPOND', 'RESPONSE'],
+  name: "REPLY",
+  similes: ["GREET", "REPLY_TO_MESSAGE", "SEND_REPLY", "RESPOND", "RESPONSE"],
   description:
-    'Replies to the current conversation with the text from the generated message. Default if the agent is responding with a message and no other action. Use REPLY at the beginning of a chain of actions as an acknowledgement, and at the end of a chain of actions as a final response.',
+    "Replies to the current conversation with the text from the generated message. Default if the agent is responding with a message and no other action. Use REPLY at the beginning of a chain of actions as an acknowledgement, and at the end of a chain of actions as a final response.",
   validate: async (_runtime: IAgentRuntime) => {
     return true;
   },
@@ -78,24 +78,27 @@ export const replyAction = {
     state: State,
     _options: any,
     callback: HandlerCallback,
-    responses?: Memory[]
+    responses?: Memory[],
   ): Promise<ActionResult> => {
     // Access previous action results from context if available
     const context = _options?.context;
     const previousResults = context?.previousResults || [];
 
     if (previousResults.length > 0) {
-      logger.debug(`[REPLY] Found ${previousResults.length} previous action results`);
+      logger.debug(
+        `[REPLY] Found ${previousResults.length} previous action results`,
+      );
     }
 
     // Check if any responses had providers associated with them
-    const allProviders = responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
+    const allProviders =
+      responses?.flatMap((res) => res.content?.providers ?? []) ?? [];
 
     // Only generate response using LLM if no suitable response was found
     state = await runtime.composeState(message, [
       ...(allProviders ?? []),
-      'RECENT_MESSAGES',
-      'ACTION_STATE',
+      "RECENT_MESSAGES",
+      "ACTION_STATE",
     ]);
 
     const prompt = composePromptFromState({
@@ -112,9 +115,9 @@ export const replyAction = {
       const parsedXml = parseKeyValueXml(response);
 
       const responseContent = {
-        thought: parsedXml?.thought || '',
-        text: parsedXml?.message || '',
-        actions: ['REPLY'],
+        thought: parsedXml?.thought || "",
+        text: parsedXml?.message || "",
+        actions: ["REPLY"],
       };
 
       await callback(responseContent);
@@ -129,7 +132,7 @@ export const replyAction = {
           thoughtProcess: parsedXml?.thought,
         },
         data: {
-          actionName: 'REPLY',
+          actionName: "REPLY",
           response: responseContent,
           thought: parsedXml?.thought,
           messageGenerated: true,
@@ -140,14 +143,14 @@ export const replyAction = {
       logger.error(`[REPLY] Error generating response: ${error}`);
 
       return {
-        text: 'Error generating reply',
+        text: "Error generating reply",
         values: {
           success: false,
           responded: false,
           error: true,
         },
         data: {
-          actionName: 'REPLY',
+          actionName: "REPLY",
           error: error instanceof Error ? error.message : String(error),
         },
         success: false,
@@ -158,61 +161,61 @@ export const replyAction = {
   examples: [
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'Hello there!',
+          text: "Hello there!",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'Hi! How can I help you today?',
-          actions: ['REPLY'],
+          text: "Hi! How can I help you today?",
+          actions: ["REPLY"],
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
           text: "What's your favorite color?",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'I really like deep shades of blue. They remind me of the ocean and the night sky.',
-          actions: ['REPLY'],
+          text: "I really like deep shades of blue. They remind me of the ocean and the night sky.",
+          actions: ["REPLY"],
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'Can you explain how neural networks work?',
+          text: "Can you explain how neural networks work?",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
-          text: 'Let me break that down for you in simple terms...',
-          actions: ['REPLY'],
+          text: "Let me break that down for you in simple terms...",
+          actions: ["REPLY"],
         },
       },
     ],
     [
       {
-        name: '{{name1}}',
+        name: "{{name1}}",
         content: {
-          text: 'Could you help me solve this math problem?',
+          text: "Could you help me solve this math problem?",
         },
       },
       {
-        name: '{{name2}}',
+        name: "{{name2}}",
         content: {
           text: "Of course! Let's work through it step by step.",
-          actions: ['REPLY'],
+          actions: ["REPLY"],
         },
       },
     ],

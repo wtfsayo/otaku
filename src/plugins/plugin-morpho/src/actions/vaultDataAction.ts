@@ -61,7 +61,7 @@ export const vaultInfoAction: Action = {
     "Get current data for Morpho vaults (no positions): totals and APYs. Supports an optional vault filter by name or address.",
   validate: async (runtime: IAgentRuntime) => {
     const morphoService = runtime.getService(
-      MorphoService.serviceType
+      MorphoService.serviceType,
     ) as MorphoService;
     if (!morphoService) {
       logger.error("Required services not available");
@@ -74,7 +74,7 @@ export const vaultInfoAction: Action = {
     message: Memory,
     state?: State,
     options?: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     logger.info("Starting Morpho vault info action");
 
@@ -88,7 +88,7 @@ export const vaultInfoAction: Action = {
       const params = { vault: parsed?.vault || undefined };
 
       const service = runtime.getService(
-        MorphoService.serviceType
+        MorphoService.serviceType,
       ) as MorphoService;
       const vaults = await service.getVaultData(params.vault);
 
@@ -235,7 +235,7 @@ function pctFromFraction(x?: number | null, decimals = 2) {
 
 function formatDetailedVaultView(
   v: MorphoVaultData,
-  service: MorphoService
+  service: MorphoService,
 ): string {
   const chain = service.getChainSlug(); // mirror of market action
   const address = v.address ?? "";

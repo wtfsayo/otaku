@@ -42,7 +42,7 @@ export class WalletProvider {
   constructor(
     accountOrPrivateKey: PrivateKeyAccount | `0x${string}`,
     runtime: IAgentRuntime,
-    chains?: Record<string, Chain>
+    chains?: Record<string, Chain>,
   ) {
     this.setAccount(accountOrPrivateKey);
     if (chains) {
@@ -56,7 +56,7 @@ export class WalletProvider {
   }
 
   getPublicClient(
-    chainName: SupportedChain
+    chainName: SupportedChain,
   ): PublicClient<HttpTransport, Chain, Account | undefined> {
     const transport = this.createHttpTransport(chainName);
 
@@ -125,7 +125,7 @@ export class WalletProvider {
         } catch (error) {
           elizaLogger.error(`Error getting balance for ${chainName}:`, error);
         }
-      })
+      }),
     );
 
     await this.runtime.setCache(cacheKey, balances);
@@ -134,7 +134,7 @@ export class WalletProvider {
   }
 
   async getWalletBalanceForChain(
-    chainName: SupportedChain
+    chainName: SupportedChain,
   ): Promise<string | null> {
     try {
       const client = this.getPublicClient(chainName);
@@ -153,7 +153,7 @@ export class WalletProvider {
   }
 
   private setAccount = (
-    accountOrPrivateKey: PrivateKeyAccount | `0x${string}`
+    accountOrPrivateKey: PrivateKeyAccount | `0x${string}`,
   ) => {
     if (typeof accountOrPrivateKey === "string") {
       this.account = privateKeyToAccount(accountOrPrivateKey);
@@ -184,7 +184,7 @@ export class WalletProvider {
 
   static genChainFromName(
     chainName: string,
-    customRpcUrl?: string | null
+    customRpcUrl?: string | null,
   ): Chain {
     const baseChain = (viemChains as any)[chainName];
 
@@ -209,7 +209,7 @@ export class WalletProvider {
 }
 
 const genChainsFromRuntime = (
-  runtime: IAgentRuntime
+  runtime: IAgentRuntime,
 ): Record<string, Chain> => {
   // Get chains from settings - ONLY use configured chains
   const settings = runtime.character?.settings;
@@ -228,7 +228,7 @@ const genChainsFromRuntime = (
 
   if (!configuredChains.length) {
     elizaLogger.warn(
-      "No EVM chains configured in settings, defaulting to mainnet and base"
+      "No EVM chains configured in settings, defaulting to mainnet and base",
     );
   }
 
@@ -238,7 +238,7 @@ const genChainsFromRuntime = (
     try {
       // Try to get RPC URL from settings using different formats
       let rpcUrl = runtime.getSetting(
-        `ETHEREUM_PROVIDER_${chainName.toUpperCase()}`
+        `ETHEREUM_PROVIDER_${chainName.toUpperCase()}`,
       );
 
       if (!rpcUrl) {
@@ -248,7 +248,7 @@ const genChainsFromRuntime = (
       // Skip chains that don't exist in viem
       if (!(viemChains as any)[chainName]) {
         elizaLogger.warn(
-          `Chain ${chainName} not found in viem chains, skipping`
+          `Chain ${chainName} not found in viem chains, skipping`,
         );
         continue;
       }
@@ -264,7 +264,10 @@ const genChainsFromRuntime = (
   return chains;
 };
 
-export const initWalletProvider = async (runtime: IAgentRuntime, privateKey: string) => {
+export const initWalletProvider = async (
+  runtime: IAgentRuntime,
+  privateKey: string,
+) => {
   const chains = genChainsFromRuntime(runtime);
 
   if (!privateKey) {

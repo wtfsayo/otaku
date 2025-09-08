@@ -1,11 +1,11 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts';
-import type { Account, Chain } from 'viem';
-import { parseEther, formatEther } from 'viem';
+import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
+import type { Account, Chain } from "viem";
+import { parseEther, formatEther } from "viem";
 
-import { TransferAction } from '../actions/transfer';
-import { WalletProvider } from '../providers/wallet';
-import { sepolia, baseSepolia, getTestChains } from './custom-chain';
+import { TransferAction } from "../actions/transfer";
+import { WalletProvider } from "../providers/wallet";
+import { sepolia, baseSepolia, getTestChains } from "./custom-chain";
 
 // Test environment - use a funded wallet private key for real testing
 const TEST_PRIVATE_KEY = process.env.TEST_PRIVATE_KEY || generatePrivateKey();
@@ -17,7 +17,7 @@ const mockCacheManager = {
   set: vi.fn(),
 };
 
-describe('Transfer Action', () => {
+describe("Transfer Action", () => {
   let wp: WalletProvider;
   let testChains: Record<string, Chain>;
 
@@ -27,13 +27,13 @@ describe('Transfer Action', () => {
 
     testChains = getTestChains();
     const pk = TEST_PRIVATE_KEY as `0x${string}`;
-    
+
     // Initialize with Sepolia and Base Sepolia testnets
     const customChains = {
       sepolia: testChains.sepolia,
       baseSepolia: testChains.baseSepolia,
     };
-    
+
     wp = new WalletProvider(pk, mockCacheManager as any, customChains);
   });
 
@@ -41,14 +41,14 @@ describe('Transfer Action', () => {
     // Remove vi.clearAllTimers() as it's not needed in Bun test runner
   });
 
-  describe('Constructor', () => {
-    it('should initialize with wallet provider', () => {
+  describe("Constructor", () => {
+    it("should initialize with wallet provider", () => {
       const ta = new TransferAction(wp);
       expect(ta).toBeDefined();
     });
   });
 
-  describe('Transfer Operations', () => {
+  describe("Transfer Operations", () => {
     let ta: TransferAction;
     let receiver: Account;
 
@@ -57,109 +57,111 @@ describe('Transfer Action', () => {
       receiver = privateKeyToAccount(generatePrivateKey());
     });
 
-    it('should validate transfer parameters', async () => {
+    it("should validate transfer parameters", async () => {
       const transferParams = {
-        fromChain: 'sepolia' as any,
+        fromChain: "sepolia" as any,
         toAddress: receiver.address,
-        amount: '0.001', // Small amount for testing
+        amount: "0.001", // Small amount for testing
       };
 
       // Check if this is a valid transfer structure
-      expect(transferParams.fromChain).toBe('sepolia');
+      expect(transferParams.fromChain).toBe("sepolia");
       expect(transferParams.toAddress).toMatch(/^0x[a-fA-F0-9]{40}$/);
       expect(parseFloat(transferParams.amount)).toBeGreaterThan(0);
     });
 
-    it('should handle insufficient funds gracefully', async () => {
+    it("should handle insufficient funds gracefully", async () => {
       // Test with unrealistic large amount that will definitely fail
       await expect(
         ta.transfer({
-          fromChain: 'sepolia' as any,
+          fromChain: "sepolia" as any,
           toAddress: receiver.address,
-          amount: '1000000', // 1M ETH - definitely insufficient
-        })
+          amount: "1000000", // 1M ETH - definitely insufficient
+        }),
       ).rejects.toThrow();
     });
 
-    it('should validate recipient address format', async () => {
+    it("should validate recipient address format", async () => {
       await expect(
         ta.transfer({
-          fromChain: 'sepolia' as any,
-          toAddress: 'invalid-address' as any,
-          amount: '0.001',
-        })
+          fromChain: "sepolia" as any,
+          toAddress: "invalid-address" as any,
+          amount: "0.001",
+        }),
       ).rejects.toThrow();
     });
 
-    it('should handle zero amount transfers', async () => {
+    it("should handle zero amount transfers", async () => {
       await expect(
         ta.transfer({
-          fromChain: 'sepolia' as any,
+          fromChain: "sepolia" as any,
           toAddress: receiver.address,
-          amount: '0',
-        })
+          amount: "0",
+        }),
       ).rejects.toThrow();
     });
 
-    describe('Network-specific transfers', () => {
-      it('should work with Sepolia testnet', async () => {
-        const balance = await wp.getWalletBalanceForChain('sepolia');
+    describe("Network-specific transfers", () => {
+      it("should work with Sepolia testnet", async () => {
+        const balance = await wp.getWalletBalanceForChain("sepolia");
         console.log(`Sepolia balance: ${balance} ETH`);
 
         if (balance && parseFloat(balance) > 0.001) {
           // Only test if we have sufficient funds
           const result = await ta.transfer({
-            fromChain: 'sepolia' as any,
+            fromChain: "sepolia" as any,
             toAddress: receiver.address,
-            amount: '0.0001', // Very small amount
+            amount: "0.0001", // Very small amount
           });
 
           expect(result.hash).toMatch(/^0x[a-fA-F0-9]{64}$/);
           expect(result.to).toBe(receiver.address);
-          expect(result.value).toBe(parseEther('0.0001'));
+          expect(result.value).toBe(parseEther("0.0001"));
         } else {
-          console.warn('Skipping funded transfer test - insufficient balance');
+          console.warn("Skipping funded transfer test - insufficient balance");
           // Test the failure case instead
           await expect(
             ta.transfer({
-              fromChain: 'sepolia' as any,
+              fromChain: "sepolia" as any,
               toAddress: receiver.address,
-              amount: '0.001',
-            })
-          ).rejects.toThrow('Transfer failed');
+              amount: "0.001",
+            }),
+          ).rejects.toThrow("Transfer failed");
         }
       });
 
-      it('should work with Base Sepolia testnet', async () => {
-        const balance = await wp.getWalletBalanceForChain('baseSepolia');
+      it("should work with Base Sepolia testnet", async () => {
+        const balance = await wp.getWalletBalanceForChain("baseSepolia");
         console.log(`Base Sepolia balance: ${balance} ETH`);
 
         if (balance && parseFloat(balance) > 0.001) {
           const result = await ta.transfer({
-            fromChain: 'baseSepolia' as any,
+            fromChain: "baseSepolia" as any,
             toAddress: receiver.address,
-            amount: '0.0001',
+            amount: "0.0001",
           });
 
           expect(result.hash).toMatch(/^0x[a-fA-F0-9]{64}$/);
           expect(result.to).toBe(receiver.address);
         } else {
-          console.warn('Skipping Base Sepolia transfer test - insufficient balance');
+          console.warn(
+            "Skipping Base Sepolia transfer test - insufficient balance",
+          );
           await expect(
             ta.transfer({
-              fromChain: 'baseSepolia' as any,
+              fromChain: "baseSepolia" as any,
               toAddress: receiver.address,
-              amount: '0.001',
-            })
-          ).rejects.toThrow('Transfer failed');
+              amount: "0.001",
+            }),
+          ).rejects.toThrow("Transfer failed");
         }
       });
     });
 
-    describe('Integration tests with funded wallet', () => {
-      it('should perform actual transfer if funded wallet is available', async () => {
+    describe("Integration tests with funded wallet", () => {
+      it("should perform actual transfer if funded wallet is available", async () => {
         if (!FUNDED_TEST_WALLET) {
-          console.log('Skipping integration test - no funded wallet provided');
+          console.log("Skipping integration test - no funded wallet provided");
           return; // Just return instead of this.skip()
         }
 
@@ -167,33 +169,33 @@ describe('Transfer Action', () => {
         const fundedWp = new WalletProvider(
           FUNDED_TEST_WALLET as `0x${string}`,
           mockCacheManager as any,
-          { sepolia: testChains.sepolia }
+          { sepolia: testChains.sepolia },
         );
         const fundedTa = new TransferAction(fundedWp);
 
-        const balance = await fundedWp.getWalletBalanceForChain('sepolia');
+        const balance = await fundedWp.getWalletBalanceForChain("sepolia");
         console.log(`Funded wallet balance: ${balance} ETH`);
 
         if (balance && parseFloat(balance) > 0.01) {
           const result = await fundedTa.transfer({
-            fromChain: 'sepolia' as any,
+            fromChain: "sepolia" as any,
             toAddress: receiver.address,
-            amount: '0.001', // 0.001 ETH
+            amount: "0.001", // 0.001 ETH
           });
 
           expect(result.hash).toMatch(/^0x[a-fA-F0-9]{64}$/);
           expect(result.from).toBe(fundedWp.getAddress());
           expect(result.to).toBe(receiver.address);
-          expect(result.value).toBe(parseEther('0.001'));
+          expect(result.value).toBe(parseEther("0.001"));
 
           // Wait a bit and check if transaction was successful
-          const publicClient = fundedWp.getPublicClient('sepolia');
+          const publicClient = fundedWp.getPublicClient("sepolia");
           const receipt = await publicClient.waitForTransactionReceipt({
             hash: result.hash,
             timeout: 30000, // 30 second timeout
           });
 
-          expect(receipt.status).toBe('success');
+          expect(receipt.status).toBe("success");
           console.log(`Transfer successful: ${result.hash}`);
         } else {
           // Skip if insufficient funds
@@ -201,42 +203,45 @@ describe('Transfer Action', () => {
       });
     });
 
-    describe('Gas and fee estimation', () => {
-      it('should estimate gas for transfer', async () => {
-        const publicClient = wp.getPublicClient('sepolia');
+    describe("Gas and fee estimation", () => {
+      it("should estimate gas for transfer", async () => {
+        const publicClient = wp.getPublicClient("sepolia");
         const walletAddress = wp.getAddress();
-        
+
         try {
           const gasEstimate = await publicClient.estimateGas({
             account: walletAddress,
             to: receiver.address,
-            value: parseEther('0.001'),
+            value: parseEther("0.001"),
           });
 
-          expect(typeof gasEstimate).toBe('bigint');
+          expect(typeof gasEstimate).toBe("bigint");
           expect(gasEstimate).toBeGreaterThan(0n);
           console.log(`Estimated gas: ${gasEstimate.toString()}`);
         } catch (error) {
-          console.warn('Gas estimation failed (likely insufficient funds):', error);
+          console.warn(
+            "Gas estimation failed (likely insufficient funds):",
+            error,
+          );
         }
       });
 
-      it('should calculate transfer cost', async () => {
-        const publicClient = wp.getPublicClient('sepolia');
-        
+      it("should calculate transfer cost", async () => {
+        const publicClient = wp.getPublicClient("sepolia");
+
         try {
           const gasPrice = await publicClient.getGasPrice();
           const estimatedGas = 21000n; // Standard ETH transfer gas
-          const transferAmount = parseEther('0.001');
-          const totalCost = transferAmount + (gasPrice * estimatedGas);
+          const transferAmount = parseEther("0.001");
+          const totalCost = transferAmount + gasPrice * estimatedGas;
 
-          expect(typeof gasPrice).toBe('bigint');
+          expect(typeof gasPrice).toBe("bigint");
           expect(gasPrice).toBeGreaterThan(0n);
-          
+
           console.log(`Gas price: ${formatEther(gasPrice)} ETH/gas`);
           console.log(`Estimated total cost: ${formatEther(totalCost)} ETH`);
         } catch (error) {
-          console.warn('Fee calculation failed:', error);
+          console.warn("Fee calculation failed:", error);
         }
       });
     });
@@ -245,8 +250,8 @@ describe('Transfer Action', () => {
 
 const prepareChains = () => {
   const customChains: Record<string, Chain> = {};
-  const chainNames = ['sepolia', 'baseSepolia'];
-  
+  const chainNames = ["sepolia", "baseSepolia"];
+
   chainNames.forEach((chain) => {
     try {
       customChains[chain] = WalletProvider.genChainFromName(chain as any);

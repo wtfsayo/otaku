@@ -74,7 +74,7 @@ export const vaultTransferAction: Action = {
     message: Memory,
     state?: State,
     options?: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     logger.info("Starting MORPHO_VAULT_TRANSFER");
 
@@ -113,7 +113,7 @@ export const vaultTransferAction: Action = {
         runtime,
         message,
         "MORPHO_VAULT_TRANSFER",
-        callback
+        callback,
       );
       if (!walletResult.success) {
         return walletResult.result;
@@ -132,37 +132,37 @@ export const vaultTransferAction: Action = {
       // 1) Validate intent
       if (!rawIntent) {
         return await fail(
-          'Missing intent. Please specify "deposit" or "withdraw".'
+          'Missing intent. Please specify "deposit" or "withdraw".',
         );
       }
       if (rawIntent !== "deposit" && rawIntent !== "withdraw") {
         return await fail(
-          `Invalid intent "${rawIntent}". Use "deposit" or "withdraw".`
+          `Invalid intent "${rawIntent}". Use "deposit" or "withdraw".`,
         );
       }
 
       // 2) Validate vault
       if (!rawVault) {
         return await fail(
-          'Missing vault. Provide a vault name (e.g., "Spark USDC Vault") or a 0x-address.'
+          'Missing vault. Provide a vault name (e.g., "Spark USDC Vault") or a 0x-address.',
         );
       }
 
       // 3) Validate assets (must be a positive numeric string)
       if (!rawAssets) {
         return await fail(
-          'Missing amount. Provide a pure number without units (e.g., "1", "0.5", "100").'
+          'Missing amount. Provide a pure number without units (e.g., "1", "0.5", "100").',
         );
       }
       const amountNum = Number(rawAssets);
       if (!Number.isFinite(amountNum) || amountNum <= 0) {
         return await fail(
-          `Invalid amount "${rawAssets}". Use a positive number without units (e.g., "1", "2.5").`
+          `Invalid amount "${rawAssets}". Use a positive number without units (e.g., "1", "2.5").`,
         );
       }
 
       const service = runtime.getService(
-        MorphoService.serviceType
+        MorphoService.serviceType,
       ) as MorphoService;
       const chainSlug = service.getChainSlug(); // 'base' | 'base-sepolia'
 
@@ -173,7 +173,7 @@ export const vaultTransferAction: Action = {
             vault: rawVault,
             assets: rawAssets,
           },
-          walletPrivateKey
+          walletPrivateKey,
         );
       } else {
         hashes = await service.depositToVault(
@@ -182,7 +182,7 @@ export const vaultTransferAction: Action = {
             assets: rawAssets,
             approveAmount: "max",
           },
-          walletPrivateKey
+          walletPrivateKey,
         );
       }
 

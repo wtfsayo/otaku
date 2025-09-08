@@ -20,7 +20,7 @@ export class EVMWalletService extends Service {
    * Create a new EVM wallet for the specified chain
    */
   async createWallet(
-    chainName: string = "ethereum"
+    chainName: string = "ethereum",
   ): Promise<WalletCreationResult> {
     try {
       const chainConfig = getChainConfig(chainName);
@@ -63,7 +63,7 @@ export class EVMWalletService extends Service {
    */
   async importWallet(
     privateKey: string,
-    chainName: string = "ethereum"
+    chainName: string = "ethereum",
   ): Promise<WalletCreationResult> {
     try {
       const chainConfig = getChainConfig(chainName);
@@ -106,7 +106,7 @@ export class EVMWalletService extends Service {
    */
   async getWalletBalance(
     address: string,
-    chainName: string
+    chainName: string,
   ): Promise<WalletBalance | null> {
     try {
       const chainConfig = getChainConfig(chainName);
@@ -122,7 +122,7 @@ export class EVMWalletService extends Service {
       // Fetch token balances using Alchemy approach (like clanker service)
       const tokens = await this.getAllTokensInWallet(
         address,
-        chainConfig.rpcUrl
+        chainConfig.rpcUrl,
       );
 
       return {
@@ -135,7 +135,7 @@ export class EVMWalletService extends Service {
     } catch (error) {
       logger.error(
         `Error getting balance for ${address} on ${chainName}:`,
-        error
+        error,
       );
       return null;
     }
@@ -146,7 +146,7 @@ export class EVMWalletService extends Service {
    */
   async getAllTokensInWallet(
     walletAddress: string,
-    rpcUrl: string
+    rpcUrl: string,
   ): Promise<TokenBalance[]> {
     try {
       // Check if this is an Alchemy endpoint
@@ -186,7 +186,7 @@ export class EVMWalletService extends Service {
             if (tokenInfo) {
               const balanceFormatted = ethers.formatUnits(
                 tokenBalance,
-                tokenInfo.decimals
+                tokenInfo.decimals,
               );
 
               tokenBalances.push({
@@ -205,7 +205,7 @@ export class EVMWalletService extends Service {
       }
 
       logger.info(
-        `✅ Found ${tokenBalances.length} tokens with non-zero balance`
+        `✅ Found ${tokenBalances.length} tokens with non-zero balance`,
       );
       return tokenBalances;
     } catch (error) {
@@ -219,7 +219,7 @@ export class EVMWalletService extends Service {
    */
   async getTokenInfo(
     address: string,
-    rpcUrl: string
+    rpcUrl: string,
   ): Promise<{
     symbol: string;
     name: string;

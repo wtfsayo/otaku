@@ -258,7 +258,7 @@ export const TokenDeploySchema = z.object({
             tickLower: z.number(),
             tickUpper: z.number(),
             positionBps: z.number(),
-          })
+          }),
         )
         .optional(),
     })
@@ -283,7 +283,7 @@ export const TokenDeploySchema = z.object({
           admin: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
           bps: z.number().min(0).max(10000),
           token: z.enum(["Both", "Paired", "Clanker"]),
-        })
+        }),
       ),
     })
     .optional(),

@@ -30,7 +30,7 @@ export const ethWalletImport: Action = {
 
     // Check if message contains potential private key or import keywords
     const hasImportKeywords = ["import", "restore", "add wallet"].some(
-      (keyword) => text.toLowerCase().includes(keyword)
+      (keyword) => text.toLowerCase().includes(keyword),
     );
 
     // Check if message contains potential Ethereum private key
@@ -43,7 +43,7 @@ export const ethWalletImport: Action = {
     message: Memory,
     state: State,
     _options: { [key: string]: unknown },
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     try {
       logger.log("ETH_WALLET_IMPORT handler started");
@@ -117,7 +117,7 @@ export const ethWalletImport: Action = {
       // Import the wallet
       const wallet = await evmChainService.importWallet(
         privateKey,
-        targetChain
+        targetChain,
       );
 
       if (!wallet) {
@@ -146,7 +146,7 @@ export const ethWalletImport: Action = {
       // Get wallet balance
       const balance = await evmChainService.getWalletBalance(
         wallet.address,
-        targetChain
+        targetChain,
       );
       const balanceText = balance
         ? `**Balance:** ${balance.nativeBalanceFormatted} ${targetChain === "polygon" ? "MATIC" : "ETH"}`

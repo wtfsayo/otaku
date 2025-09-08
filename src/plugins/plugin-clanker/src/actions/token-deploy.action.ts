@@ -157,14 +157,13 @@ export const tokenDeployAction: Action = {
       const prompt = getTokenDeployXmlPrompt(text);
       const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
 
-      logger.info("Model response for token deployment:", { response });
+      logger.info(`Model response for token deployment: ${response}`);
 
       const parsed = parseKeyValueXml(response);
 
       if (!parsed) {
         logger.error(
-          "Failed to parse token deployment parameters from message.",
-          { parsed, response, text },
+          `Failed to parse token deployment parameters from message. Parsed: ${JSON.stringify(parsed)}, Response: ${response}, Text: ${text}`,
         );
         throw new Error(
           "Failed to parse token deployment parameters from message. Please provide token name and symbol clearly.",
@@ -202,7 +201,7 @@ export const tokenDeployAction: Action = {
           devBuy: deployParams.devBuy,
         },
 
-        walletPrivateKey
+        walletPrivateKey,
       );
 
       // Prepare response

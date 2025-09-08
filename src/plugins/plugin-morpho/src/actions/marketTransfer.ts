@@ -127,7 +127,7 @@ export const marketTransferAction: Action = {
     message: Memory,
     state?: State,
     options?: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     logger.info("Starting MORPHO_MARKET_TRANSFER");
 
@@ -170,7 +170,7 @@ export const marketTransferAction: Action = {
         runtime,
         message,
         "MORPHO_MARKET_TRANSFER",
-        callback
+        callback,
       );
       if (!walletResult.success) {
         return walletResult.result;
@@ -199,26 +199,26 @@ export const marketTransferAction: Action = {
       ];
       if (!rawIntent) {
         return await fail(
-          "Missing operation. Please specify supply, supplyCollateral, borrow, repay, withdraw, or withdrawCollateral."
+          "Missing operation. Please specify supply, supplyCollateral, borrow, repay, withdraw, or withdrawCollateral.",
         );
       }
       if (!validIntents.includes(rawIntent)) {
         return await fail(
-          `Invalid operation "${rawIntent}". Use: supply, supplyCollateral, borrow, repay, withdraw, or withdrawCollateral.`
+          `Invalid operation "${rawIntent}". Use: supply, supplyCollateral, borrow, repay, withdraw, or withdrawCollateral.`,
         );
       }
 
       // 2) Validate market
       if (!rawMarket) {
         return await fail(
-          'Missing market. Provide a market pair (e.g., "WETH/USDC") or marketId.'
+          'Missing market. Provide a market pair (e.g., "WETH/USDC") or marketId.',
         );
       }
 
       // 3) Validate assets (required for all operations except full repayment)
       if (!rawFullRepayment && !rawAssets) {
         return await fail(
-          'Missing amount. Provide a pure number without units (e.g., "1", "0.5", "100").'
+          'Missing amount. Provide a pure number without units (e.g., "1", "0.5", "100").',
         );
       }
 
@@ -227,13 +227,13 @@ export const marketTransferAction: Action = {
         amountNum = Number(rawAssets);
         if (!Number.isFinite(amountNum) || amountNum <= 0) {
           return await fail(
-            `Invalid amount "${rawAssets}". Use a positive number without units (e.g., "1", "2.5").`
+            `Invalid amount "${rawAssets}". Use a positive number without units (e.g., "1", "2.5").`,
           );
         }
       }
 
       const service = runtime.getService(
-        MorphoService.serviceType
+        MorphoService.serviceType,
       ) as MorphoService;
       const chainSlug = service.getChainSlug();
 
@@ -251,7 +251,7 @@ export const marketTransferAction: Action = {
           operationParams.assets = rawAssets;
           hashes = await service.supplyCollateral(
             operationParams,
-            walletPrivateKey
+            walletPrivateKey,
           );
           break;
 
@@ -278,7 +278,7 @@ export const marketTransferAction: Action = {
           operationParams.assets = rawAssets;
           hashes = await service.withdrawCollateral(
             operationParams,
-            walletPrivateKey
+            walletPrivateKey,
           );
           break;
 

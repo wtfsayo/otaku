@@ -54,19 +54,19 @@ export class TransferAction {
       ) {
         // This is an ERC20 token transfer
         console.log(
-          `Processing ${params.token} token transfer of ${params.amount} to ${params.toAddress}`
+          `Processing ${params.token} token transfer of ${params.amount} to ${params.toAddress}`,
         );
 
         // First, resolve the token address
         const tokenAddress = await this.resolveTokenAddress(
           params.token,
-          chainConfig.id
+          chainConfig.id,
         );
 
         // Check if token was resolved properly
         if (tokenAddress === params.token && !tokenAddress.startsWith("0x")) {
           throw new Error(
-            `Token ${params.token} not found on ${params.fromChain}. Please check the token symbol.`
+            `Token ${params.token} not found on ${params.fromChain}. Please check the token symbol.`,
           );
         }
 
@@ -99,7 +99,7 @@ export class TransferAction {
       } else {
         // This is a native ETH transfer
         console.log(
-          `Processing native ${chainConfig.nativeCurrency.symbol} transfer of ${params.amount} to ${params.toAddress}`
+          `Processing native ${chainConfig.nativeCurrency.symbol} transfer of ${params.amount} to ${params.toAddress}`,
         );
 
         to = params.toAddress;
@@ -134,7 +134,7 @@ export class TransferAction {
 
   private async resolveTokenAddress(
     tokenSymbolOrAddress: string,
-    chainId: number
+    chainId: number,
   ): Promise<string> {
     // If it's already a valid address (starts with 0x and is 42 chars), return as is
     if (
@@ -156,7 +156,7 @@ export class TransferAction {
     } catch (error) {
       elizaLogger.error(
         `Failed to resolve token ${tokenSymbolOrAddress} on chain ${chainId}:`,
-        error
+        error,
       );
       // If LiFi fails, return original value and let downstream handle the error
       return tokenSymbolOrAddress;
@@ -168,7 +168,7 @@ const buildTransferDetails = async (
   state: State,
   _message: Memory,
   runtime: IAgentRuntime,
-  wp: WalletProvider
+  wp: WalletProvider,
 ): Promise<TransferParams> => {
   const chains = wp.getSupportedChains();
 
@@ -197,7 +197,7 @@ const buildTransferDetails = async (
 
   if (!parsedXml) {
     throw new Error(
-      "Failed to parse XML response from LLM for transfer details."
+      "Failed to parse XML response from LLM for transfer details.",
     );
   }
 
@@ -214,7 +214,7 @@ const buildTransferDetails = async (
       "The chain " +
         transferDetails.fromChain +
         " not configured yet. Add the chain or choose one from configured: " +
-        chains.toString()
+        chains.toString(),
     );
   }
 
@@ -233,7 +233,7 @@ export const transferAction: Action = {
     message: Memory,
     state: State | undefined,
     _options: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     if (!state) {
       state = (await runtime.composeState(message)) as State;
@@ -243,7 +243,7 @@ export const transferAction: Action = {
       runtime,
       message,
       "EVM_TRANSFER_TOKENS",
-      callback
+      callback,
     );
     if (!walletResult.success) {
       return walletResult.result;
@@ -258,7 +258,7 @@ export const transferAction: Action = {
       state,
       message,
       runtime,
-      walletProvider
+      walletProvider,
     );
 
     try {
@@ -266,7 +266,7 @@ export const transferAction: Action = {
 
       // Determine token symbol for display
       const chainConfig = walletProvider.getChainConfigs(
-        paramOptions.fromChain
+        paramOptions.fromChain,
       );
       const tokenSymbol =
         paramOptions.token &&
@@ -373,7 +373,7 @@ export const transferAction: Action = {
       },
     ],
   ],
-  
+
   similes: [
     "EVM_TRANSFER",
     "EVM_SEND_TOKENS",

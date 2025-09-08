@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect } from "bun:test";
 
 // Mock the types and runtime for testing
 type Content = {
@@ -20,24 +20,26 @@ function handleAmbiguity(responseContent: Content): Content {
   if (responseContent.actions && responseContent.actions.length > 1) {
     // Helper function to safely check if an action is IGNORE
     const isIgnoreAction = (action: unknown): boolean => {
-      return typeof action === 'string' && action.toUpperCase() === 'IGNORE';
+      return typeof action === "string" && action.toUpperCase() === "IGNORE";
     };
 
     // Check if any action is IGNORE
     const hasIgnoreAction = responseContent.actions.some(isIgnoreAction);
 
     if (hasIgnoreAction) {
-      if (!responseContent.text || responseContent.text.trim() === '') {
+      if (!responseContent.text || responseContent.text.trim() === "") {
         // No text, truly meant to IGNORE
-        responseContent.actions = ['IGNORE'];
+        responseContent.actions = ["IGNORE"];
       } else {
         // Text present, LLM intended to reply, remove IGNORE
-        const filteredActions = responseContent.actions.filter((action) => !isIgnoreAction(action));
+        const filteredActions = responseContent.actions.filter(
+          (action) => !isIgnoreAction(action),
+        );
 
         // Ensure we don't end up with an empty actions array when text is present
         // If all actions were IGNORE, default to REPLY
         if (filteredActions.length === 0) {
-          responseContent.actions = ['REPLY'];
+          responseContent.actions = ["REPLY"];
         } else {
           responseContent.actions = filteredActions;
         }
@@ -49,8 +51,8 @@ function handleAmbiguity(responseContent: Content): Content {
   // Simple = REPLY action with no providers used
   const isSimple =
     responseContent.actions?.length === 1 &&
-    typeof responseContent.actions[0] === 'string' &&
-    responseContent.actions[0].toUpperCase() === 'REPLY' &&
+    typeof responseContent.actions[0] === "string" &&
+    responseContent.actions[0].toUpperCase() === "REPLY" &&
     (!responseContent.providers || responseContent.providers.length === 0);
 
   responseContent.simple = isSimple;
@@ -58,107 +60,107 @@ function handleAmbiguity(responseContent: Content): Content {
   return responseContent;
 }
 
-describe('LLM Ambiguity Handling', () => {
-  describe('Bug 1: Empty Actions Array Fix', () => {
-    it('should handle multiple IGNORE actions with text present', () => {
+describe("LLM Ambiguity Handling", () => {
+  describe("Bug 1: Empty Actions Array Fix", () => {
+    it("should handle multiple IGNORE actions with text present", () => {
       const responseContent: Content = {
-        text: 'Hello world',
-        actions: ['IGNORE', 'IGNORE'],
+        text: "Hello world",
+        actions: ["IGNORE", "IGNORE"],
       };
 
       const result = handleAmbiguity(responseContent);
 
       // Should default to REPLY when all actions were IGNORE but text is present
-      expect(result.actions).toEqual(['REPLY']);
+      expect(result.actions).toEqual(["REPLY"]);
       expect(result.simple).toBe(true);
     });
 
-    it('should handle mixed actions with IGNORE and text present', () => {
+    it("should handle mixed actions with IGNORE and text present", () => {
       const responseContent: Content = {
-        text: 'Hello world',
-        actions: ['REPLY', 'IGNORE', 'SEND_MESSAGE'],
+        text: "Hello world",
+        actions: ["REPLY", "IGNORE", "SEND_MESSAGE"],
       };
 
       const result = handleAmbiguity(responseContent);
 
       // Should remove IGNORE but keep other actions
-      expect(result.actions).toEqual(['REPLY', 'SEND_MESSAGE']);
+      expect(result.actions).toEqual(["REPLY", "SEND_MESSAGE"]);
       expect(result.simple).toBe(false);
     });
 
-    it('should handle IGNORE with no text', () => {
+    it("should handle IGNORE with no text", () => {
       const responseContent: Content = {
-        text: '',
-        actions: ['REPLY', 'IGNORE', 'SEND_MESSAGE'],
+        text: "",
+        actions: ["REPLY", "IGNORE", "SEND_MESSAGE"],
       };
 
       const result = handleAmbiguity(responseContent);
 
       // Should keep only IGNORE when no text
-      expect(result.actions).toEqual(['IGNORE']);
+      expect(result.actions).toEqual(["IGNORE"]);
       expect(result.simple).toBe(false);
     });
   });
 
-  describe('Bug 2: Runtime Error Fix', () => {
-    it('should handle non-string actions gracefully', () => {
+  describe("Bug 2: Runtime Error Fix", () => {
+    it("should handle non-string actions gracefully", () => {
       const responseContent: Content = {
-        text: 'Hello world',
-        actions: [null, undefined, 123, 'IGNORE', 'REPLY'],
+        text: "Hello world",
+        actions: [null, undefined, 123, "IGNORE", "REPLY"],
       };
 
       const result = handleAmbiguity(responseContent);
 
       // Should handle IGNORE properly but keep non-string actions for now
       // (the actual implementation only filters IGNORE, not all non-strings)
-      expect(result.actions).toEqual([null, undefined, 123, 'REPLY']);
+      expect(result.actions).toEqual([null, undefined, 123, "REPLY"]);
       expect(result.simple).toBe(false); // Not simple because of non-string actions
     });
 
-    it('should handle mixed string/non-string actions with IGNORE', () => {
+    it("should handle mixed string/non-string actions with IGNORE", () => {
       const responseContent: Content = {
-        text: 'Hello world',
-        actions: [null, 'IGNORE', undefined, 'REPLY'],
+        text: "Hello world",
+        actions: [null, "IGNORE", undefined, "REPLY"],
       };
 
       const result = handleAmbiguity(responseContent);
 
       // Should remove IGNORE but keep other actions including non-strings
-      expect(result.actions).toEqual([null, undefined, 'REPLY']);
+      expect(result.actions).toEqual([null, undefined, "REPLY"]);
       expect(result.simple).toBe(false); // Not simple because of non-string actions
     });
 
-    it('should handle case-insensitive IGNORE detection', () => {
+    it("should handle case-insensitive IGNORE detection", () => {
       const responseContent: Content = {
-        text: 'Hello world',
-        actions: ['ignore', 'Ignore', 'IGNORE', 'REPLY'],
+        text: "Hello world",
+        actions: ["ignore", "Ignore", "IGNORE", "REPLY"],
       };
 
       const result = handleAmbiguity(responseContent);
 
       // Should remove all IGNORE variants and keep REPLY
-      expect(result.actions).toEqual(['REPLY']);
+      expect(result.actions).toEqual(["REPLY"]);
       expect(result.simple).toBe(true);
     });
   });
 
-  describe('Edge Cases', () => {
-    it('should handle single action (no ambiguity)', () => {
+  describe("Edge Cases", () => {
+    it("should handle single action (no ambiguity)", () => {
       const responseContent: Content = {
-        text: 'Hello world',
-        actions: ['REPLY'],
+        text: "Hello world",
+        actions: ["REPLY"],
       };
 
       const result = handleAmbiguity(responseContent);
 
       // Should not modify single actions
-      expect(result.actions).toEqual(['REPLY']);
+      expect(result.actions).toEqual(["REPLY"]);
       expect(result.simple).toBe(true);
     });
 
-    it('should handle no actions', () => {
+    it("should handle no actions", () => {
       const responseContent: Content = {
-        text: 'Hello world',
+        text: "Hello world",
         actions: [],
       };
 
@@ -169,9 +171,9 @@ describe('LLM Ambiguity Handling', () => {
       expect(result.simple).toBe(false);
     });
 
-    it('should handle undefined actions', () => {
+    it("should handle undefined actions", () => {
       const responseContent: Content = {
-        text: 'Hello world',
+        text: "Hello world",
       };
 
       const result = handleAmbiguity(responseContent);
@@ -181,9 +183,9 @@ describe('LLM Ambiguity Handling', () => {
       expect(result.simple).toBe(false);
     });
 
-    it('should handle all non-string actions', () => {
+    it("should handle all non-string actions", () => {
       const responseContent: Content = {
-        text: 'Hello world',
+        text: "Hello world",
         actions: [null, undefined, 123, {}],
       };
 

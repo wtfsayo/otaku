@@ -55,7 +55,7 @@ export const vaultPositionsAction: Action = {
     "Get your Morpho vault positions (deposit balances and APYs). Supports an optional vault filter by name or address. This action does not include markets.",
   validate: async (runtime: IAgentRuntime) => {
     const morphoService = runtime.getService(
-      MorphoService.serviceType
+      MorphoService.serviceType,
     ) as MorphoService;
     if (!morphoService) {
       logger.error("Required services not available");
@@ -68,7 +68,7 @@ export const vaultPositionsAction: Action = {
     message: Memory,
     state?: State,
     options?: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     logger.info("Starting Morpho VAULT positions action");
 
@@ -80,7 +80,7 @@ export const vaultPositionsAction: Action = {
         runtime,
         message,
         "GET_MORPHO_VAULT_POSITIONS",
-        callback
+        callback,
       );
       if (!walletResult.success) {
         return walletResult.result;
@@ -96,7 +96,7 @@ export const vaultPositionsAction: Action = {
       const params = { vault: parsed?.vault || undefined }; // address or name-substring
 
       const service = runtime.getService(
-        MorphoService.serviceType
+        MorphoService.serviceType,
       ) as MorphoService;
 
       let vaults: UserVaultPosition[] = [];
@@ -113,7 +113,7 @@ export const vaultPositionsAction: Action = {
         ? vaults.filter((v) =>
             isAddr
               ? (v.vault.address ?? "").toLowerCase() === q
-              : (v.vault.name ?? "").toLowerCase().includes(q)
+              : (v.vault.name ?? "").toLowerCase().includes(q),
           )
         : vaults;
 

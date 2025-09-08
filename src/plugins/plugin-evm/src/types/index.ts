@@ -1,4 +1,4 @@
-import type { Route, Token } from '@lifi/types';
+import type { Route, Token } from "@lifi/types";
 import type {
   Account,
   Address,
@@ -8,10 +8,12 @@ import type {
   PublicClient,
   WalletClient,
   Log,
-} from 'viem';
-import * as viemChains from 'viem/chains';
+} from "viem";
+import * as viemChains from "viem/chains";
 
-const _SupportedChainList = Object.keys(viemChains) as Array<keyof typeof viemChains>;
+const _SupportedChainList = Object.keys(viemChains) as Array<
+  keyof typeof viemChains
+>;
 export type SupportedChain = (typeof _SupportedChainList)[number];
 
 // Transaction types
@@ -89,7 +91,7 @@ export interface BebopRoute {
 }
 
 export interface SwapQuote {
-  aggregator: 'lifi' | 'bebop';
+  aggregator: "lifi" | "bebop";
   minOutputAmount: string;
   swapData: Route | BebopRoute;
 }
@@ -148,7 +150,7 @@ export interface EvmPluginConfig {
 
 // LiFi types
 export type LiFiStatus = {
-  status: 'PENDING' | 'DONE' | 'FAILED';
+  status: "PENDING" | "DONE" | "FAILED";
   substatus?: string;
   error?: Error;
 };

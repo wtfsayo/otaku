@@ -108,7 +108,7 @@ export class MorphoService extends Service {
    */
   async getSupplyPositions(
     market: string,
-    walletPrivateKey: string
+    walletPrivateKey: string,
   ): Promise<{
     suppliedAssets: number;
     suppliedShares: number;
@@ -129,7 +129,7 @@ export class MorphoService extends Service {
     const position = await AccrualPosition.fetch(
       address,
       marketId as MarketId,
-      pc
+      pc,
     );
     const supplyShares = (position as any).supplyShares ?? 0n;
 
@@ -195,7 +195,7 @@ export class MorphoService extends Service {
       assets?: string | number | bigint;
       onBehalf?: `0x${string}`;
     } = {},
-    walletPrivateKey: string
+    walletPrivateKey: string,
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.supply: start ---");
     try {
@@ -240,14 +240,14 @@ export class MorphoService extends Service {
             confirmations: 2,
           });
           console.log(
-            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
+            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`,
           );
           hashes.push(hash);
         } catch (txErr: any) {
           console.error(`${label} -> FAILED`);
           console.error(
             "Message:",
-            txErr?.shortMessage || txErr?.message || txErr
+            txErr?.shortMessage || txErr?.message || txErr,
           );
           throw txErr;
         }
@@ -272,7 +272,7 @@ export class MorphoService extends Service {
       assets?: string | number | bigint;
       onBehalf?: `0x${string}`;
     } = {},
-    walletPrivateKey: string
+    walletPrivateKey: string,
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.supplyCollateral: start ---");
     try {
@@ -298,7 +298,7 @@ export class MorphoService extends Service {
       console.log(
         "Prepared",
         requests.length,
-        "request(s) for supply collateral."
+        "request(s) for supply collateral.",
       );
       console.log("Market collateral:", marketParams.collateralToken);
       console.log("Assets to supply (base units):", assetsBase.toString());
@@ -321,14 +321,14 @@ export class MorphoService extends Service {
             confirmations: 2,
           });
           console.log(
-            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
+            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`,
           );
           hashes.push(hash);
         } catch (txErr: any) {
           console.error(`${label} -> FAILED`);
           console.error(
             "Message:",
-            txErr?.shortMessage || txErr?.message || txErr
+            txErr?.shortMessage || txErr?.message || txErr,
           );
           throw txErr;
         }
@@ -336,13 +336,13 @@ export class MorphoService extends Service {
 
       console.log(
         "All supply collateral transactions confirmed. Hashes:",
-        hashes
+        hashes,
       );
       return hashes;
     } catch (err: any) {
       console.error(
         "supplyCollateral failed:",
-        err?.shortMessage || err?.message || err
+        err?.shortMessage || err?.message || err,
       );
       throw err;
     } finally {
@@ -360,7 +360,7 @@ export class MorphoService extends Service {
       receiver?: `0x${string}`;
       onBehalf?: `0x${string}`;
     } = {},
-    walletPrivateKey: string
+    walletPrivateKey: string,
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.borrow: start ---");
     try {
@@ -408,14 +408,14 @@ export class MorphoService extends Service {
             confirmations: 2,
           });
           console.log(
-            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
+            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`,
           );
           hashes.push(hash);
         } catch (txErr: any) {
           console.error(`${label} -> FAILED`);
           console.error(
             "Message:",
-            txErr?.shortMessage || txErr?.message || txErr
+            txErr?.shortMessage || txErr?.message || txErr,
           );
           throw txErr;
         }
@@ -442,7 +442,7 @@ export class MorphoService extends Service {
       onBehalf?: `0x${string}`;
       fullRepayment?: boolean;
     } = {},
-    walletPrivateKey: string
+    walletPrivateKey: string,
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.repay: start ---");
     try {
@@ -470,7 +470,7 @@ export class MorphoService extends Service {
         "shares:",
         cfg.shares,
         "fullRepayment:",
-        cfg.fullRepayment
+        cfg.fullRepayment,
       );
 
       const { requests, marketParams, assetsBase, sharesBase } =
@@ -501,14 +501,14 @@ export class MorphoService extends Service {
             confirmations: 2,
           });
           console.log(
-            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
+            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`,
           );
           hashes.push(hash);
         } catch (txErr: any) {
           console.error(`${label} -> FAILED`);
           console.error(
             "Message:",
-            txErr?.shortMessage || txErr?.message || txErr
+            txErr?.shortMessage || txErr?.message || txErr,
           );
           throw txErr;
         }
@@ -535,7 +535,7 @@ export class MorphoService extends Service {
       receiver?: `0x${string}`;
       onBehalf?: `0x${string}`;
     } = {},
-    walletPrivateKey: string
+    walletPrivateKey: string,
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.withdraw: start ---");
     try {
@@ -563,7 +563,7 @@ export class MorphoService extends Service {
         "assets:",
         cfg.assets,
         "shares:",
-        cfg.shares
+        cfg.shares,
       );
 
       const { requests, marketParams, assetsBase, sharesBase } =
@@ -594,14 +594,14 @@ export class MorphoService extends Service {
             confirmations: 2,
           });
           console.log(
-            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
+            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`,
           );
           hashes.push(hash);
         } catch (txErr: any) {
           console.error(`${label} -> FAILED`);
           console.error(
             "Message:",
-            txErr?.shortMessage || txErr?.message || txErr
+            txErr?.shortMessage || txErr?.message || txErr,
           );
           throw txErr;
         }
@@ -612,7 +612,7 @@ export class MorphoService extends Service {
     } catch (err: any) {
       console.error(
         "withdraw failed:",
-        err?.shortMessage || err?.message || err
+        err?.shortMessage || err?.message || err,
       );
       throw err;
     } finally {
@@ -630,7 +630,7 @@ export class MorphoService extends Service {
       receiver?: `0x${string}`;
       onBehalf?: `0x${string}`;
     } = {},
-    walletPrivateKey: string
+    walletPrivateKey: string,
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.withdrawCollateral: start ---");
     try {
@@ -659,7 +659,7 @@ export class MorphoService extends Service {
       console.log(
         "Prepared",
         requests.length,
-        "request(s) for withdraw collateral."
+        "request(s) for withdraw collateral.",
       );
       console.log("Market collateral:", marketParams.collateralToken);
       console.log("Assets to withdraw (base units):", assetsBase.toString());
@@ -682,14 +682,14 @@ export class MorphoService extends Service {
             confirmations: 2,
           });
           console.log(
-            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
+            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`,
           );
           hashes.push(hash);
         } catch (txErr: any) {
           console.error(`${label} -> FAILED`);
           console.error(
             "Message:",
-            txErr?.shortMessage || txErr?.message || txErr
+            txErr?.shortMessage || txErr?.message || txErr,
           );
           throw txErr;
         }
@@ -697,13 +697,13 @@ export class MorphoService extends Service {
 
       console.log(
         "All withdraw collateral transactions confirmed. Hashes:",
-        hashes
+        hashes,
       );
       return hashes;
     } catch (err: any) {
       console.error(
         "withdrawCollateral failed:",
-        err?.shortMessage || err?.message || err
+        err?.shortMessage || err?.message || err,
       );
       throw err;
     } finally {
@@ -921,7 +921,7 @@ export class MorphoService extends Service {
       const position = await AccrualPosition.fetch(
         onBehalf,
         marketId as MarketId,
-        pc
+        pc,
       );
       const borrowShares = (position as any).borrowShares ?? 0n;
       sharesBase = borrowShares;
@@ -1002,13 +1002,13 @@ export class MorphoService extends Service {
       })) as bigint;
 
       console.log(
-        `🔍 Current allowance: ${Number(currentAllowance) / 1_000_000} USDC, needed: ${Number(assetsBase) / 1_000_000} USDC`
+        `🔍 Current allowance: ${Number(currentAllowance) / 1_000_000} USDC, needed: ${Number(assetsBase) / 1_000_000} USDC`,
       );
 
       if (currentAllowance < assetsBase) {
         console.log("🔧 Adding approval request...");
         console.log(
-          `💰 Approving exactly ${Number(assetsBase) / 1_000_000} USDC (user-specified amount)`
+          `💰 Approving exactly ${Number(assetsBase) / 1_000_000} USDC (user-specified amount)`,
         );
         const { request: approveReq } = await pc.simulateContract({
           address: marketParams.loanToken as `0x${string}`,
@@ -1044,7 +1044,7 @@ export class MorphoService extends Service {
       }
     } else {
       throw new Error(
-        "Either assets, shares, or fullRepayment must be specified for repay"
+        "Either assets, shares, or fullRepayment must be specified for repay",
       );
     }
 
@@ -1168,7 +1168,7 @@ export class MorphoService extends Service {
       .filter(Boolean);
     if (parts.length !== 2) {
       throw new Error(
-        `Invalid pair "${pair}". Expected "Collateral/Loan", e.g. "cbBTC/USDC".`
+        `Invalid pair "${pair}". Expected "Collateral/Loan", e.g. "cbBTC/USDC".`,
       );
     }
     const [collRaw, loanRaw] = parts;
@@ -1201,7 +1201,7 @@ export class MorphoService extends Service {
     if (relaxed?.uniqueKey) return relaxed.uniqueKey;
 
     throw new Error(
-      `No whitelisted Morpho market found for "${pair}" on chainId ${chainId}.`
+      `No whitelisted Morpho market found for "${pair}" on chainId ${chainId}.`,
     );
   }
 
@@ -1211,7 +1211,7 @@ export class MorphoService extends Service {
       {
         chainIds: [chainId],
         first: 1000,
-      }
+      },
     );
     const items = data?.markets?.items ?? [];
     return items;
@@ -1227,7 +1227,7 @@ export class MorphoService extends Service {
 
   private async fetchPositionsFromApi(
     address: `0x${string}`,
-    chainId: number
+    chainId: number,
   ): Promise<string[]> {
     const data = await this.gql.query<{
       userByAddress?: {
@@ -1322,17 +1322,17 @@ export class MorphoService extends Service {
     if (isAddress(q)) return q as `0x${string}`;
 
     const byNameExact = items.find(
-      (v: any) => (v?.name ?? "").toLowerCase() === q
+      (v: any) => (v?.name ?? "").toLowerCase() === q,
     );
     if (byNameExact?.address) return byNameExact.address as `0x${string}`;
 
     const byNameContains = items.find((v: any) =>
-      (v?.name ?? "").toLowerCase().includes(q)
+      (v?.name ?? "").toLowerCase().includes(q),
     );
     if (byNameContains?.address) return byNameContains.address as `0x${string}`;
 
     throw new Error(
-      `No whitelisted Morpho vault found for "${vault}" on chainId ${chainId}.`
+      `No whitelisted Morpho vault found for "${vault}" on chainId ${chainId}.`,
     );
   }
 
@@ -1427,7 +1427,7 @@ export class MorphoService extends Service {
 
   async getUserPositions(
     walletPrivateKey: string,
-    market?: string
+    market?: string,
   ): Promise<UserPosition[]> {
     this.ensurePublicClient();
     const wallet = this.createWalletClient(walletPrivateKey);
@@ -1450,7 +1450,9 @@ export class MorphoService extends Service {
     for (let i = 0; i < positions.length; i += BATCH_SIZE) {
       const batch = positions.slice(i, i + BATCH_SIZE);
       const out = await Promise.all(
-        batch.map((id) => this.buildUserPosition(address, id).catch(() => null))
+        batch.map((id) =>
+          this.buildUserPosition(address, id).catch(() => null),
+        ),
       );
       for (const r of out) if (r?.hasPosition) results.push(r);
     }
@@ -1470,7 +1472,7 @@ export class MorphoService extends Service {
         {
           address,
           chainId,
-        }
+        },
       );
       const v = data?.vaultByAddress;
       if (!v) return [];
@@ -1484,7 +1486,7 @@ export class MorphoService extends Service {
   }
 
   public async getUserVaultPositions(
-    walletPrivateKey: string
+    walletPrivateKey: string,
   ): Promise<UserVaultPosition[]> {
     const wallet = this.createWalletClient(walletPrivateKey);
     const address = wallet.account?.address;
@@ -1522,19 +1524,19 @@ export class MorphoService extends Service {
   }
 
   private async fetchMarketSummaryById(
-    uniqueKey: string
+    uniqueKey: string,
   ): Promise<MarketSummary> {
     const data = await this.gql.query<{ marketByUniqueKey?: any }>(
       Q_MARKET_SUMMARY,
       {
         uniqueKey,
         chainId: this.getChainId(),
-      }
+      },
     );
     const m = data?.marketByUniqueKey;
     if (!m)
       throw new Error(
-        `Market ${uniqueKey} not found on chainId ${this.getChainId()}`
+        `Market ${uniqueKey} not found on chainId ${this.getChainId()}`,
       );
     return this.mapMarketSummary(m);
   }
@@ -1572,7 +1574,7 @@ export class MorphoService extends Service {
 
   private async buildUserPosition(
     address: `0x${string}`,
-    marketId: string
+    marketId: string,
   ): Promise<UserPosition> {
     const pc = this.ensurePublicClient();
 
@@ -1737,7 +1739,7 @@ export class MorphoService extends Service {
             },
           ],
           functionName: "decimals",
-        })
+        }),
       );
     } catch {
       // Fallback to 18, but on Base USDC is 6 — best effort only
@@ -1754,7 +1756,7 @@ export class MorphoService extends Service {
       approveAmount?: "exact" | "max";
       receiver?: `0x${string}`;
     } = {},
-    walletPrivateKey: string
+    walletPrivateKey: string,
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.depositToVault: start ---");
     try {
@@ -1779,7 +1781,7 @@ export class MorphoService extends Service {
         "assets:",
         cfg.assets,
         "approveAmount:",
-        cfg.approveAmount
+        cfg.approveAmount,
       );
 
       const {
@@ -1799,7 +1801,7 @@ export class MorphoService extends Service {
         console.log(
           "Expected shares:",
           expectedShares.toString(),
-          shareDecimals != null ? `(shareDecimals=${shareDecimals})` : ""
+          shareDecimals != null ? `(shareDecimals=${shareDecimals})` : "",
         );
       }
 
@@ -1821,14 +1823,14 @@ export class MorphoService extends Service {
             confirmations: 2,
           });
           console.log(
-            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
+            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`,
           );
           hashes.push(hash);
         } catch (txErr: any) {
           console.error(`${label} -> FAILED`);
           console.error(
             "Message:",
-            txErr?.shortMessage || txErr?.message || txErr
+            txErr?.shortMessage || txErr?.message || txErr,
           );
           if (txErr?.data?.message)
             console.error("Revert reason:", txErr.data.message);
@@ -1842,7 +1844,7 @@ export class MorphoService extends Service {
     } catch (err: any) {
       console.error(
         "depositToVault failed:",
-        err?.shortMessage || err?.message || err
+        err?.shortMessage || err?.message || err,
       );
       throw err;
     } finally {
@@ -1857,7 +1859,7 @@ export class MorphoService extends Service {
       receiver?: `0x${string}`;
       owner?: `0x${string}`;
     } = {},
-    walletPrivateKey: string
+    walletPrivateKey: string,
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.withdrawFromVault: start ---");
     try {
@@ -1903,14 +1905,14 @@ export class MorphoService extends Service {
             confirmations: 2,
           });
           console.log(
-            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`
+            `${label} -> mined. blockNumber=${receipt.blockNumber} status=${receipt.status}`,
           );
           hashes.push(hash);
         } catch (txErr: any) {
           console.error(`${label} -> FAILED`);
           console.error(
             "Message:",
-            txErr?.shortMessage || txErr?.message || txErr
+            txErr?.shortMessage || txErr?.message || txErr,
           );
           if (txErr?.data?.message)
             console.error("Revert reason:", txErr.data.message);
@@ -1924,7 +1926,7 @@ export class MorphoService extends Service {
     } catch (err: any) {
       console.error(
         "withdrawFromVault failed:",
-        err?.shortMessage || err?.message || err
+        err?.shortMessage || err?.message || err,
       );
       throw err;
     } finally {
@@ -2055,7 +2057,7 @@ export class MorphoService extends Service {
       {
         address: vaultAddr,
         chainId,
-      }
+      },
     );
     const v = data?.vaultByAddress;
     if (!v)
@@ -2066,7 +2068,7 @@ export class MorphoService extends Service {
           address: vaultAddr,
           abi: ERC4626_ABI,
           functionName: "decimals",
-        }))
+        })),
     );
 
     const assetsBase = parseUnits(String(params.assets), decimals);

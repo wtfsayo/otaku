@@ -59,7 +59,7 @@ export const marketInfoAction: Action = {
     "Get current market data, rates, and stats for Morpho markets (no positions)",
   validate: async (runtime: IAgentRuntime) => {
     const morphoService = runtime.getService(
-      MorphoService.serviceType
+      MorphoService.serviceType,
     ) as MorphoService;
     if (!morphoService) {
       logger.error("Required services not available");
@@ -72,7 +72,7 @@ export const marketInfoAction: Action = {
     message: Memory,
     state?: State,
     options?: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     logger.info("Starting Morpho market info action");
 
@@ -86,7 +86,7 @@ export const marketInfoAction: Action = {
       const params = { market: parsed?.market || undefined };
 
       const service = runtime.getService(
-        MorphoService.serviceType
+        MorphoService.serviceType,
       ) as MorphoService;
       const markets = await service.getMarketData(params.market);
 
@@ -220,7 +220,7 @@ export const marketInfoAction: Action = {
  * ========================= */
 function formatDetailedMarketView(
   market: MorphoMarketData,
-  service: MorphoService
+  service: MorphoService,
 ): string {
   const chain = service.getChainSlug();
   const link = market.marketId

@@ -13,15 +13,15 @@ export interface EVMChainConfig {
 
 export const SUPPORTED_EVM_CHAINS: Record<string, EVMChainConfig> = {
   ethereum: {
-    name: 'Ethereum',
+    name: "Ethereum",
     chainId: 1,
-    rpcUrl: process.env.ETHEREUM_RPC_URL || 'https://eth.llamarpc.com',
+    rpcUrl: process.env.ETHEREUM_RPC_URL || "https://eth.llamarpc.com",
     nativeCurrency: {
-      name: 'Ether',
-      symbol: 'ETH',
+      name: "Ether",
+      symbol: "ETH",
       decimals: 18,
     },
-    blockExplorer: 'https://etherscan.io',
+    blockExplorer: "https://etherscan.io",
   },
   base: {
     name: "Base",
@@ -35,49 +35,49 @@ export const SUPPORTED_EVM_CHAINS: Record<string, EVMChainConfig> = {
     blockExplorer: "https://basescan.org",
   },
   arbitrum: {
-    name: 'Arbitrum One',
+    name: "Arbitrum One",
     chainId: 42161,
-    rpcUrl: process.env.ARBITRUM_RPC_URL || 'https://arb1.arbitrum.io/rpc',
+    rpcUrl: process.env.ARBITRUM_RPC_URL || "https://arb1.arbitrum.io/rpc",
     nativeCurrency: {
-      name: 'Ether',
-      symbol: 'ETH',
+      name: "Ether",
+      symbol: "ETH",
       decimals: 18,
     },
-    blockExplorer: 'https://arbiscan.io',
+    blockExplorer: "https://arbiscan.io",
   },
   optimism: {
-    name: 'Optimism',
+    name: "Optimism",
     chainId: 10,
-    rpcUrl: process.env.OPTIMISM_RPC_URL || 'https://mainnet.optimism.io',
+    rpcUrl: process.env.OPTIMISM_RPC_URL || "https://mainnet.optimism.io",
     nativeCurrency: {
-      name: 'Ether',
-      symbol: 'ETH',
+      name: "Ether",
+      symbol: "ETH",
       decimals: 18,
     },
-    blockExplorer: 'https://optimistic.etherscan.io',
+    blockExplorer: "https://optimistic.etherscan.io",
   },
   polygon: {
-    name: 'Polygon',
+    name: "Polygon",
     chainId: 137,
-    rpcUrl: process.env.POLYGON_RPC_URL || 'https://polygon-rpc.com',
+    rpcUrl: process.env.POLYGON_RPC_URL || "https://polygon-rpc.com",
     nativeCurrency: {
-      name: 'MATIC',
-      symbol: 'MATIC',
+      name: "MATIC",
+      symbol: "MATIC",
       decimals: 18,
     },
-    blockExplorer: 'https://polygonscan.com',
+    blockExplorer: "https://polygonscan.com",
   },
   // Testnets
   sepolia: {
-    name: 'Sepolia',
+    name: "Sepolia",
     chainId: 11155111,
-    rpcUrl: process.env.SEPOLIA_RPC_URL || 'https://rpc.sepolia.org',
+    rpcUrl: process.env.SEPOLIA_RPC_URL || "https://rpc.sepolia.org",
     nativeCurrency: {
-      name: 'Sepolia Ether',
-      symbol: 'ETH',
+      name: "Sepolia Ether",
+      symbol: "ETH",
       decimals: 18,
     },
-    blockExplorer: 'https://sepolia.etherscan.io',
+    blockExplorer: "https://sepolia.etherscan.io",
     isTestnet: true,
   },
 };
@@ -94,6 +94,6 @@ export function getAllChainNames(): string[] {
 
 export function getMainnetChains(): string[] {
   return Object.keys(SUPPORTED_EVM_CHAINS).filter(
-    (chain) => !SUPPORTED_EVM_CHAINS[chain].isTestnet
+    (chain) => !SUPPORTED_EVM_CHAINS[chain].isTestnet,
   );
 }

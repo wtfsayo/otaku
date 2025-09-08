@@ -3,43 +3,44 @@ import {
   type Memory,
   type Provider,
   type State,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
 export const ethWalletProvider: Provider = {
-  name: 'ETH_WALLET_PROVIDER',
-  description: 'Provides information about Ethereum and EVM wallet capabilities',
+  name: "ETH_WALLET_PROVIDER",
+  description:
+    "Provides information about Ethereum and EVM wallet capabilities",
   dynamic: false,
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
-    const evmChainService = runtime.getService('EVM_CHAIN_SERVICE') as any;
-    
+    const evmChainService = runtime.getService("EVM_CHAIN_SERVICE") as any;
+
     if (!evmChainService) {
       return {
         data: {},
         values: {},
-        text: 'EVM wallet service is not available.'
+        text: "EVM wallet service is not available.",
       };
     }
 
     const supportedChains = evmChainService.getSupportedChains();
     const mainnetChains = evmChainService.getMainnetChains();
-    
+
     const walletInfo = {
       supportedChains,
       mainnetChains,
       totalChains: supportedChains.length,
       capabilities: [
-        'Create new wallets',
-        'Import existing wallets',
-        'Check balances',
-        'Multi-chain support',
-        'Secure key generation'
-      ]
+        "Create new wallets",
+        "Import existing wallets",
+        "Check balances",
+        "Multi-chain support",
+        "Secure key generation",
+      ],
     };
 
     const text = `🔗 **EVM Wallet System Active**
 
 **Supported Chains (${supportedChains.length}):**
-${supportedChains.map((chain: string, i: number) => `${i + 1}. ${chain.charAt(0).toUpperCase() + chain.slice(1)}`).join('\n')}
+${supportedChains.map((chain: string, i: number) => `${i + 1}. ${chain.charAt(0).toUpperCase() + chain.slice(1)}`).join("\n")}
 
 **Available Commands:**
 • Create wallet: "create [chain] wallet"
@@ -58,11 +59,11 @@ Ready to help with your EVM wallet needs!`;
     return {
       data: walletInfo,
       values: {
-        supportedChains: supportedChains.join(', '),
+        supportedChains: supportedChains.join(", "),
         totalChains: supportedChains.length,
-        isServiceActive: true
+        isServiceActive: true,
       },
-      text
+      text,
     };
-  }
-}; 
+  },
+};

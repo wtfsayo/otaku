@@ -67,7 +67,7 @@ export function fmtAbbrev(v: BigNumber.Value, digits = 0): string {
 export function fmtTokCompact(
   v: BigNumber.Value,
   sym: string,
-  digits = 0
+  digits = 0,
 ): string {
   return `${fmtAbbrev(v, digits)} ${sym}`;
 }
@@ -77,7 +77,7 @@ export function fmtTokCompact(
  */
 export function formatDataList(
   title: string,
-  items: Array<{ name: string; data: Record<string, string> }>
+  items: Array<{ name: string; data: Record<string, string> }>,
 ): string {
   const lines = [`**${title}**`, ""];
 
@@ -99,7 +99,7 @@ export function formatDataList(
 export function formatItemDetails(
   title: string,
   data: Record<string, string>,
-  link?: string
+  link?: string,
 ): string {
   const lines = [`**${title}**`, ""];
 

@@ -27,12 +27,12 @@ export const tokenInfoAction: Action = {
   validate: async (
     runtime: IAgentRuntime,
     message: Memory,
-    _state: State | undefined
+    _state: State | undefined,
   ): Promise<boolean> => {
     try {
       // Check if service is available
       const clankerService = runtime.getService(
-        ClankerService.serviceType
+        ClankerService.serviceType,
       ) as ClankerService;
       if (!clankerService) {
         logger.warn("Clanker service not available for token info");
@@ -52,7 +52,7 @@ export const tokenInfoAction: Action = {
     _state: State | undefined,
     _options: any,
     callback?: HandlerCallback,
-    _responses?: Memory[]
+    _responses?: Memory[],
   ): Promise<ActionResult> => {
     try {
       // Get entity wallet address
@@ -60,7 +60,7 @@ export const tokenInfoAction: Action = {
         runtime,
         message,
         "DEPLOY_TOKEN",
-        callback
+        callback,
       )) as EntityWalletResponse;
       if (!walletResult.success) {
         return walletResult.result;
@@ -70,7 +70,7 @@ export const tokenInfoAction: Action = {
 
       // Get service
       const clankerService = runtime.getService(
-        ClankerService.serviceType
+        ClankerService.serviceType,
       ) as ClankerService;
       if (!clankerService) {
         throw new Error("Clanker service not available");
@@ -101,7 +101,7 @@ export const tokenInfoAction: Action = {
           const address = await resolveTokenInput(
             tokenInput,
             clankerService,
-            walletAddress
+            walletAddress,
           );
           const tokenInfo = await clankerService.getTokenInfo(address);
 
@@ -234,12 +234,12 @@ Do NOT include any explanations, only the XML format above.
 async function resolveTokenInput(
   input: string,
   clankerService: ClankerService,
-  walletAddress: string
+  walletAddress: string,
 ): Promise<string> {
   if (input.startsWith("0x")) return input;
   const resolved = await clankerService.resolveTokenAddressBySymbol(
     input,
-    walletAddress
+    walletAddress,
   );
   if (!resolved) {
     throw new Error(`Unknown token symbol: ${input}`);

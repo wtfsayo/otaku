@@ -124,7 +124,7 @@ export const morphoPlugin: Plugin = {
       logger.info(`Network: ${validatedConfig.MORPHO_NETWORK}`);
       logger.info(`RPC URL: ${validatedConfig.BASE_RPC_URL}`);
       logger.info(
-        `Matching threshold: ${validatedConfig.MATCHING_EFFICIENCY_THRESHOLD}`
+        `Matching threshold: ${validatedConfig.MATCHING_EFFICIENCY_THRESHOLD}`,
       );
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -132,7 +132,7 @@ export const morphoPlugin: Plugin = {
           .map((e) => `${e.path.join(".")}: ${e.message}`)
           .join(", ");
         throw new Error(
-          `Invalid Morpho plugin configuration: ${errorMessages}`
+          `Invalid Morpho plugin configuration: ${errorMessages}`,
         );
       }
       throw error;

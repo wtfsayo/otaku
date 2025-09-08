@@ -3,7 +3,7 @@ export interface EVMWallet {
   publicKey: string;
   address: string;
   chain: string;
-  type: 'generated' | 'imported';
+  type: "generated" | "imported";
   createdAt: number;
 }
 
@@ -43,4 +43,4 @@ export interface ChainValidationResult {
   isValid: boolean;
   supportedChains: string[];
   error?: string;
-} 
+}

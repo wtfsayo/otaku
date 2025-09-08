@@ -27,7 +27,7 @@ export async function getEntityWallet(
   runtime: IAgentRuntime,
   message: Memory,
   actionName: string,
-  callback?: HandlerCallback
+  callback?: HandlerCallback,
 ): Promise<EntityWalletResponse> {
   try {
     const entityId = message.entityId;

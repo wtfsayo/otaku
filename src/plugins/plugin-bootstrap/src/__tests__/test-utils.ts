@@ -1,4 +1,4 @@
-import { mock } from 'bun:test';
+import { mock } from "bun:test";
 import {
   Action,
   Character,
@@ -15,7 +15,7 @@ import {
   Service,
   State,
   UUID,
-} from '@elizaos/core';
+} from "@elizaos/core";
 
 /**
  * Creates a comprehensive mock of the IAgentRuntime interface with sensible defaults
@@ -24,19 +24,23 @@ import {
  * @param overrides - Optional overrides for the default mock methods and properties
  * @returns A mock runtime for testing
  */
-export function createMockRuntime(overrides: Partial<MockRuntime> = {}): MockRuntime {
+export function createMockRuntime(
+  overrides: Partial<MockRuntime> = {},
+): MockRuntime {
   // Create base mock runtime with defaults
   const mockRuntime: MockRuntime = {
     // Core properties
-    agentId: 'test-agent-id' as UUID,
+    agentId: "test-agent-id" as UUID,
     character: {
-      name: 'Test Agent',
-      bio: 'This is a test agent for unit tests',
-      tone: 'helpful',
+      name: "Test Agent",
+      bio: "This is a test agent for unit tests",
+      tone: "helpful",
       templates: {
-        reflectionTemplate: 'Test reflection template {{recentMessages}}',
-        messageHandlerTemplate: 'Test message handler template {{recentMessages}}',
-        shouldRespondTemplate: 'Test should respond template {{recentMessages}}',
+        reflectionTemplate: "Test reflection template {{recentMessages}}",
+        messageHandlerTemplate:
+          "Test message handler template {{recentMessages}}",
+        shouldRespondTemplate:
+          "Test should respond template {{recentMessages}}",
       },
     } as Character,
     providers: [],
@@ -91,23 +95,26 @@ export function createMockRuntime(overrides: Partial<MockRuntime> = {}): MockRun
     deleteComponent: mock().mockResolvedValue(undefined),
     getMemories: mock().mockImplementation((params) => {
       // For facts provider tests
-      if (params?.tableName === 'facts' && params?.entityId === 'test-entity-id') {
+      if (
+        params?.tableName === "facts" &&
+        params?.entityId === "test-entity-id"
+      ) {
         return Promise.resolve([
           {
-            id: 'memory-1' as UUID,
-            entityId: 'entity-1' as UUID,
-            agentId: 'agent-1' as UUID,
-            roomId: 'room-1' as UUID,
-            content: { text: 'User likes chocolate' },
+            id: "memory-1" as UUID,
+            entityId: "entity-1" as UUID,
+            agentId: "agent-1" as UUID,
+            roomId: "room-1" as UUID,
+            content: { text: "User likes chocolate" },
             embedding: [0.1, 0.2, 0.3],
             createdAt: Date.now(),
           },
           {
-            id: 'memory-2' as UUID,
-            entityId: 'entity-1' as UUID,
-            agentId: 'agent-1' as UUID,
-            roomId: 'room-1' as UUID,
-            content: { text: 'User dislikes spicy food' },
+            id: "memory-2" as UUID,
+            entityId: "entity-1" as UUID,
+            agentId: "agent-1" as UUID,
+            roomId: "room-1" as UUID,
+            content: { text: "User dislikes spicy food" },
             embedding: [0.2, 0.3, 0.4],
             createdAt: Date.now(),
           },
@@ -122,48 +129,53 @@ export function createMockRuntime(overrides: Partial<MockRuntime> = {}): MockRun
     useModel: mock().mockImplementation((modelType, _params) => {
       if (modelType === ModelType.OBJECT_LARGE) {
         return Promise.resolve({
-          thought: 'I should respond in a friendly way',
-          message: 'Hello there! How can I help you today?',
+          thought: "I should respond in a friendly way",
+          message: "Hello there! How can I help you today?",
         });
       } else if (modelType === ModelType.TEXT_SMALL) {
-        return Promise.resolve('yes');
+        return Promise.resolve("yes");
       } else if (modelType === ModelType.TEXT_EMBEDDING) {
         return Promise.resolve([0.1, 0.2, 0.3, 0.4, 0.5]);
       }
       return Promise.resolve({});
     }),
-    composePrompt: mock().mockReturnValue('Composed prompt'),
+    composePrompt: mock().mockReturnValue("Composed prompt"),
     composeState: mock().mockResolvedValue({ values: {}, data: {} }),
-    createMemory: mock().mockResolvedValue({ id: 'memory-id' }),
+    createMemory: mock().mockResolvedValue({ id: "memory-id" }),
     getRoom: mock().mockResolvedValue({
-      id: 'room-id',
-      name: 'Test Room',
-      worldId: 'test-world-id',
-      serverId: 'test-server-id',
+      id: "room-id",
+      name: "Test Room",
+      worldId: "test-world-id",
+      serverId: "test-server-id",
     }),
     getRooms: mock().mockResolvedValue([
-      { id: 'room-id', name: 'Test Room', worldId: 'test-world-id', serverId: 'test-server-id' },
+      {
+        id: "room-id",
+        name: "Test Room",
+        worldId: "test-world-id",
+        serverId: "test-server-id",
+      },
     ]),
     getWorld: mock().mockResolvedValue({
-      id: 'test-world-id',
-      name: 'Test World',
-      serverId: 'test-server-id',
+      id: "test-world-id",
+      name: "Test World",
+      serverId: "test-server-id",
       metadata: {
         roles: {
-          'test-entity-id': 'ADMIN',
-          'test-agent-id': 'OWNER',
+          "test-entity-id": "ADMIN",
+          "test-agent-id": "OWNER",
         },
         settings: [
-          { name: 'setting1', value: 'value1', description: 'Description 1' },
-          { name: 'setting2', value: 'value2', description: 'Description 2' },
+          { name: "setting1", value: "value1", description: "Description 1" },
+          { name: "setting2", value: "value2", description: "Description 2" },
         ],
       },
     }),
     addEmbeddingToMemory: mock().mockResolvedValue({
-      id: 'memory-id',
-      entityId: 'test-entity-id',
-      roomId: 'test-room-id',
-      content: { text: 'Test fact' },
+      id: "memory-id",
+      entityId: "test-entity-id",
+      roomId: "test-room-id",
+      content: { text: "Test fact" },
     }),
     createRelationship: mock().mockResolvedValue(true),
     updateRelationship: mock().mockResolvedValue(true),
@@ -171,7 +183,7 @@ export function createMockRuntime(overrides: Partial<MockRuntime> = {}): MockRun
     addRelationship: mock().mockResolvedValue(true),
     getTasks: mock().mockResolvedValue([]),
     getTasksByName: mock().mockResolvedValue([]),
-    createTask: mock().mockResolvedValue({ id: 'task-id' }),
+    createTask: mock().mockResolvedValue({ id: "task-id" }),
     updateTasks: mock().mockResolvedValue([]),
     deleteTasks: mock().mockResolvedValue([]),
     deleteTask: mock().mockResolvedValue(true),
@@ -183,84 +195,101 @@ export function createMockRuntime(overrides: Partial<MockRuntime> = {}): MockRun
     // Task-related methods needed for TaskService tests
     registerTaskWorker: mock(),
     getTaskWorker: mock().mockReturnValue({
-      name: 'test-worker',
+      name: "test-worker",
       validate: mock().mockResolvedValue(true),
       execute: mock().mockResolvedValue({}),
     }),
-    getParticipantUserState: mock().mockResolvedValue('ACTIVE'),
+    getParticipantUserState: mock().mockResolvedValue("ACTIVE"),
     setParticipantUserState: mock().mockResolvedValue(undefined),
     updateParticipantUserState: mock().mockResolvedValue(undefined),
-    getUserServerRole: mock().mockResolvedValue('USER'),
+    getUserServerRole: mock().mockResolvedValue("USER"),
     findEntityByName: mock().mockResolvedValue(null),
-    getMemberRole: mock().mockResolvedValue('USER'),
+    getMemberRole: mock().mockResolvedValue("USER"),
 
     // Methods missing in the original implementation
     searchMemories: mock().mockResolvedValue([
       {
-        id: 'memory-1' as UUID,
-        entityId: 'entity-1' as UUID,
-        agentId: 'agent-1' as UUID,
-        roomId: 'room-1' as UUID,
-        content: { text: 'User likes chocolate' },
+        id: "memory-1" as UUID,
+        entityId: "entity-1" as UUID,
+        agentId: "agent-1" as UUID,
+        roomId: "room-1" as UUID,
+        content: { text: "User likes chocolate" },
         embedding: [0.1, 0.2, 0.3],
         createdAt: Date.now(),
         similarity: 0.95,
       },
     ]),
     getRoomsForParticipants: mock().mockResolvedValue([
-      { id: 'room-id', name: 'Test Room', worldId: 'test-world-id', serverId: 'test-server-id' },
+      {
+        id: "room-id",
+        name: "Test Room",
+        worldId: "test-world-id",
+        serverId: "test-server-id",
+      },
     ]),
     getRoomsForEntity: mock().mockResolvedValue([
-      { id: 'room-id', name: 'Test Room', worldId: 'test-world-id', serverId: 'test-server-id' },
+      {
+        id: "room-id",
+        name: "Test Room",
+        worldId: "test-world-id",
+        serverId: "test-server-id",
+      },
     ]),
     searchEntities: mock().mockResolvedValue([
-      { id: 'test-entity-id', names: ['Test Entity'], worldId: 'test-world-id' },
+      {
+        id: "test-entity-id",
+        names: ["Test Entity"],
+        worldId: "test-world-id",
+      },
     ]),
     searchRooms: mock().mockResolvedValue([
-      { id: 'room-id', name: 'Test Room', worldId: 'test-world-id' },
+      { id: "room-id", name: "Test Room", worldId: "test-world-id" },
     ]),
     getEntity: mock().mockResolvedValue({
-      id: 'test-entity-id',
-      names: ['Test Entity'],
-      worldId: 'test-world-id',
-      serverId: 'test-server-id',
+      id: "test-entity-id",
+      names: ["Test Entity"],
+      worldId: "test-world-id",
+      serverId: "test-server-id",
     }),
     getWorldSettings: mock().mockResolvedValue([
-      { name: 'setting1', value: 'value1', description: 'Description 1' },
-      { name: 'setting2', value: 'value2', description: 'Description 2' },
+      { name: "setting1", value: "value1", description: "Description 1" },
+      { name: "setting2", value: "value2", description: "Description 2" },
     ]),
     findWorldsForOwner: mock().mockResolvedValue([
-      { id: 'test-world-id', name: 'Test World', serverId: 'test-server-id' },
+      { id: "test-world-id", name: "Test World", serverId: "test-server-id" },
     ]),
 
     // File, PDF, and Image service methods
-    uploadFile: mock().mockResolvedValue({ id: 'file-id', name: 'test.txt' }),
-    getFile: mock().mockResolvedValue({ id: 'file-id', content: 'Test file content' }),
-    listFiles: mock().mockResolvedValue([{ id: 'file-id', name: 'test.txt' }]),
+    uploadFile: mock().mockResolvedValue({ id: "file-id", name: "test.txt" }),
+    getFile: mock().mockResolvedValue({
+      id: "file-id",
+      content: "Test file content",
+    }),
+    listFiles: mock().mockResolvedValue([{ id: "file-id", name: "test.txt" }]),
     deleteFile: mock().mockResolvedValue(true),
-    extractTextFromPDF: mock().mockResolvedValue('Extracted text from PDF'),
-    describeImage: mock().mockResolvedValue('An image description'),
+    extractTextFromPDF: mock().mockResolvedValue("Extracted text from PDF"),
+    describeImage: mock().mockResolvedValue("An image description"),
 
     // Added for recentMessages provider
     getMemoriesByRoomIds: mock().mockResolvedValue([
       {
-        id: 'memory-1' as UUID,
-        entityId: 'test-entity-id' as UUID,
-        agentId: 'test-agent-id' as UUID,
-        roomId: 'test-room-id' as UUID,
+        id: "memory-1" as UUID,
+        entityId: "test-entity-id" as UUID,
+        agentId: "test-agent-id" as UUID,
+        roomId: "test-room-id" as UUID,
         content: {
-          text: 'Hello there!',
+          text: "Hello there!",
           channelType: ChannelType.GROUP,
         },
         createdAt: Date.now() - 1000,
       },
       {
-        id: 'memory-2' as UUID,
-        entityId: 'test-agent-id' as UUID,
-        agentId: 'test-agent-id' as UUID,
-        roomId: 'test-room-id' as UUID,
+        id: "memory-2" as UUID,
+        entityId: "test-agent-id" as UUID,
+        agentId: "test-agent-id" as UUID,
+        roomId: "test-room-id" as UUID,
         content: {
-          text: 'How can I help you?',
+          text: "How can I help you?",
           channelType: ChannelType.GROUP,
         },
         createdAt: Date.now(),
@@ -268,10 +297,10 @@ export function createMockRuntime(overrides: Partial<MockRuntime> = {}): MockRun
     ]),
 
     // Run tracking methods required by IAgentRuntime
-    createRunId: mock().mockReturnValue('test-run-id' as UUID),
-    startRun: mock().mockReturnValue('test-run-id' as UUID),
+    createRunId: mock().mockReturnValue("test-run-id" as UUID),
+    startRun: mock().mockReturnValue("test-run-id" as UUID),
     endRun: mock().mockReturnValue(undefined),
-    getCurrentRunId: mock().mockReturnValue('test-run-id' as UUID),
+    getCurrentRunId: mock().mockReturnValue("test-run-id" as UUID),
   };
 
   // Merge with overrides
@@ -284,14 +313,16 @@ export function createMockRuntime(overrides: Partial<MockRuntime> = {}): MockRun
  * @param overrides - Optional overrides for the default memory properties
  * @returns A mock memory object
  */
-export function createMockMemory(overrides: Partial<Memory> = {}): Partial<Memory> {
+export function createMockMemory(
+  overrides: Partial<Memory> = {},
+): Partial<Memory> {
   return {
-    id: 'test-message-id' as UUID,
-    roomId: 'test-room-id' as UUID,
-    entityId: 'test-entity-id' as UUID,
-    agentId: 'test-agent-id' as UUID,
+    id: "test-message-id" as UUID,
+    roomId: "test-room-id" as UUID,
+    entityId: "test-entity-id" as UUID,
+    agentId: "test-agent-id" as UUID,
     content: {
-      text: 'Test message',
+      text: "Test message",
       channelType: ChannelType.GROUP,
     } as Content,
     createdAt: Date.now(),
@@ -305,19 +336,21 @@ export function createMockMemory(overrides: Partial<Memory> = {}): Partial<Memor
  * @param overrides - Optional overrides for the default state properties
  * @returns A mock state object
  */
-export function createMockState(overrides: Partial<State> = {}): Partial<State> {
+export function createMockState(
+  overrides: Partial<State> = {},
+): Partial<State> {
   return {
     values: {
-      agentName: 'Test Agent',
-      recentMessages: 'User: Test message',
+      agentName: "Test Agent",
+      recentMessages: "User: Test message",
       ...overrides.values,
     },
     data: {
       room: {
-        id: 'test-room-id',
+        id: "test-room-id",
         type: ChannelType.GROUP,
-        worldId: 'test-world-id',
-        serverId: 'test-server-id',
+        worldId: "test-world-id",
+        serverId: "test-server-id",
       },
       ...overrides.data,
     },
@@ -331,10 +364,12 @@ export function createMockState(overrides: Partial<State> = {}): Partial<State> 
  * @param overrides - Optional overrides for the default service properties
  * @returns A mock service object
  */
-export function createMockService(overrides: Partial<Record<string, any>> = {}): any {
+export function createMockService(
+  overrides: Partial<Record<string, any>> = {},
+): any {
   return {
-    name: 'mock-service',
-    type: 'mock',
+    name: "mock-service",
+    type: "mock",
     execute: mock().mockResolvedValue({}),
     init: mock().mockResolvedValue({}),
     ...overrides,

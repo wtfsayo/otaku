@@ -32,7 +32,7 @@ export const ethWalletInfo: Action = {
     message: Memory,
     state: State,
     _options: { [key: string]: unknown },
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     try {
       logger.log("ETH_WALLET_INFO handler started");
@@ -74,7 +74,7 @@ export const ethWalletInfo: Action = {
           runtime,
           message,
           "ETH_WALLET_INFO",
-          callback
+          callback,
         );
 
         if (!walletResult.success) {
@@ -152,7 +152,7 @@ export const ethWalletInfo: Action = {
       // Get the balance
       const balance = await evmChainService.getWalletBalance(
         address,
-        targetChain
+        targetChain,
       );
 
       if (!balance) {

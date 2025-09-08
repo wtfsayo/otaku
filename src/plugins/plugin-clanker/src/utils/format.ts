@@ -35,7 +35,7 @@ export function calculatePriceImpact(
   inputAmount: bigint,
   outputAmount: bigint,
   inputPrice: number,
-  outputPrice: number
+  outputPrice: number,
 ): number {
   const inputValue = Number(inputAmount) * inputPrice;
   const outputValue = Number(outputAmount) * outputPrice;
@@ -83,7 +83,7 @@ export function formatTokenInfo(info: any): string {
 export function formatBalance(
   balance: bigint,
   decimals: number,
-  symbol: string
+  symbol: string,
 ): string {
   const formatted = formatTokenAmount(balance, decimals);
   return `${formatted} ${symbol}`;

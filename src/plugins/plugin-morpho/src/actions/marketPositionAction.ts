@@ -54,7 +54,7 @@ export const marketPositionsAction: Action = {
     "Get your Morpho market positions (borrows/supplies), optionally for a specific market (pair or marketId). This action does not include vaults.",
   validate: async (runtime: IAgentRuntime) => {
     const morphoService = runtime.getService(
-      MorphoService.serviceType
+      MorphoService.serviceType,
     ) as MorphoService;
     if (!morphoService) {
       logger.error("Required services not available");
@@ -67,7 +67,7 @@ export const marketPositionsAction: Action = {
     message: Memory,
     state?: State,
     options?: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     logger.info("Starting Morpho positions action");
 
@@ -79,7 +79,7 @@ export const marketPositionsAction: Action = {
         runtime,
         message,
         "GET_MORPHO_MARKET_POSITIONS",
-        callback
+        callback,
       );
       if (!walletResult.success) {
         return walletResult.result;
@@ -95,7 +95,7 @@ export const marketPositionsAction: Action = {
       const params = { market: parsed?.market || undefined };
 
       const service = runtime.getService(
-        MorphoService.serviceType
+        MorphoService.serviceType,
       ) as MorphoService;
 
       // Fetch markets to enrich compact view with borrow rate (if needed)
@@ -110,7 +110,7 @@ export const marketPositionsAction: Action = {
       try {
         positions = await service.getUserPositions(
           walletPrivateKey,
-          params.market
+          params.market,
         );
       } catch (err) {
         logger.warn("Could not fetch position data:", err);
@@ -315,7 +315,7 @@ function formatPositionDetailed(r: UserPosition, chainSlug?: string): string {
       `**Collateral** ·  ${collUsd}  ·  ${collTok}`,
       `**LTV / LLTV** ·  ${ltvStr} / ${lltvStr}`,
       `**Liq. Price** ·  ${r.symbols.collateral} / ${r.symbols.loan}: ${liqPriceStr}`,
-      `**Buffer**     ·  ${bufferStr} to liquidation`
+      `**Buffer**     ·  ${bufferStr} to liquidation`,
     );
   }
 
@@ -327,7 +327,7 @@ function formatPositionDetailed(r: UserPosition, chainSlug?: string): string {
       `**Supplied**    ·  ${suppliedUsd}  ·  ${suppliedTok}`,
       `**Withdrawable** ·  ${withdrawableTok}`,
       `**APY**         ·  ${r.supply.currentApy ? fmtPct(r.supply.currentApy) : "—"}`,
-      `**Earned**      ·  ${r.supply.earnedInterest ? fmtTok(r.supply.earnedInterest, r.symbols.loan) : "—"}`
+      `**Earned**      ·  ${r.supply.earnedInterest ? fmtTok(r.supply.earnedInterest, r.symbols.loan) : "—"}`,
     );
   }
 
@@ -337,7 +337,7 @@ function formatPositionDetailed(r: UserPosition, chainSlug?: string): string {
 /** Compact single-line bullet for positions list (optionally includes borrow rate) */
 function formatPositionCompact(
   r: UserPosition,
-  opts?: { borrowRatePct?: number | null }
+  opts?: { borrowRatePct?: number | null },
 ): string {
   const loanTok =
     r.amounts.loanTokens != null

@@ -1,4 +1,4 @@
-import { describe, expect, it, mock, beforeEach, afterEach } from 'bun:test';
+import { describe, expect, it, mock, beforeEach, afterEach } from "bun:test";
 import {
   IAgentRuntime,
   logger,
@@ -7,24 +7,24 @@ import {
   State,
   ChannelType,
   composePrompt,
-} from '@elizaos/core';
-import { MockRuntime, setupActionTest } from './test-utils';
+} from "@elizaos/core";
+import { MockRuntime, setupActionTest } from "./test-utils";
 
 // Import the actual module first
-const coreModule = await import('@elizaos/core');
+const coreModule = await import("@elizaos/core");
 
 // Mock the getEntityDetails function while preserving other exports
-mock.module('@elizaos/core', () => ({
+mock.module("@elizaos/core", () => ({
   ...coreModule, // Spread all the actual exports
   getEntityDetails: mock().mockImplementation(() => {
     return Promise.resolve([
-      { id: 'test-entity-id', names: ['Test Entity'], metadata: {} },
-      { id: 'test-agent-id', names: ['Test Agent'], metadata: {} },
-      { id: 'entity-1', names: ['Entity 1'], metadata: {} },
-      { id: 'entity-2', names: ['Entity 2'], metadata: {} },
+      { id: "test-entity-id", names: ["Test Entity"], metadata: {} },
+      { id: "test-agent-id", names: ["Test Agent"], metadata: {} },
+      { id: "entity-1", names: ["Entity 1"], metadata: {} },
+      { id: "entity-2", names: ["Entity 2"], metadata: {} },
     ]);
   }),
-  composePrompt: mock().mockReturnValue('Composed prompt'),
+  composePrompt: mock().mockReturnValue("Composed prompt"),
   logger: {
     info: mock(),
     warn: mock(),
@@ -33,7 +33,7 @@ mock.module('@elizaos/core', () => ({
   },
 }));
 
-describe('Reflection Evaluator', () => {
+describe("Reflection Evaluator", () => {
   let mockRuntime: MockRuntime;
   let mockMessage: Partial<Memory>;
   let mockState: Partial<State>;
@@ -52,55 +52,64 @@ describe('Reflection Evaluator', () => {
     mock.restore();
   });
 
-  it('should call the model with the correct prompt', async () => {
+  it("should call the model with the correct prompt", async () => {
     // Mock parseKeyValueXml for this test
     const parseKeyValueXmlMock = mock().mockImplementation((xml: string) => {
       return {
-        thought: 'I am doing well in this conversation.',
+        thought: "I am doing well in this conversation.",
         facts: {
           fact: [
             {
-              claim: 'User likes ice cream',
-              type: 'fact',
-              in_bio: 'false',
-              already_known: 'false',
+              claim: "User likes ice cream",
+              type: "fact",
+              in_bio: "false",
+              already_known: "false",
             },
           ],
         },
         relationships: {
           relationship: [
-            { sourceEntityId: 'test-entity-id', targetEntityId: 'test-agent-id', tags: 'friendly' },
+            {
+              sourceEntityId: "test-entity-id",
+              targetEntityId: "test-agent-id",
+              tags: "friendly",
+            },
           ],
         },
       };
     });
 
     // Override the module mock for this test
-    mock.module('@elizaos/core', () => ({
+    mock.module("@elizaos/core", () => ({
       ...coreModule,
       parseKeyValueXml: parseKeyValueXmlMock,
       getEntityDetails: mock().mockResolvedValue([
-        { id: 'test-entity-id', names: ['Test Entity'], metadata: {} },
-        { id: 'test-agent-id', names: ['Test Agent'], metadata: {} },
+        { id: "test-entity-id", names: ["Test Entity"], metadata: {} },
+        { id: "test-agent-id", names: ["Test Agent"], metadata: {} },
       ]),
     }));
 
     // Import the evaluator dynamically to avoid polluting the test scope
-    const { reflectionEvaluator } = await import('../evaluators/reflection');
+    const { reflectionEvaluator } = await import("../evaluators/reflection");
 
     // Arrange
     // Ensure mockMessage.content.channelType is defined for the roomType
-    mockMessage.content = { ...mockMessage.content, channelType: ChannelType.GROUP };
+    mockMessage.content = {
+      ...mockMessage.content,
+      channelType: ChannelType.GROUP,
+    };
     // Mock getRelationships and getMemories as they are called before composePrompt
     mockRuntime.getRelationships.mockResolvedValue([]);
     mockRuntime.getMemories &&
-      (mockRuntime.getMemories as ReturnType<typeof mock>).mockResolvedValue([]);
+      (mockRuntime.getMemories as ReturnType<typeof mock>).mockResolvedValue(
+        [],
+      );
 
     // Set up the reflection template
     if (!mockRuntime.character) mockRuntime.character = {} as any;
     if (!mockRuntime.character.templates) mockRuntime.character.templates = {};
     mockRuntime.character.templates.reflectionTemplate =
-      'Test reflection template {{recentMessages}}';
+      "Test reflection template {{recentMessages}}";
 
     // Mock XML response
     mockRuntime.useModel.mockResolvedValueOnce(`<response>
@@ -126,7 +135,7 @@ describe('Reflection Evaluator', () => {
     await reflectionEvaluator.handler(
       mockRuntime as IAgentRuntime,
       mockMessage as Memory,
-      mockState as State
+      mockState as State,
     );
 
     // Assert - Verify useModel was called with proper parameters
@@ -135,57 +144,63 @@ describe('Reflection Evaluator', () => {
       ModelType.TEXT_SMALL,
       expect.objectContaining({
         prompt: expect.any(String), // The actual prompt will be composed by composePrompt
-      })
+      }),
     );
 
     expect(mockRuntime.setCache).toHaveBeenCalledWith(
       `${mockMessage.roomId}-reflection-last-processed`,
-      mockMessage.id
+      mockMessage.id,
     );
   });
 
-  it('should store new facts and relationships', async () => {
+  it("should store new facts and relationships", async () => {
     // Mock parseKeyValueXml for this test
     const parseKeyValueXmlMock = mock().mockImplementation((xml: string) => {
       return {
-        thought: 'I am doing well in this conversation.',
+        thought: "I am doing well in this conversation.",
         facts: {
           fact: [
             {
-              claim: 'User likes ice cream',
-              type: 'fact',
-              in_bio: 'false',
-              already_known: 'false',
+              claim: "User likes ice cream",
+              type: "fact",
+              in_bio: "false",
+              already_known: "false",
             },
           ],
         },
         relationships: {
           relationship: [
-            { sourceEntityId: 'entity-1', targetEntityId: 'entity-2', tags: 'friendly' },
+            {
+              sourceEntityId: "entity-1",
+              targetEntityId: "entity-2",
+              tags: "friendly",
+            },
           ],
         },
       };
     });
 
     // Override the module mock for this test
-    mock.module('@elizaos/core', () => ({
+    mock.module("@elizaos/core", () => ({
       ...coreModule,
       parseKeyValueXml: parseKeyValueXmlMock,
       getEntityDetails: mock().mockResolvedValue([
-        { id: 'test-entity-id', names: ['Test Entity'], metadata: {} },
-        { id: 'test-agent-id', names: ['Test Agent'], metadata: {} },
-        { id: 'entity-1', names: ['Entity 1'], metadata: {} },
-        { id: 'entity-2', names: ['Entity 2'], metadata: {} },
+        { id: "test-entity-id", names: ["Test Entity"], metadata: {} },
+        { id: "test-agent-id", names: ["Test Agent"], metadata: {} },
+        { id: "entity-1", names: ["Entity 1"], metadata: {} },
+        { id: "entity-2", names: ["Entity 2"], metadata: {} },
       ]),
     }));
 
     // Import the evaluator dynamically to avoid polluting the test scope
-    const { reflectionEvaluator } = await import('../evaluators/reflection');
+    const { reflectionEvaluator } = await import("../evaluators/reflection");
 
     // Arrange
     mockRuntime.getRelationships.mockResolvedValue([]); // Ensure getRelationships returns an array
     mockRuntime.getMemories &&
-      (mockRuntime.getMemories as ReturnType<typeof mock>).mockResolvedValue([]); // Ensure getMemories for knownFacts returns an array
+      (mockRuntime.getMemories as ReturnType<typeof mock>).mockResolvedValue(
+        [],
+      ); // Ensure getMemories for knownFacts returns an array
 
     // Mock XML response
     mockRuntime.useModel.mockResolvedValueOnce(`<response>
@@ -216,24 +231,24 @@ describe('Reflection Evaluator', () => {
     await reflectionEvaluator.handler(
       mockRuntime as IAgentRuntime,
       mockMessage as Memory,
-      mockState as State
+      mockState as State,
     );
 
     // Assert
     expect(mockRuntime.addEmbeddingToMemory).toHaveBeenCalledTimes(1);
     expect(mockRuntime.addEmbeddingToMemory).toHaveBeenCalledWith({
-      entityId: 'test-agent-id',
-      agentId: 'test-agent-id',
-      content: { text: 'User likes ice cream' },
-      roomId: 'test-room-id',
+      entityId: "test-agent-id",
+      agentId: "test-agent-id",
+      content: { text: "User likes ice cream" },
+      roomId: "test-room-id",
       createdAt: expect.any(Number),
     });
 
     expect(mockRuntime.createMemory).toHaveBeenCalledTimes(1);
     expect(mockRuntime.createMemory).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'memory-id' }),
-      'facts',
-      true
+      expect.objectContaining({ id: "memory-id" }),
+      "facts",
+      true,
     );
 
     // Special case: don't check call count since the test is not properly resolving the entities
@@ -243,27 +258,27 @@ describe('Reflection Evaluator', () => {
         expect.objectContaining({
           sourceEntityId: expect.any(String),
           targetEntityId: expect.any(String),
-          tags: ['friendly'],
+          tags: ["friendly"],
           metadata: expect.objectContaining({
             interactions: 1,
           }),
-        })
+        }),
       );
     }
 
     expect(mockRuntime.setCache).toHaveBeenCalledWith(
       `${mockMessage.roomId}-reflection-last-processed`,
-      mockMessage.id
+      mockMessage.id,
     );
     // getEntityDetailsSpy removed - now handled by module mock
   });
 
-  it('should handle model errors without crashing', async () => {
+  it("should handle model errors without crashing", async () => {
     // Import the evaluator dynamically to avoid polluting the test scope
-    const { reflectionEvaluator } = await import('../evaluators/reflection');
+    const { reflectionEvaluator } = await import("../evaluators/reflection");
 
     // Arrange - Mock a model error
-    mockRuntime.useModel.mockRejectedValueOnce(new Error('Model failed'));
+    mockRuntime.useModel.mockRejectedValueOnce(new Error("Model failed"));
 
     // Act - Should not throw error
     let error: Error | undefined;
@@ -271,7 +286,7 @@ describe('Reflection Evaluator', () => {
       await reflectionEvaluator.handler(
         mockRuntime as IAgentRuntime,
         mockMessage as Memory,
-        mockState as State
+        mockState as State,
       );
     } catch (e) {
       error = e as Error;
@@ -286,17 +301,37 @@ describe('Reflection Evaluator', () => {
     expect(mockRuntime.createRelationship).not.toHaveBeenCalled();
   });
 
-  it('should filter out invalid facts', async () => {
+  it("should filter out invalid facts", async () => {
     // Mock parseKeyValueXml for this test
     const parseKeyValueXmlMock = mock().mockImplementation((xml: string) => {
       return {
-        thought: 'Some of these facts are invalid',
+        thought: "Some of these facts are invalid",
         facts: {
           fact: [
-            { claim: 'Valid fact', type: 'fact', in_bio: 'false', already_known: 'false' },
-            { claim: '', type: 'fact', in_bio: 'false', already_known: 'false' }, // Empty claim
-            { claim: 'Already known fact', type: 'fact', in_bio: 'false', already_known: 'true' }, // Already known
-            { claim: 'From bio', type: 'fact', in_bio: 'true', already_known: 'false' }, // From bio
+            {
+              claim: "Valid fact",
+              type: "fact",
+              in_bio: "false",
+              already_known: "false",
+            },
+            {
+              claim: "",
+              type: "fact",
+              in_bio: "false",
+              already_known: "false",
+            }, // Empty claim
+            {
+              claim: "Already known fact",
+              type: "fact",
+              in_bio: "false",
+              already_known: "true",
+            }, // Already known
+            {
+              claim: "From bio",
+              type: "fact",
+              in_bio: "true",
+              already_known: "false",
+            }, // From bio
             null, // null fact
           ],
         },
@@ -305,17 +340,17 @@ describe('Reflection Evaluator', () => {
     });
 
     // Override the module mock for this test
-    mock.module('@elizaos/core', () => ({
+    mock.module("@elizaos/core", () => ({
       ...coreModule,
       parseKeyValueXml: parseKeyValueXmlMock,
       getEntityDetails: mock().mockResolvedValue([
-        { id: 'test-entity-id', names: ['Test Entity'], metadata: {} },
-        { id: 'test-agent-id', names: ['Test Agent'], metadata: {} },
+        { id: "test-entity-id", names: ["Test Entity"], metadata: {} },
+        { id: "test-agent-id", names: ["Test Agent"], metadata: {} },
       ]),
     }));
 
     // Import the evaluator dynamically to avoid polluting the test scope
-    const { reflectionEvaluator } = await import('../evaluators/reflection');
+    const { reflectionEvaluator } = await import("../evaluators/reflection");
 
     // Arrange
     // Mock XML response
@@ -354,63 +389,65 @@ describe('Reflection Evaluator', () => {
     await reflectionEvaluator.handler(
       mockRuntime as IAgentRuntime,
       mockMessage as Memory,
-      mockState as State
+      mockState as State,
     );
 
     // Assert - only one valid fact should be processed
     expect(mockRuntime.addEmbeddingToMemory).toHaveBeenCalledTimes(1);
     expect(mockRuntime.addEmbeddingToMemory).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: { text: 'Valid fact' },
-      })
+        content: { text: "Valid fact" },
+      }),
     );
   });
 
-  it('should validate against the reflection evaluator schema', async () => {
+  it("should validate against the reflection evaluator schema", async () => {
     // Import the evaluator dynamically to avoid polluting the test scope
-    const { reflectionEvaluator } = await import('../evaluators/reflection');
+    const { reflectionEvaluator } = await import("../evaluators/reflection");
 
     // Mock the getCache method to return a previous message ID
-    mockRuntime.getCache.mockResolvedValueOnce('previous-message-id');
+    mockRuntime.getCache.mockResolvedValueOnce("previous-message-id");
 
     // Mock the getMemories method to return a list of messages
     mockRuntime.getMemories &&
-      (mockRuntime.getMemories as ReturnType<typeof mock>).mockResolvedValueOnce([
-        { id: 'previous-message-id' },
-        { id: 'message-1' },
-        { id: 'message-2' },
-        { id: 'message-3' },
-        { id: 'message-4' },
+      (
+        mockRuntime.getMemories as ReturnType<typeof mock>
+      ).mockResolvedValueOnce([
+        { id: "previous-message-id" },
+        { id: "message-1" },
+        { id: "message-2" },
+        { id: "message-3" },
+        { id: "message-4" },
       ]);
 
     // Basic validation checks
-    expect(reflectionEvaluator).toHaveProperty('name');
-    expect(reflectionEvaluator.name).toBe('REFLECTION');
-    expect(reflectionEvaluator).toHaveProperty('description');
-    expect(reflectionEvaluator).toHaveProperty('handler');
-    expect(reflectionEvaluator).toHaveProperty('validate');
-    expect(typeof reflectionEvaluator.handler).toBe('function');
-    expect(typeof reflectionEvaluator.validate).toBe('function');
+    expect(reflectionEvaluator).toHaveProperty("name");
+    expect(reflectionEvaluator.name).toBe("REFLECTION");
+    expect(reflectionEvaluator).toHaveProperty("description");
+    expect(reflectionEvaluator).toHaveProperty("handler");
+    expect(reflectionEvaluator).toHaveProperty("validate");
+    expect(typeof reflectionEvaluator.handler).toBe("function");
+    expect(typeof reflectionEvaluator.validate).toBe("function");
 
     // Test that validation works correctly
     const validationResult = await reflectionEvaluator.validate(
       mockRuntime as IAgentRuntime,
-      mockMessage as Memory
+      mockMessage as Memory,
     );
 
     expect(validationResult).toBe(true);
     expect(mockRuntime.getCache).toHaveBeenCalledWith(
-      `${mockMessage.roomId}-reflection-last-processed`
+      `${mockMessage.roomId}-reflection-last-processed`,
     );
     expect(mockRuntime.getMemories).toHaveBeenCalledWith({
-      tableName: 'messages',
+      tableName: "messages",
       roomId: mockMessage.roomId,
       count: 10,
     });
   });
 });
 
-describe('Multiple Prompt Evaluator Factory', () => {
+describe("Multiple Prompt Evaluator Factory", () => {
   let mockRuntime: MockRuntime;
   let mockMessage: Partial<Memory>;
   let mockState: Partial<State>;
@@ -429,7 +466,7 @@ describe('Multiple Prompt Evaluator Factory', () => {
     mock.restore();
   });
 
-  it('should create a valid evaluator with multiple prompts', async () => {
+  it("should create a valid evaluator with multiple prompts", async () => {
     // Reset the composePrompt mock to clear previous calls
     (composePrompt as any).mockClear();
 
@@ -444,12 +481,20 @@ describe('Multiple Prompt Evaluator Factory', () => {
         modelType: string;
         maxTokens?: number;
       }>;
-      validate: (runtime: IAgentRuntime, message: Memory, state: State) => Promise<boolean>;
+      validate: (
+        runtime: IAgentRuntime,
+        message: Memory,
+        state: State,
+      ) => Promise<boolean>;
     }) => {
       return {
         name: config.name,
         description: config.description,
-        handler: async (runtime: IAgentRuntime, _message: Memory, state: State) => {
+        handler: async (
+          runtime: IAgentRuntime,
+          _message: Memory,
+          state: State,
+        ) => {
           const results: Record<string, any> = {};
 
           for (const prompt of config.prompts) {
@@ -480,14 +525,14 @@ describe('Multiple Prompt Evaluator Factory', () => {
     // Create test prompts
     const testPrompts = [
       {
-        name: 'prompt-1',
-        template: 'First prompt template {{recentMessages}}',
+        name: "prompt-1",
+        template: "First prompt template {{recentMessages}}",
         modelType: ModelType.TEXT_SMALL,
         maxTokens: 100,
       },
       {
-        name: 'prompt-2',
-        template: 'Second prompt template {{agentName}}',
+        name: "prompt-2",
+        template: "Second prompt template {{agentName}}",
         modelType: ModelType.TEXT_LARGE,
         maxTokens: 200,
       },
@@ -495,28 +540,31 @@ describe('Multiple Prompt Evaluator Factory', () => {
 
     // Create a multiple prompt evaluator
     const testEvaluator = createMultiplePromptEvaluator({
-      name: 'TEST_EVALUATOR',
-      description: 'Test evaluator with multiple prompts',
+      name: "TEST_EVALUATOR",
+      description: "Test evaluator with multiple prompts",
       prompts: testPrompts,
       validate: async () => true,
     });
 
     // Validate the structure of the created evaluator
-    expect(testEvaluator).toHaveProperty('name', 'TEST_EVALUATOR');
-    expect(testEvaluator).toHaveProperty('description', 'Test evaluator with multiple prompts');
-    expect(testEvaluator).toHaveProperty('handler');
-    expect(testEvaluator).toHaveProperty('validate');
+    expect(testEvaluator).toHaveProperty("name", "TEST_EVALUATOR");
+    expect(testEvaluator).toHaveProperty(
+      "description",
+      "Test evaluator with multiple prompts",
+    );
+    expect(testEvaluator).toHaveProperty("handler");
+    expect(testEvaluator).toHaveProperty("validate");
 
     // Setup model responses
     mockRuntime.useModel
-      .mockResolvedValueOnce('Response from first prompt')
-      .mockResolvedValueOnce('Response from second prompt');
+      .mockResolvedValueOnce("Response from first prompt")
+      .mockResolvedValueOnce("Response from second prompt");
 
     // Call the handler
     const result = await testEvaluator.handler(
       mockRuntime as IAgentRuntime,
       mockMessage as Memory,
-      mockState as State
+      mockState as State,
     );
 
     // Check that the mocked composePrompt from core module was called
@@ -525,13 +573,13 @@ describe('Multiple Prompt Evaluator Factory', () => {
 
     // First prompt should be called with the correct parameters
     expect(composePrompt).toHaveBeenNthCalledWith(1, {
-      template: 'First prompt template {{recentMessages}}',
+      template: "First prompt template {{recentMessages}}",
       state: expect.any(Object),
     });
 
     // Second prompt should be called with the correct parameters
     expect(composePrompt).toHaveBeenNthCalledWith(2, {
-      template: 'Second prompt template {{agentName}}',
+      template: "Second prompt template {{agentName}}",
       state: expect.any(Object),
     });
 
@@ -540,9 +588,9 @@ describe('Multiple Prompt Evaluator Factory', () => {
       1,
       ModelType.TEXT_SMALL,
       expect.objectContaining({
-        prompt: 'Composed prompt',
+        prompt: "Composed prompt",
         maxTokens: 100,
-      })
+      }),
     );
 
     // Second model call should use the correct model type and parameters
@@ -550,19 +598,19 @@ describe('Multiple Prompt Evaluator Factory', () => {
       2,
       ModelType.TEXT_LARGE,
       expect.objectContaining({
-        prompt: 'Composed prompt',
+        prompt: "Composed prompt",
         maxTokens: 200,
-      })
+      }),
     );
 
     // The result should include all prompt responses
     expect(result).toEqual({
-      'prompt-1': 'Response from first prompt',
-      'prompt-2': 'Response from second prompt',
+      "prompt-1": "Response from first prompt",
+      "prompt-2": "Response from second prompt",
     });
   });
 
-  it('should handle errors in individual prompts', async () => {
+  it("should handle errors in individual prompts", async () => {
     // Create mock evaluator factory similar to above
     const createMultiplePromptEvaluator = (config: {
       name: string;
@@ -572,12 +620,20 @@ describe('Multiple Prompt Evaluator Factory', () => {
         template: string;
         modelType: string;
       }>;
-      validate: (runtime: IAgentRuntime, message: Memory, state: State) => Promise<boolean>;
+      validate: (
+        runtime: IAgentRuntime,
+        message: Memory,
+        state: State,
+      ) => Promise<boolean>;
     }) => {
       return {
         name: config.name,
         description: config.description,
-        handler: async (runtime: IAgentRuntime, _message: Memory, state: State) => {
+        handler: async (
+          runtime: IAgentRuntime,
+          _message: Memory,
+          state: State,
+        ) => {
           const results: Record<string, any> = {};
 
           for (const prompt of config.prompts) {
@@ -587,7 +643,9 @@ describe('Multiple Prompt Evaluator Factory', () => {
                 state,
               });
 
-              const response = await runtime.useModel(prompt.modelType, { prompt: composedPrompt });
+              const response = await runtime.useModel(prompt.modelType, {
+                prompt: composedPrompt,
+              });
 
               results[prompt.name] = response;
             } catch (error) {
@@ -605,26 +663,26 @@ describe('Multiple Prompt Evaluator Factory', () => {
     // Create test prompts
     const testPrompts = [
       {
-        name: 'success-prompt',
-        template: 'This prompt will succeed',
+        name: "success-prompt",
+        template: "This prompt will succeed",
         modelType: ModelType.TEXT_SMALL,
       },
       {
-        name: 'error-prompt',
-        template: 'This prompt will fail',
+        name: "error-prompt",
+        template: "This prompt will fail",
         modelType: ModelType.TEXT_SMALL,
       },
     ];
 
     // Setup model responses - one success, one error
     mockRuntime.useModel
-      .mockResolvedValueOnce('Success response')
-      .mockRejectedValueOnce(new Error('Model error'));
+      .mockResolvedValueOnce("Success response")
+      .mockRejectedValueOnce(new Error("Model error"));
 
     // Create a multiple prompt evaluator
     const testEvaluator = createMultiplePromptEvaluator({
-      name: 'ERROR_HANDLING_EVALUATOR',
-      description: 'Test error handling',
+      name: "ERROR_HANDLING_EVALUATOR",
+      description: "Test error handling",
       prompts: testPrompts,
       validate: async () => true,
     });
@@ -633,20 +691,20 @@ describe('Multiple Prompt Evaluator Factory', () => {
     const result = await testEvaluator.handler(
       mockRuntime as IAgentRuntime,
       mockMessage as Memory,
-      mockState as State
+      mockState as State,
     );
 
     // Check the warning was logged
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('Error in prompt'),
-      expect.any(Error)
+      expect.stringContaining("Error in prompt"),
+      expect.any(Error),
     );
 
     // The result should include the successful prompt's response and an error for the failed one
     expect(result).toEqual({
-      'success-prompt': 'Success response',
-      'error-prompt': expect.objectContaining({
-        error: expect.stringContaining('Model error'),
+      "success-prompt": "Success response",
+      "error-prompt": expect.objectContaining({
+        error: expect.stringContaining("Model error"),
       }),
     });
   });

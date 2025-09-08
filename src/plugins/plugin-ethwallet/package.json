@@ -13,8 +13,7 @@
     "arbitrum",
     "polygon"
   ],
-  "dependencies": {
-  },
+  "dependencies": {},
   "peerDependencies": {
     "@elizaos/core": "*"
   },
@@ -29,4 +28,4 @@
     "url": "https://github.com/elizaos/eliza.git",
     "directory": "src/plugins/ethwallet"
   }
-} 
+}

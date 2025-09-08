@@ -15,19 +15,19 @@ import {
   TokenInfo,
   ClankerConfig,
   ErrorCode,
-  NATIVE_TOKEN_ADDRESSES
+  NATIVE_TOKEN_ADDRESSES,
 } from "../types";
 import { ClankerError } from "../utils/errors";
 import { retryTransaction } from "../utils/transactions";
 import { loadClankerConfig } from "../utils/config";
 
 const BASE_KNOWN_TOKENS: Record<string, string> = {
-  'eth': NATIVE_TOKEN_ADDRESSES,
-  'ethereum': NATIVE_TOKEN_ADDRESSES,
-  'native': NATIVE_TOKEN_ADDRESSES,
-  'weth': '0x4200000000000000000000000000000000000006',
-  'usdc': '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-  'usdt': '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2',
+  eth: NATIVE_TOKEN_ADDRESSES,
+  ethereum: NATIVE_TOKEN_ADDRESSES,
+  native: NATIVE_TOKEN_ADDRESSES,
+  weth: "0x4200000000000000000000000000000000000006",
+  usdc: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+  usdt: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2",
 } as const;
 
 export class ClankerService extends Service {
@@ -197,7 +197,9 @@ export class ClankerService extends Service {
         // The deploy function attempts to not throw and instead return an error
         // for you to decide how to handle
         if (error) {
-          logger.error("Clanker deploy error:", error);
+          logger.error(
+            `Clanker deploy error: ${error.message || String(error)}`,
+          );
           throw error;
         }
 
@@ -210,7 +212,9 @@ export class ClankerService extends Service {
         // Wait for transaction to complete - this may also return an error
         const { address, error: waitError } = await waitForTransaction();
         if (waitError) {
-          logger.error("Clanker waitForTransaction error:", waitError);
+          logger.error(
+            `Clanker waitForTransaction error: ${waitError.message || String(waitError)}`,
+          );
           throw waitError;
         }
 
@@ -228,7 +232,9 @@ export class ClankerService extends Service {
         };
       }, this.clankerConfig.RETRY_ATTEMPTS || 3);
 
-      logger.info("Token deployed successfully:", deployResult);
+      logger.info(
+        `Token deployed successfully: ${JSON.stringify(deployResult)}`,
+      );
 
       // Cache the token info
       this.tokenCache.set(deployResult.contractAddress, {
@@ -363,17 +369,17 @@ export class ClankerService extends Service {
   async getNativeEthInfo(): Promise<TokenInfo> {
     const url = "https://api.coingecko.com/api/v3/coins/ethereum";
     const maxRetries = 3;
-  
+
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const response = await fetch(url);
-  
+
         if (!response.ok) {
           throw new Error(`HTTP error ${response.status}`);
         }
-  
-        const data = await response.json() as any;
-  
+
+        const data = (await response.json()) as any;
+
         if (
           !data ||
           typeof data.symbol !== "string" ||
@@ -384,7 +390,7 @@ export class ClankerService extends Service {
         ) {
           throw new Error("Unexpected API response structure");
         }
-  
+
         return {
           address: NATIVE_TOKEN_ADDRESSES,
           name: data.name || "Ethereum",
@@ -400,7 +406,7 @@ export class ClankerService extends Service {
         };
       } catch (error) {
         logger.warn(`Attempt ${attempt} failed to fetch ETH info:`, error);
-  
+
         if (attempt === maxRetries) {
           logger.error("All retries failed. Giving up.");
           throw new ClankerError(
@@ -409,17 +415,21 @@ export class ClankerService extends Service {
             error,
           );
         }
-  
+
         // Exponential backoff with jitter (up to 1 second max delay)
-        const delay = Math.min(1000, Math.pow(2, attempt) * 100 + Math.random() * 100);
+        const delay = Math.min(
+          1000,
+          Math.pow(2, attempt) * 100 + Math.random() * 100,
+        );
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
-  
-    throw new ClankerError(ErrorCode.NETWORK_ERROR, "Unreachable retry failure");
+
+    throw new ClankerError(
+      ErrorCode.NETWORK_ERROR,
+      "Unreachable retry failure",
+    );
   }
-  
-  
 
   async getAllTokensInWallet(walletAddress: string): Promise<TokenInfo[]> {
     // ⚠️ This function is only supported if using Alchemy.

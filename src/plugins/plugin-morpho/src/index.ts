@@ -1,4 +1,4 @@
-import { morphoPlugin } from './plugin';
+import { morphoPlugin } from "./plugin";
 
 // Export the default plugin
 export default morphoPlugin;
@@ -7,12 +7,10 @@ export default morphoPlugin;
 export { morphoPlugin };
 
 // Export services
-export { MorphoService } from './services';
+export { MorphoService } from "./services";
 
 // Export actions
-export {
-    marketInfoAction
-} from './actions';
+export { marketInfoAction } from "./actions";
 
 // Export providers
 // export {
@@ -21,11 +19,11 @@ export {
 // } from './providers';
 
 // Export types
-export * from './types';
+export * from "./types";
 
 // Export utilities
 export {
-    ErrorHandler,
-    MorphoError,
-    // GasOptimizer
-} from './utils';
+  ErrorHandler,
+  MorphoError,
+  // GasOptimizer
+} from "./utils";

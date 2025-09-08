@@ -1,24 +1,24 @@
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
-import { tokenSwapAction } from '../../src/actions/token-swap.action';
-import { ClankerService } from '../../src/services/clanker.service';
-import { WalletService } from '../../src/services/wallet.service';
-import { parseUnits } from 'ethers';
-import { ClankerError, ErrorCode } from '../../src/utils/errors';
+import { describe, it, expect, beforeEach, mock } from "bun:test";
+import { tokenSwapAction } from "../../src/actions/token-swap.action";
+import { ClankerService } from "../../src/services/clanker.service";
+import { WalletService } from "../../src/services/wallet.service";
+import { parseUnits } from "ethers";
+import { ClankerError, ErrorCode } from "../../src/utils/errors";
 
 // Mock services
 const mockClankerService = {
   swapTokens: mock(async () => {
     throw new ClankerError(
       ErrorCode.PROTOCOL_ERROR,
-      'Token swapping not supported by Clanker SDK. Use Uniswap v4 directly or other DEX integration.'
+      "Token swapping not supported by Clanker SDK. Use Uniswap v4 directly or other DEX integration.",
     );
   }),
   getTokenInfo: mock(async (address: string) => ({
     address,
-    name: 'Test Token',
-    symbol: 'TEST',
+    name: "Test Token",
+    symbol: "TEST",
     decimals: 18,
-    totalSupply: parseUnits('1000000', 18),
+    totalSupply: parseUnits("1000000", 18),
     price: 1.0,
     priceUsd: 1.0,
     createdAt: Date.now(),
@@ -26,17 +26,17 @@ const mockClankerService = {
 };
 
 const mockWalletService = {
-  getBalance: mock(async () => parseUnits('2.0', 18)),
+  getBalance: mock(async () => parseUnits("2.0", 18)),
   getTokenBalance: mock(async (address: string) => ({
     token: address,
-    symbol: 'TOKEN',
+    symbol: "TOKEN",
     decimals: 18,
-    balance: parseUnits('1000', 18),
-    formattedBalance: '1000.0',
+    balance: parseUnits("1000", 18),
+    formattedBalance: "1000.0",
     priceUsd: 1.0,
     valueUsd: 1000.0,
   })),
-  getAddress: mock(() => '0x' + '1'.repeat(40)),
+  getAddress: mock(() => "0x" + "1".repeat(40)),
 };
 
 // Mock runtime
@@ -55,12 +55,12 @@ const mockRuntime = {
 // Mock memory objects
 const createMemory = (text: string) => ({
   content: { text },
-  userId: 'test-user',
-  agentId: 'test-agent',
-  roomId: 'test-room',
+  userId: "test-user",
+  agentId: "test-agent",
+  roomId: "test-room",
 });
 
-describe('tokenSwapAction', () => {
+describe("tokenSwapAction", () => {
   beforeEach(() => {
     // Clear all mocks
     mockClankerService.swapTokens.mockClear();
@@ -70,105 +70,109 @@ describe('tokenSwapAction', () => {
     mockWalletService.getAddress.mockClear();
   });
 
-  describe('validate', () => {
-    it('should return true for swap-related queries', async () => {
+  describe("validate", () => {
+    it("should return true for swap-related queries", async () => {
       const swapQueries = [
-        'swap 1 ETH for USDC',
-        'trade 1000 USDC for BASE tokens',
-        'exchange ETH to tokens',
-        'buy tokens with ETH',
-        'sell tokens for ETH',
-        'convert USDC to ETH',
+        "swap 1 ETH for USDC",
+        "trade 1000 USDC for BASE tokens",
+        "exchange ETH to tokens",
+        "buy tokens with ETH",
+        "sell tokens for ETH",
+        "convert USDC to ETH",
       ];
 
       for (const query of swapQueries) {
         const result = await tokenSwapAction.validate!(
           mockRuntime as any,
           createMemory(query),
-          undefined
+          undefined,
         );
         expect(result).toBe(true);
       }
     });
 
-    it('should return false for non-swap queries', async () => {
+    it("should return false for non-swap queries", async () => {
       const nonSwapQueries = [
-        'deploy a token',
-        'check balance',
-        'add liquidity',
-        'hello world',
-        'get token info',
+        "deploy a token",
+        "check balance",
+        "add liquidity",
+        "hello world",
+        "get token info",
       ];
 
       for (const query of nonSwapQueries) {
         const result = await tokenSwapAction.validate!(
           mockRuntime as any,
           createMemory(query),
-          undefined
+          undefined,
         );
         expect(result).toBe(false);
       }
     });
 
-    it('should return false when required services are not available', async () => {
+    it("should return false when required services are not available", async () => {
       const runtimeWithoutServices = {
         getService: () => null,
       };
 
       const result = await tokenSwapAction.validate!(
         runtimeWithoutServices as any,
-        createMemory('swap ETH for USDC'),
-        undefined
+        createMemory("swap ETH for USDC"),
+        undefined,
       );
 
       expect(result).toBe(false);
     });
 
-    it('should handle validation errors gracefully', async () => {
+    it("should handle validation errors gracefully", async () => {
       const runtimeWithError = {
         getService: () => {
-          throw new Error('Service error');
+          throw new Error("Service error");
         },
       };
 
       const result = await tokenSwapAction.validate!(
         runtimeWithError as any,
-        createMemory('swap tokens'),
-        undefined
+        createMemory("swap tokens"),
+        undefined,
       );
 
       expect(result).toBe(false);
     });
   });
 
-  describe('handler - Token Swap (Deprecated)', () => {
-    it('should throw error for swap operations', async () => {
-      const memory = createMemory('swap 1 ETH for USDC');
+  describe("handler - Token Swap (Deprecated)", () => {
+    it("should throw error for swap operations", async () => {
+      const memory = createMemory("swap 1 ETH for USDC");
 
       const result = await tokenSwapAction.handler!(
         mockRuntime as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toContain('Token swapping not supported by Clanker SDK');
+      expect(result.error?.message).toContain(
+        "Token swapping not supported by Clanker SDK",
+      );
       expect(mockClankerService.swapTokens).toHaveBeenCalled();
     });
 
-    it('should parse swap parameters correctly before throwing error', async () => {
-      const fromToken = '0x' + 'a'.repeat(40);
-      const toToken = '0x' + 'b'.repeat(40);
-      const memory = createMemory(`swap ${fromToken} for ${toToken} with 100 tokens`);
+    it("should parse swap parameters correctly before throwing error", async () => {
+      const fromToken = "0x" + "a".repeat(40);
+      const toToken = "0x" + "b".repeat(40);
+      const memory = createMemory(
+        `swap ${fromToken} for ${toToken} with 100 tokens`,
+      );
 
       const result = await tokenSwapAction.handler!(
         mockRuntime as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(result.success).toBe(false);
@@ -176,12 +180,12 @@ describe('tokenSwapAction', () => {
         expect.objectContaining({
           fromToken: fromToken,
           toToken: toToken,
-        })
+        }),
       );
     });
 
-    it('should handle ETH to token swaps', async () => {
-      const toToken = '0x' + 'c'.repeat(40);
+    it("should handle ETH to token swaps", async () => {
+      const toToken = "0x" + "c".repeat(40);
       const memory = createMemory(`swap 1 ETH for ${toToken}`);
 
       const result = await tokenSwapAction.handler!(
@@ -189,7 +193,7 @@ describe('tokenSwapAction', () => {
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(result.success).toBe(false);
@@ -197,12 +201,12 @@ describe('tokenSwapAction', () => {
         expect.objectContaining({
           fromToken: expect.stringMatching(/0x0+/), // WETH address
           toToken: toToken,
-        })
+        }),
       );
     });
 
-    it('should handle token to ETH swaps', async () => {
-      const fromToken = '0x' + 'd'.repeat(40);
+    it("should handle token to ETH swaps", async () => {
+      const fromToken = "0x" + "d".repeat(40);
       const memory = createMemory(`sell ${fromToken} for ETH`);
 
       const result = await tokenSwapAction.handler!(
@@ -210,7 +214,7 @@ describe('tokenSwapAction', () => {
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(result.success).toBe(false);
@@ -218,13 +222,13 @@ describe('tokenSwapAction', () => {
         expect.objectContaining({
           fromToken: fromToken,
           toToken: expect.stringMatching(/0x0+/), // WETH address
-        })
+        }),
       );
     });
   });
 
-  describe('handler - Service availability', () => {
-    it('should fail when clanker service is not available', async () => {
+  describe("handler - Service availability", () => {
+    it("should fail when clanker service is not available", async () => {
       const runtimeWithoutClanker = {
         getService: (serviceType: string) => {
           if (serviceType === ClankerService.serviceType) return null;
@@ -232,21 +236,21 @@ describe('tokenSwapAction', () => {
         },
       };
 
-      const memory = createMemory('swap ETH for USDC');
+      const memory = createMemory("swap ETH for USDC");
 
       const result = await tokenSwapAction.handler!(
         runtimeWithoutClanker as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toBe('Required services not available');
+      expect(result.error?.message).toBe("Required services not available");
     });
 
-    it('should fail when wallet service is not available', async () => {
+    it("should fail when wallet service is not available", async () => {
       const runtimeWithoutWallet = {
         getService: (serviceType: string) => {
           if (serviceType === WalletService.serviceType) return null;
@@ -254,48 +258,48 @@ describe('tokenSwapAction', () => {
         },
       };
 
-      const memory = createMemory('trade tokens');
+      const memory = createMemory("trade tokens");
 
       const result = await tokenSwapAction.handler!(
         runtimeWithoutWallet as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toBe('Required services not available');
+      expect(result.error?.message).toBe("Required services not available");
     });
   });
 
-  describe('handler - Callback functionality', () => {
-    it('should call callback with deprecation error message', async () => {
+  describe("handler - Callback functionality", () => {
+    it("should call callback with deprecation error message", async () => {
       const callback = mock(() => Promise.resolve());
-      const memory = createMemory('swap 1 ETH for USDC');
+      const memory = createMemory("swap 1 ETH for USDC");
 
       await tokenSwapAction.handler!(
         mockRuntime as any,
         memory,
         undefined,
         {},
-        callback
+        callback,
       );
 
       expect(callback).toHaveBeenCalledWith({
-        text: expect.stringContaining('❌ Token swap failed'),
-        actions: ['SWAP_TOKENS'],
+        text: expect.stringContaining("❌ Token swap failed"),
+        actions: ["SWAP_TOKENS"],
         source: undefined,
       });
     });
   });
 
-  describe('parameter parsing', () => {
-    it('should extract token addresses from swap queries', async () => {
+  describe("parameter parsing", () => {
+    it("should extract token addresses from swap queries", async () => {
       const testCases = [
-        `swap 0x${'1'.repeat(40)} for 0x${'2'.repeat(40)}`,
-        `trade 0x${'3'.repeat(40)} to 0x${'4'.repeat(40)}`,
-        `exchange 0x${'5'.repeat(40)} 0x${'6'.repeat(40)}`,
+        `swap 0x${"1".repeat(40)} for 0x${"2".repeat(40)}`,
+        `trade 0x${"3".repeat(40)} to 0x${"4".repeat(40)}`,
+        `exchange 0x${"5".repeat(40)} 0x${"6".repeat(40)}`,
       ];
 
       for (const testCase of testCases) {
@@ -305,7 +309,7 @@ describe('tokenSwapAction', () => {
           memory,
           undefined,
           {},
-          undefined
+          undefined,
         );
 
         expect(mockClankerService.swapTokens).toHaveBeenCalled();
@@ -313,30 +317,30 @@ describe('tokenSwapAction', () => {
       }
     });
 
-    it('should extract amounts from swap queries', async () => {
-      const memory = createMemory('swap 1.5 ETH for USDC');
+    it("should extract amounts from swap queries", async () => {
+      const memory = createMemory("swap 1.5 ETH for USDC");
 
       await tokenSwapAction.handler!(
         mockRuntime as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(mockClankerService.swapTokens).toHaveBeenCalledWith(
         expect.objectContaining({
           amount: expect.any(BigInt),
-        })
+        }),
       );
     });
 
-    it('should handle different amount formats', async () => {
+    it("should handle different amount formats", async () => {
       const testCases = [
-        'swap 1000 tokens',
-        'trade 1.5 ETH',
-        'exchange 0.001 tokens',
-        'swap 1,000,000 tokens',
+        "swap 1000 tokens",
+        "trade 1.5 ETH",
+        "exchange 0.001 tokens",
+        "swap 1,000,000 tokens",
       ];
 
       for (const testCase of testCases) {
@@ -346,7 +350,7 @@ describe('tokenSwapAction', () => {
           memory,
           undefined,
           {},
-          undefined
+          undefined,
         );
 
         expect(mockClankerService.swapTokens).toHaveBeenCalled();
@@ -354,32 +358,32 @@ describe('tokenSwapAction', () => {
       }
     });
 
-    it('should parse slippage tolerance when specified', async () => {
-      const memory = createMemory('swap 1 ETH for USDC with 1% slippage');
+    it("should parse slippage tolerance when specified", async () => {
+      const memory = createMemory("swap 1 ETH for USDC with 1% slippage");
 
       await tokenSwapAction.handler!(
         mockRuntime as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(mockClankerService.swapTokens).toHaveBeenCalledWith(
         expect.objectContaining({
           slippage: 0.01,
-        })
+        }),
       );
     });
   });
 
-  describe('token symbol handling', () => {
-    it('should handle common token symbols', async () => {
+  describe("token symbol handling", () => {
+    it("should handle common token symbols", async () => {
       const symbolQueries = [
-        'swap ETH for USDC',
-        'trade WETH to USDT',
-        'exchange BASE for ETH',
-        'buy USDC with ETH',
+        "swap ETH for USDC",
+        "trade WETH to USDT",
+        "exchange BASE for ETH",
+        "buy USDC with ETH",
       ];
 
       for (const query of symbolQueries) {
@@ -389,7 +393,7 @@ describe('tokenSwapAction', () => {
           memory,
           undefined,
           {},
-          undefined
+          undefined,
         );
 
         expect(mockClankerService.swapTokens).toHaveBeenCalled();
@@ -397,48 +401,50 @@ describe('tokenSwapAction', () => {
       }
     });
 
-    it('should map ETH to WETH address', async () => {
-      const memory = createMemory('swap ETH for USDC');
+    it("should map ETH to WETH address", async () => {
+      const memory = createMemory("swap ETH for USDC");
 
       await tokenSwapAction.handler!(
         mockRuntime as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       const call = mockClankerService.swapTokens.mock.calls[0][0];
       expect(call.fromToken).toMatch(/^0x/);
-      expect(call.fromToken).not.toBe('ETH');
+      expect(call.fromToken).not.toBe("ETH");
     });
   });
 
-  describe('error messages', () => {
-    it('should provide helpful deprecation message in error response', async () => {
-      const memory = createMemory('swap tokens');
+  describe("error messages", () => {
+    it("should provide helpful deprecation message in error response", async () => {
+      const memory = createMemory("swap tokens");
 
       const result = await tokenSwapAction.handler!(
         mockRuntime as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(result.success).toBe(false);
-      expect(result.error?.message).toContain('Use Uniswap v4 directly or other DEX integration');
+      expect(result.error?.message).toContain(
+        "Use Uniswap v4 directly or other DEX integration",
+      );
     });
 
-    it('should handle invalid token addresses gracefully', async () => {
-      const memory = createMemory('swap invalid-address for another-invalid');
+    it("should handle invalid token addresses gracefully", async () => {
+      const memory = createMemory("swap invalid-address for another-invalid");
 
       const result = await tokenSwapAction.handler!(
         mockRuntime as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(result.success).toBe(false);
@@ -446,12 +452,12 @@ describe('tokenSwapAction', () => {
     });
   });
 
-  describe('swap direction detection', () => {
-    it('should correctly identify buy operations', async () => {
+  describe("swap direction detection", () => {
+    it("should correctly identify buy operations", async () => {
       const buyQueries = [
-        'buy USDC with ETH',
-        'purchase tokens using ETH',
-        'get BASE with ETH',
+        "buy USDC with ETH",
+        "purchase tokens using ETH",
+        "get BASE with ETH",
       ];
 
       for (const query of buyQueries) {
@@ -461,7 +467,7 @@ describe('tokenSwapAction', () => {
           memory,
           undefined,
           {},
-          undefined
+          undefined,
         );
 
         expect(mockClankerService.swapTokens).toHaveBeenCalled();
@@ -469,11 +475,11 @@ describe('tokenSwapAction', () => {
       }
     });
 
-    it('should correctly identify sell operations', async () => {
+    it("should correctly identify sell operations", async () => {
       const sellQueries = [
-        'sell USDC for ETH',
-        'dump tokens for ETH',
-        'liquidate BASE to ETH',
+        "sell USDC for ETH",
+        "dump tokens for ETH",
+        "liquidate BASE to ETH",
       ];
 
       for (const query of sellQueries) {
@@ -483,7 +489,7 @@ describe('tokenSwapAction', () => {
           memory,
           undefined,
           {},
-          undefined
+          undefined,
         );
 
         expect(mockClankerService.swapTokens).toHaveBeenCalled();
@@ -492,24 +498,24 @@ describe('tokenSwapAction', () => {
     });
   });
 
-  describe('balance checking integration', () => {
-    it('should attempt to check balances before swap (deprecated)', async () => {
-      const memory = createMemory('swap 1 ETH for USDC');
+  describe("balance checking integration", () => {
+    it("should attempt to check balances before swap (deprecated)", async () => {
+      const memory = createMemory("swap 1 ETH for USDC");
 
       await tokenSwapAction.handler!(
         mockRuntime as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       // Should have attempted to check balance before failing
       expect(mockWalletService.getBalance).toHaveBeenCalled();
     });
 
-    it('should check token balance for token-to-token swaps', async () => {
-      const fromToken = '0x' + 'e'.repeat(40);
+    it("should check token balance for token-to-token swaps", async () => {
+      const fromToken = "0x" + "e".repeat(40);
       const memory = createMemory(`swap 100 ${fromToken} for USDC`);
 
       await tokenSwapAction.handler!(
@@ -517,66 +523,66 @@ describe('tokenSwapAction', () => {
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(mockWalletService.getTokenBalance).toHaveBeenCalledWith(fromToken);
     });
   });
 
-  describe('backwards compatibility', () => {
-    it('should maintain action structure for backwards compatibility', () => {
-      expect(tokenSwapAction.name).toBe('SWAP_TOKENS');
-      expect(tokenSwapAction.similes).toContain('TRADE');
-      expect(tokenSwapAction.similes).toContain('EXCHANGE');
+  describe("backwards compatibility", () => {
+    it("should maintain action structure for backwards compatibility", () => {
+      expect(tokenSwapAction.name).toBe("SWAP_TOKENS");
+      expect(tokenSwapAction.similes).toContain("TRADE");
+      expect(tokenSwapAction.similes).toContain("EXCHANGE");
       expect(tokenSwapAction.description).toBeDefined();
     });
 
-    it('should have proper examples showing deprecation', () => {
+    it("should have proper examples showing deprecation", () => {
       expect(tokenSwapAction.examples).toBeDefined();
       expect(tokenSwapAction.examples!.length).toBeGreaterThan(0);
     });
   });
 
-  describe('edge cases', () => {
-    it('should handle empty token addresses', async () => {
-      const memory = createMemory('swap for tokens');
+  describe("edge cases", () => {
+    it("should handle empty token addresses", async () => {
+      const memory = createMemory("swap for tokens");
 
       const result = await tokenSwapAction.handler!(
         mockRuntime as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(result.success).toBe(false);
     });
 
-    it('should handle missing amounts', async () => {
-      const memory = createMemory('swap ETH for USDC');
+    it("should handle missing amounts", async () => {
+      const memory = createMemory("swap ETH for USDC");
 
       const result = await tokenSwapAction.handler!(
         mockRuntime as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(result.success).toBe(false);
       // Should still attempt the operation with parsed parameters
     });
 
-    it('should handle very large numbers', async () => {
-      const memory = createMemory('swap 1000000000000 tokens for ETH');
+    it("should handle very large numbers", async () => {
+      const memory = createMemory("swap 1000000000000 tokens for ETH");
 
       const result = await tokenSwapAction.handler!(
         mockRuntime as any,
         memory,
         undefined,
         {},
-        undefined
+        undefined,
       );
 
       expect(result.success).toBe(false);

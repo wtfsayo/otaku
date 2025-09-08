@@ -35,7 +35,7 @@ export const ethWalletList: Action = {
     message: Memory,
     state: State,
     _options: { [key: string]: unknown },
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     try {
       logger.log("ETH_WALLET_LIST handler started");

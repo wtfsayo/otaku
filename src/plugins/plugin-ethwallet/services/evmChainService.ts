@@ -1,17 +1,17 @@
-import { IAgentRuntime, Service, logger } from '@elizaos/core';
-import { EVMWalletService } from './evmWalletService';
-import { getAllChainNames, getMainnetChains } from '../config/chains';
-import { EVMWallet } from '../types';
+import { IAgentRuntime, Service, logger } from "@elizaos/core";
+import { EVMWalletService } from "./evmWalletService";
+import { getAllChainNames, getMainnetChains } from "../config/chains";
+import { EVMWallet } from "../types";
 
 export class EVMChainService extends Service {
-  static serviceType = 'EVM_CHAIN_SERVICE';
-  capabilityDescription = '';
+  static serviceType = "EVM_CHAIN_SERVICE";
+  capabilityDescription = "";
   private walletService: EVMWalletService;
 
   constructor(runtime: IAgentRuntime) {
     super(runtime);
     this.walletService = new EVMWalletService(runtime);
-    logger.log('EVM Chain Service initialized');
+    logger.log("EVM Chain Service initialized");
   }
 
   /**
@@ -37,7 +37,9 @@ export class EVMChainService extends Service {
   /**
    * Create wallet for a specific chain
    */
-  async createWallet(chainName: string = 'ethereum'): Promise<EVMWallet | null> {
+  async createWallet(
+    chainName: string = "ethereum",
+  ): Promise<EVMWallet | null> {
     const result = await this.walletService.createWallet(chainName);
     if (result.success && result.wallet) {
       return result.wallet;
@@ -49,7 +51,10 @@ export class EVMChainService extends Service {
   /**
    * Import wallet for a specific chain
    */
-  async importWallet(privateKey: string, chainName: string = 'ethereum'): Promise<EVMWallet | null> {
+  async importWallet(
+    privateKey: string,
+    chainName: string = "ethereum",
+  ): Promise<EVMWallet | null> {
     const result = await this.walletService.importWallet(privateKey, chainName);
     if (result.success && result.wallet) {
       return result.wallet;
@@ -103,9 +108,11 @@ export class EVMChainService extends Service {
   /**
    * Detect private keys from text (similar to Solana service)
    */
-  detectPrivateKeysFromString(text: string): Array<{ format: string; match: string; key: string }> {
+  detectPrivateKeysFromString(
+    text: string,
+  ): Array<{ format: string; match: string; key: string }> {
     const keys: Array<{ format: string; match: string; key: string }> = [];
-    
+
     // Ethereum private key patterns
     const patterns = [
       // 0x prefixed hex (64 chars)
@@ -118,12 +125,12 @@ export class EVMChainService extends Service {
       const matches = text.match(pattern);
       if (matches) {
         for (const match of matches) {
-          const cleanKey = match.startsWith('0x') ? match : `0x${match}`;
+          const cleanKey = match.startsWith("0x") ? match : `0x${match}`;
           if (this.isValidPrivateKey(cleanKey)) {
             keys.push({
-              format: 'ethereum_hex',
+              format: "ethereum_hex",
               match: match,
-              key: cleanKey
+              key: cleanKey,
             });
           }
         }
@@ -138,7 +145,5 @@ export class EVMChainService extends Service {
     return service;
   }
 
-  async stop(): Promise<void> {
-    
-  }
-} 
+  async stop(): Promise<void> {}
+}

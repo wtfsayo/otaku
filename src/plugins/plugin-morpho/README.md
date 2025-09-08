@@ -15,28 +15,33 @@ The Morpho plugin allows ElizaOS agents to interact with the Morpho Blue protoco
 ## Features
 
 ### Core Lending Operations
+
 - **Optimized Supply**: Earn higher yields through P2P matching
 - **Efficient Borrowing**: Access better rates with direct peer matching
 - **Smart Withdrawals**: Minimize matching impact during withdrawals
 - **Intelligent Repayments**: Optimize interest payments through efficient matching
 
 ### Morpho Vaults (ERC4626)
+
 - **Vault Deposits**: Deposit into curated Morpho Vaults for automated yield optimization
 - **Vault Withdrawals**: Withdraw from vaults with fee optimization
 - **Vault Performance Tracking**: Monitor vault performance and curator strategies
 
 ### Bundler Operations
+
 - **Atomic Transactions**: Execute multiple operations in a single transaction
 - **Supply + Borrow**: Combine collateral supply and borrowing atomically
 - **Gas Optimization**: Reduce total gas costs with bundled operations
 - **MEV Protection**: Minimize sandwich attack risks
 
 ### Rewards System
+
 - **Reward Tracking**: Monitor claimable MORPHO and other incentive tokens
 - **Automatic Claims**: Claim all available rewards efficiently
 - **Multi-token Support**: Handle various reward token types
 
 ### Analytics & Monitoring
+
 - **Rate Monitoring**: Real-time comparison of Morpho vs pool rates
 - **Position Management**: Track and optimize your lending positions
 - **Health Factor Monitoring**: Track liquidation risks and position safety
@@ -74,8 +79,8 @@ MONITORING_INTERVAL=60000 # Position monitoring interval in ms
 ### Basic Setup
 
 ```typescript
-import { morphoPlugin } from '@elizaos/plugin-morpho';
-import { createAgent } from '@elizaos/core';
+import { morphoPlugin } from "@elizaos/plugin-morpho";
+import { createAgent } from "@elizaos/core";
 
 const agent = createAgent({
   plugins: [morphoPlugin],
@@ -88,58 +93,70 @@ const agent = createAgent({
 The plugin understands various natural language commands. **Important**: Always specify the token symbol (USDC, WETH, DAI) with amounts for clarity.
 
 #### Market Structure
+
 In Morpho Blue markets like "WETH/USDC":
+
 - **Loan Token** (USDC): Used for supply/borrow operations to earn yield or take loans
 - **Collateral Token** (WETH): Used for collateral operations to secure borrowing positions
 
 #### Token Operation Mapping
+
 - **Supply/Borrow/Withdraw/Repay**: Uses the loan token (e.g., USDC in WETH/USDC)
 - **Supply Collateral/Withdraw Collateral**: Uses the collateral token (e.g., WETH in WETH/USDC)
 
 #### Examples by Operation Type
 
 #### Supply Assets (Lend to Earn Yield)
+
 - "Supply 1000 USDC to WETH/USDC market"
 - "Lend 0.5 USDC to WETH/USDC for yield"
 - "Supply 500 DAI to DAI/WETH market"
 
-#### Supply Collateral  
+#### Supply Collateral
+
 - "Provide 0.5 WETH as collateral in WETH/USDC"
 - "Supply 1 WETH collateral for WETH/USDC market"
 - "Add 2 WETH as collateral in WETH/DAI"
 
 #### Borrow Assets
+
 - "Borrow 500 USDC from WETH/USDC market"
 - "Take a loan of 200 USDC against WETH"
 - "Borrow 1000 DAI from DAI/WETH market"
 
 #### Withdraw Assets (Remove Supplied Funds)
+
 - "Withdraw 300 USDC from WETH/USDC market"
 - "Remove 100 USDC from my supply position"
 - "Withdraw 500 DAI from DAI/WETH"
 
 #### Withdraw Collateral
+
 - "Remove 0.1 WETH collateral from WETH/USDC"
 - "Withdraw 0.5 WETH collateral from WETH/DAI"
 - "Remove WETH collateral from market"
 
 #### Repay Loans
+
 - "Repay 200 USDC in WETH/USDC market"
 - "Pay back all USDC debt in WETH/USDC"
 - "Repay 500 DAI loan in DAI/WETH"
 
 #### Vault Operations
+
 - "Deposit 1000 USDC into the Morpho USDC vault"
 - "Withdraw 500 USDC from my vault position"
 - "I want to add 0.5 WETH to the vault"
 - "Remove all my shares from the USDC vault"
 
 #### Bundled Operations
+
 - "Supply 1 WETH and borrow 2000 USDC in one transaction"
 - "I want to supply collateral and take a loan atomically"
 - "Bundle supply and borrow to save gas"
 
 #### Rewards
+
 - "Claim my Morpho rewards"
 - "I want to harvest my MORPHO tokens"
 - "Check and claim all my available rewards"
@@ -147,6 +164,7 @@ In Morpho Blue markets like "WETH/USDC":
 ### Advanced Usage
 
 #### Custom Gas Settings
+
 ```
 "Supply 1000 USDC with max 300000 gas for matching"
 "Borrow 0.5 WETH using 400000 gas for better rates"
@@ -165,20 +183,24 @@ In Morpho Blue markets like "WETH/USDC":
 ### Actions
 
 #### Core Lending Actions
+
 - **SupplyAction**: Handles asset supply with P2P matching
 - **BorrowAction**: Manages borrowing with rate optimization
 - **WithdrawAction**: Executes withdrawals with minimal impact
 - **RepayAction**: Processes loan repayments efficiently
 
 #### Vault Actions
+
 - **VaultDepositAction**: Deposits assets into Morpho Vaults
 - **VaultWithdrawAction**: Withdraws from vaults with fee optimization
 
 #### Bundler Actions
+
 - **BundledSupplyBorrowAction**: Executes supply+borrow atomically
 - **More bundler combinations**: Additional atomic operation patterns
 
 #### Rewards Actions
+
 - **ClaimRewardsAction**: Claims available protocol rewards
 
 ### Providers
@@ -289,11 +311,13 @@ The plugin automatically optimizes gas usage for P2P matching:
 ### Common Issues
 
 1. **Low Matching Efficiency**
+
    - Try different transaction amounts
    - Execute during peak activity periods
    - Increase gas allocation for matching
 
 2. **High Gas Costs**
+
    - Reduce matching gas limit for smaller positions
    - Bundle operations when possible
    - Monitor network congestion
@@ -311,7 +335,7 @@ The plugin automatically optimizes gas usage for P2P matching:
 # Run all tests
 bun test
 
-# Run only unit tests  
+# Run only unit tests
 bun test:unit
 
 # Run integration tests (requires RPC configuration)

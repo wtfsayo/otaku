@@ -103,7 +103,7 @@ export class SwapAction {
    */
   private async resolveTokenAddress(
     tokenSymbolOrAddress: string,
-    chainId: number
+    chainId: number,
   ): Promise<string> {
     // If it's already a valid address (starts with 0x and is 42 chars), return as is
     if (
@@ -125,7 +125,7 @@ export class SwapAction {
     } catch (error) {
       elizaLogger.error(
         `Failed to resolve token ${tokenSymbolOrAddress} on chain ${chainId}:`,
-        error
+        error,
       );
       // If LiFi fails, return original value and let downstream handle the error
       return tokenSymbolOrAddress;
@@ -142,11 +142,11 @@ export class SwapAction {
 
     const resolvedFromToken = await this.resolveTokenAddress(
       params.fromToken,
-      chainId
+      chainId,
     );
     const resolvedToToken = await this.resolveTokenAddress(
       params.toToken,
-      chainId
+      chainId,
     );
 
     // Update params with resolved addresses
@@ -164,21 +164,21 @@ export class SwapAction {
     for (const slippage of slippageLevels) {
       try {
         elizaLogger.info(
-          `Attempting swap with ${(slippage * 100).toFixed(1)}% slippage...`
+          `Attempting swap with ${(slippage * 100).toFixed(1)}% slippage...`,
         );
 
         // Getting quotes from different aggregators with current slippage
         const sortedQuotes: SwapQuote[] = await this.getSortedQuotes(
           fromAddress,
           resolvedParams,
-          slippage
+          slippage,
         );
 
         // Trying to execute the best quote by amount, fallback to the next one if it fails
         for (const quote of sortedQuotes) {
           attemptCount++;
           elizaLogger.info(
-            `Trying ${quote.aggregator} (attempt ${attemptCount})...`
+            `Trying ${quote.aggregator} (attempt ${attemptCount})...`,
           );
 
           let res;
@@ -199,13 +199,13 @@ export class SwapAction {
           }
 
           elizaLogger.warn(
-            `${quote.aggregator} attempt failed, trying next option...`
+            `${quote.aggregator} attempt failed, trying next option...`,
           );
         }
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
         elizaLogger.warn(
-          `Swap attempt with ${(slippage * 100).toFixed(1)}% slippage failed: ${lastError.message}`
+          `Swap attempt with ${(slippage * 100).toFixed(1)}% slippage failed: ${lastError.message}`,
         );
 
         // If it's a slippage error, revert, or MEV issue and we have more slippage levels to try, continue
@@ -235,7 +235,7 @@ export class SwapAction {
   private async getSortedQuotes(
     fromAddress: Address,
     params: SwapParams,
-    slippage: number = 0.01
+    slippage: number = 0.01,
   ): Promise<SwapQuote[]> {
     const decimalsAbi = parseAbi(["function decimals() view returns (uint8)"]);
     let fromTokenDecimals: number;
@@ -265,10 +265,10 @@ export class SwapAction {
     ];
     const quotesResults = await Promise.all(quotesPromises);
     const sortedQuotes: SwapQuote[] = quotesResults.filter(
-      (quote): quote is SwapQuote => quote !== undefined
+      (quote): quote is SwapQuote => quote !== undefined,
     );
     sortedQuotes.sort((a, b) =>
-      BigInt(a.minOutputAmount) > BigInt(b.minOutputAmount) ? -1 : 1
+      BigInt(a.minOutputAmount) > BigInt(b.minOutputAmount) ? -1 : 1,
     );
     if (sortedQuotes.length === 0) throw new Error("No routes found");
     return sortedQuotes;
@@ -278,7 +278,7 @@ export class SwapAction {
     fromAddress: Address,
     params: SwapParams,
     fromTokenDecimals: number,
-    slippage: number = 0.01
+    slippage: number = 0.01,
   ): Promise<SwapQuote | undefined> {
     try {
       const routes = await getRoutes({
@@ -310,7 +310,7 @@ export class SwapAction {
         errorMessage.includes("slippage")
       ) {
         elizaLogger.error(
-          `LiFi swap failed due to slippage protection. Consider increasing slippage tolerance. Error: ${errorMessage}`
+          `LiFi swap failed due to slippage protection. Consider increasing slippage tolerance. Error: ${errorMessage}`,
         );
       }
 
@@ -322,7 +322,7 @@ export class SwapAction {
   private async getBebopQuote(
     fromAddress: Address,
     params: SwapParams,
-    fromTokenDecimals: number
+    fromTokenDecimals: number,
   ): Promise<SwapQuote | undefined> {
     try {
       const chainName =
@@ -333,11 +333,11 @@ export class SwapAction {
       const chainConfig = this.walletProvider.getChainConfigs(params.chain);
       const resolvedFromToken = await this.resolveTokenAddress(
         params.fromToken,
-        chainConfig.id
+        chainConfig.id,
       );
       const resolvedToToken = await this.resolveTokenAddress(
         params.toToken,
-        chainConfig.id
+        chainConfig.id,
       );
 
       const reqParams = new URLSearchParams({
@@ -356,7 +356,7 @@ export class SwapAction {
       });
       if (!response.ok) {
         throw Error(
-          `Bebop API error: ${response.status} ${response.statusText}`
+          `Bebop API error: ${response.status} ${response.statusText}`,
         );
       }
 
@@ -408,7 +408,7 @@ export class SwapAction {
 
       if (!buyTokenInfo || !buyTokenInfo.minimumAmount) {
         throw new Error(
-          "Cannot determine minimum output amount from Bebop response"
+          "Cannot determine minimum output amount from Bebop response",
         );
       }
 
@@ -426,7 +426,7 @@ export class SwapAction {
   }
 
   private async executeLifiQuote(
-    quote: SwapQuote
+    quote: SwapQuote,
   ): Promise<Transaction | undefined> {
     try {
       const route: Route = quote.swapData as Route;
@@ -442,7 +442,7 @@ export class SwapAction {
 
       if (!stepWithTx.transactionRequest) {
         throw new Error(
-          "No transaction request found in step after getStepTransaction"
+          "No transaction request found in step after getStepTransaction",
         );
       }
 
@@ -450,20 +450,20 @@ export class SwapAction {
       const chainId = route.fromChainId;
       const chainName = Object.keys(this.walletProvider.chains).find(
         (name) =>
-          this.walletProvider.getChainConfigs(name as any).id === chainId
+          this.walletProvider.getChainConfigs(name as any).id === chainId,
       );
 
       if (!chainName) {
         throw new Error(
-          `Chain with ID ${chainId} not found in wallet provider`
+          `Chain with ID ${chainId} not found in wallet provider`,
         );
       }
 
       const walletClient = this.walletProvider.getWalletClient(
-        chainName as any
+        chainName as any,
       );
       const publicClient = this.walletProvider.getPublicClient(
-        chainName as any
+        chainName as any,
       );
 
       if (!walletClient.account) {
@@ -492,7 +492,7 @@ export class SwapAction {
 
         if (allowance < requiredAmount) {
           elizaLogger.info(
-            `Approving ${fromToken.symbol} for LiFi contract...`
+            `Approving ${fromToken.symbol} for LiFi contract...`,
           );
 
           const approvalData = encodeFunctionData({
@@ -518,7 +518,7 @@ export class SwapAction {
 
           if (approvalReceipt.status === "reverted") {
             throw new Error(
-              `Token approval failed. Transaction hash: ${approvalTx}`
+              `Token approval failed. Transaction hash: ${approvalTx}`,
             );
           }
 
@@ -548,7 +548,7 @@ export class SwapAction {
 
       if (receipt.status === "reverted") {
         throw new Error(
-          `Transaction reverted on-chain. Hash: ${hash}. This could be due to price movement, insufficient gas, or MEV frontrunning. Please try again.`
+          `Transaction reverted on-chain. Hash: ${hash}. This could be due to price movement, insufficient gas, or MEV frontrunning. Please try again.`,
         );
       }
 
@@ -571,10 +571,10 @@ export class SwapAction {
         errorMessage.includes("slippage")
       ) {
         elizaLogger.error(
-          `LiFi swap failed due to slippage protection. Consider increasing slippage tolerance. Error: ${errorMessage}`
+          `LiFi swap failed due to slippage protection. Consider increasing slippage tolerance. Error: ${errorMessage}`,
         );
         throw new Error(
-          "Swap failed due to price movement. Try again or increase slippage tolerance."
+          "Swap failed due to price movement. Try again or increase slippage tolerance.",
         );
       }
 
@@ -585,7 +585,7 @@ export class SwapAction {
 
   private async executeBebopQuote(
     quote: SwapQuote,
-    params: SwapParams
+    params: SwapParams,
   ): Promise<Transaction | undefined> {
     try {
       const bebopRoute: BebopRoute = quote.swapData as BebopRoute;
@@ -600,7 +600,7 @@ export class SwapAction {
       const chainConfig = this.walletProvider.getChainConfigs(params.chain);
       const resolvedFromToken = await this.resolveTokenAddress(
         params.fromToken,
-        chainConfig.id
+        chainConfig.id,
       );
 
       // Skip approval for native tokens
@@ -641,7 +641,7 @@ export class SwapAction {
 
           if (approvalReceipt.status === "reverted") {
             throw new Error(
-              `Token approval failed. Transaction hash: ${approvalTx}`
+              `Token approval failed. Transaction hash: ${approvalTx}`,
             );
           }
 
@@ -688,7 +688,7 @@ const buildSwapDetails = async (
   state: State,
   _message: Memory,
   runtime: IAgentRuntime,
-  wp: WalletProvider
+  wp: WalletProvider,
 ): Promise<SwapParams> => {
   const chains = wp.getSupportedChains();
 
@@ -734,7 +734,7 @@ const buildSwapDetails = async (
     // Validate chain exists
     if (!wp.chains[normalizedChainName]) {
       throw new Error(
-        `Chain ${swapDetails.chain} not configured. Available chains: ${chains.join(", ")}`
+        `Chain ${swapDetails.chain} not configured. Available chains: ${chains.join(", ")}`,
       );
     }
 
@@ -796,13 +796,13 @@ export const swapAction = {
     _message: Memory,
     state?: State,
     _options?: any,
-    callback?: HandlerCallback
+    callback?: HandlerCallback,
   ): Promise<ActionResult> => {
     const walletResult = await getEntityWallet(
       runtime,
       _message,
       "EVM_SWAP_TOKENS",
-      callback
+      callback,
     );
     if (!walletResult.success) {
       return walletResult.result;
@@ -821,7 +821,7 @@ export const swapAction = {
         state,
         _message,
         runtime,
-        walletProvider
+        walletProvider,
       );
 
       const swapResp = await action.swap(swapOptions);
@@ -962,6 +962,6 @@ export const swapAction = {
       },
     ],
   ],
-  
+
   similes: ["TOKEN_SWAP", "EXCHANGE_TOKENS", "TRADE_TOKENS"],
 };
