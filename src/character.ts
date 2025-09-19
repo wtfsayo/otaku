@@ -13,6 +13,7 @@ export const character: Character = {
     // Core plugins first
     "@elizaos/plugin-sql",
     "@elizaos/plugin-defillama",
+    '@elizaos/plugin-bootstrap',
     // Platform plugins
     ...(process.env.DISCORD_API_TOKEN?.trim()
       ? ["@elizaos/plugin-discord"]

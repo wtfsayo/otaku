@@ -1,14 +1,11 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import type {
-  DetokenizeTextParams,
   GenerateTextParams,
   IAgentRuntime,
-  ImageDescriptionParams,
   ModelTypeName,
   ObjectGenerationParams,
   Plugin,
   TextEmbeddingParams,
-  TokenizeTextParams,
 } from '@elizaos/core';
 import { EventType, logger, ModelType, VECTOR_DIMS } from '@elizaos/core';
 import {
@@ -18,8 +15,7 @@ import {
   type JSONValue,
   type LanguageModelUsage,
 } from 'ai';
-import { encodingForModel, type TiktokenModel } from 'js-tiktoken';
-import { fetch, FormData } from 'undici';
+import { fetch } from 'undici';
 
 /**
  * Retrieves a configuration setting from the runtime, falling back to environment variables or a default value if not found.
@@ -114,15 +110,6 @@ function getLargeModel(runtime: IAgentRuntime): string {
   );
 }
 
-/**
- * Helper function to get the image description model name with fallbacks
- *
- * @param runtime The runtime context
- * @returns The configured image description model name
- */
-function getImageDescriptionModel(runtime: IAgentRuntime): string {
-  return getSetting(runtime, 'EIGENAI_IMAGE_DESCRIPTION_MODEL', 'gpt-5-nano') ?? 'gpt-5-nano';
-}
 
 /**
  * Helper function to get experimental telemetry setting
@@ -166,38 +153,6 @@ function createOpenAIClient(runtime: IAgentRuntime) {
   });
 }
 
-/**
- * Asynchronously tokenizes the given text based on the specified model and prompt.
- *
- * @param {ModelTypeName} model - The type of model to use for tokenization.
- * @param {string} prompt - The text prompt to tokenize.
- * @returns {number[]} - An array of tokens representing the encoded prompt.
- */
-async function tokenizeText(model: ModelTypeName, prompt: string) {
-  const modelName =
-    model === ModelType.TEXT_SMALL
-      ? (process.env.EIGENAI_SMALL_MODEL ?? process.env.SMALL_MODEL ?? 'gpt-5-nano')
-      : (process.env.LARGE_MODEL ?? 'gpt-5-mini');
-  const encoding = encodingForModel(modelName as TiktokenModel);
-  const tokens = encoding.encode(prompt);
-  return tokens;
-}
-
-/**
- * Detokenize a sequence of tokens back into text using the specified model.
- *
- * @param {ModelTypeName} model - The type of model to use for detokenization.
- * @param {number[]} tokens - The sequence of tokens to detokenize.
- * @returns {string} The detokenized text.
- */
-async function detokenizeText(model: ModelTypeName, tokens: number[]) {
-  const modelName =
-    model === ModelType.TEXT_SMALL
-      ? (process.env.EIGENAI_SMALL_MODEL ?? process.env.SMALL_MODEL ?? 'gpt-5-nano')
-      : (process.env.EIGENAI_LARGE_MODEL ?? process.env.LARGE_MODEL ?? 'gpt-5-mini');
-  const encoding = encodingForModel(modelName as TiktokenModel);
-  return encoding.decode(tokens);
-}
 
 /**
  * Helper function to generate objects using specified model type
@@ -227,14 +182,13 @@ async function generateObjectByModelType(
       prompt: params.prompt,
       temperature: temperature,
       seed: getEigenAISeed(runtime),
-      experimental_repairText: getJsonRepairFunction(),
     });
 
     if (usage) {
       emitModelUsageEvent(runtime, modelType as ModelTypeName, params.prompt, usage);
     }
-    return object;
-  } catch (error: unknown) {
+    return object as JSONValue;
+  } catch (error) {
     if (error instanceof JSONParseError) {
       logger.error(`[generateObject] Failed to parse JSON: ${error.message}`);
 
@@ -249,7 +203,7 @@ async function generateObjectByModelType(
           const repairedObject = JSON.parse(repairedJsonString);
           logger.info('[generateObject] Successfully repaired JSON.');
           return repairedObject;
-        } catch (repairParseError: unknown) {
+        } catch (repairParseError) {
           const message =
             repairParseError instanceof Error ? repairParseError.message : String(repairParseError);
           logger.error(`[generateObject] Failed to parse repaired JSON: ${message}`);
@@ -272,9 +226,9 @@ async function generateObjectByModelType(
  */
 function getJsonRepairFunction(): (params: {
   text: string;
-  error: unknown;
+  error: Error | JSONParseError;
 }) => Promise<string | null> {
-  return async ({ text, error }: { text: string; error: unknown }) => {
+  return async ({ text, error }: { text: string; error: Error | JSONParseError }) => {
     try {
       if (error instanceof JSONParseError) {
         const cleanedText = text.replace(/```json\n|\n```|```/g, '');
@@ -282,7 +236,7 @@ function getJsonRepairFunction(): (params: {
         return cleanedText;
       }
       return null;
-    } catch (jsonError: unknown) {
+    } catch (jsonError) {
       const message = jsonError instanceof Error ? jsonError.message : String(jsonError);
       logger.warn(`Failed to repair JSON text: ${message}`);
       return null;
@@ -315,42 +269,6 @@ function emitModelUsageEvent(
   });
 }
 
-/**
- * function for text-to-speech
- */
-async function fetchTextToSpeech(runtime: IAgentRuntime, text: string) {
-  const apiKey = getApiKey(runtime);
-  const model = getSetting(runtime, 'EIGENAI_TTS_MODEL', 'gpt-4o-mini-tts');
-  const voice = getSetting(runtime, 'EIGENAI_TTS_VOICE', 'nova');
-  const instructions = getSetting(runtime, 'EIGENAI_TTS_INSTRUCTIONS', '');
-  const baseURL = getBaseURL(runtime);
-
-  try {
-    const res = await fetch(`${baseURL}/audio/speech`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        voice,
-        input: text,
-        ...(instructions && { instructions }),
-      }),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`EigenAI TTS error ${res.status}: ${err}`);
-    }
-
-    return res.body;
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
-    throw new Error(`Failed to fetch speech from EigenAI TTS: ${message}`);
-  }
-}
 
 /**
  * Defines the EigenAI plugin with its name, description, and configuration options.
@@ -370,8 +288,6 @@ export const eigenAIPlugin: Plugin = {
     EIGENAI_EMBEDDING_API_KEY: process.env.EIGENAI_EMBEDDING_API_KEY,
     EIGENAI_EMBEDDING_URL: process.env.EIGENAI_EMBEDDING_URL,
     EIGENAI_EMBEDDING_DIMENSIONS: process.env.EIGENAI_EMBEDDING_DIMENSIONS,
-    EIGENAI_IMAGE_DESCRIPTION_MODEL: process.env.EIGENAI_IMAGE_DESCRIPTION_MODEL,
-    EIGENAI_IMAGE_DESCRIPTION_MAX_TOKENS: process.env.EIGENAI_IMAGE_DESCRIPTION_MAX_TOKENS,
     EIGENAI_EXPERIMENTAL_TELEMETRY: process.env.EIGENAI_EXPERIMENTAL_TELEMETRY,
     EIGENAI_SEED: process.env.EIGENAI_SEED || '42',
   },
@@ -397,12 +313,12 @@ export const eigenAIPlugin: Plugin = {
           } else {
             logger.log('EigenAI API key validated successfully');
           }
-        } catch (fetchError: unknown) {
+        } catch (fetchError) {
           const message = fetchError instanceof Error ? fetchError.message : String(fetchError);
           logger.warn(`Error validating EigenAI API key: ${message}`);
           logger.warn('EigenAI functionality will be limited until a valid API key is provided');
         }
-      } catch (error: unknown) {
+      } catch (error) {
         const message =
           (error as { errors?: Array<{ message: string }> })?.errors
             ?.map((e) => e.message)
@@ -435,7 +351,7 @@ export const eigenAIPlugin: Plugin = {
         throw new Error(errorMsg);
       }
       if (params === null) {
-        logger.debug('Creating test embedding for initialization');
+        logger.debug('Creating test embedding for initialization'); 
         const testVector = Array(embeddingDimension).fill(0);
         testVector[0] = 0.1;
         return testVector;
@@ -478,8 +394,6 @@ export const eigenAIPlugin: Plugin = {
           }),
         });
 
-        const responseClone = response.clone();
-        const rawResponseBody = await responseClone.text();
 
         if (!response.ok) {
           logger.error(`EigenAI API error: ${response.status} - ${response.statusText}`);
@@ -514,25 +428,13 @@ export const eigenAIPlugin: Plugin = {
 
         logger.log(`Got valid embedding with length ${embedding.length}`);
         return embedding;
-      } catch (error: unknown) {
+      } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         logger.error(`Error generating embedding: ${message}`);
         const errorVector = Array(embeddingDimension).fill(0);
         errorVector[0] = 0.6;
         return errorVector;
       }
-    },
-    [ModelType.TEXT_TOKENIZER_ENCODE]: async (
-      _runtime,
-      { prompt, modelType = ModelType.TEXT_LARGE }: TokenizeTextParams
-    ) => {
-      return await tokenizeText(modelType ?? ModelType.TEXT_LARGE, prompt);
-    },
-    [ModelType.TEXT_TOKENIZER_DECODE]: async (
-      _runtime,
-      { tokens, modelType = ModelType.TEXT_LARGE }: DetokenizeTextParams
-    ) => {
-      return await detokenizeText(modelType ?? ModelType.TEXT_LARGE, tokens);
     },
     [ModelType.TEXT_SMALL]: async (
       runtime: IAgentRuntime,
@@ -559,7 +461,7 @@ export const eigenAIPlugin: Plugin = {
         temperature: temperature,
         maxTokens: maxTokens,
         frequencyPenalty: frequencyPenalty,
-        presencePenalty: presencePenalty,
+        presencePenalty: presencePenalty,   
         stopSequences: stopSequences,
         seed: getEigenAISeed(runtime),
         experimental_telemetry: {
@@ -612,247 +514,6 @@ export const eigenAIPlugin: Plugin = {
 
       return openaiResponse;
     },
-    [ModelType.IMAGE]: async (
-      runtime: IAgentRuntime,
-      params: {
-        prompt: string;
-        n?: number;
-        size?: string;
-      }
-    ) => {
-      const n = params.n || 1;
-      const size = params.size || '1024x1024';
-      const prompt = params.prompt;
-      const modelName = 'dall-e-3'; // Default DALL-E model
-      logger.log(`[EigenAI] Using IMAGE model: ${modelName}`);
-
-      const baseURL = getBaseURL(runtime);
-      const apiKey = getApiKey(runtime);
-
-      if (!apiKey) {
-        throw new Error('EigenAI API key not configured');
-      }
-
-      try {
-        const response = await fetch(`${baseURL}/images/generations`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            prompt: prompt,
-            n: n,
-            size: size,
-          }),
-        });
-
-        const responseClone = response.clone();
-        const rawResponseBody = await responseClone.text();
-
-        if (!response.ok) {
-          throw new Error(`Failed to generate image: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        const typedData = data as { data: { url: string }[] };
-
-        return typedData.data;
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw error;
-      }
-    },
-    [ModelType.IMAGE_DESCRIPTION]: async (
-      runtime: IAgentRuntime,
-      params: ImageDescriptionParams | string
-    ) => {
-      let imageUrl: string;
-      let promptText: string | undefined;
-      const modelName = getImageDescriptionModel(runtime);
-      logger.log(`[EigenAI] Using IMAGE_DESCRIPTION model: ${modelName}`);
-      const maxTokens = Number.parseInt(
-        getSetting(runtime, 'EIGENAI_IMAGE_DESCRIPTION_MAX_TOKENS', '8192') || '8192',
-        10
-      );
-
-      if (typeof params === 'string') {
-        imageUrl = params;
-        promptText = 'Please analyze this image and provide a title and detailed description.';
-      } else {
-        imageUrl = params.imageUrl;
-        promptText =
-          params.prompt ||
-          'Please analyze this image and provide a title and detailed description.';
-      }
-
-      const messages = [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: promptText },
-            { type: 'image_url', image_url: { url: imageUrl } },
-          ],
-        },
-      ];
-
-      const baseURL = getBaseURL(runtime);
-      const apiKey = getApiKey(runtime);
-
-      if (!apiKey) {
-        logger.error('EigenAI API key not set');
-        return {
-          title: 'Failed to analyze image',
-          description: 'API key not configured',
-        };
-      }
-
-      try {
-        const requestBody: Record<string, any> = {
-          model: modelName,
-          messages: messages,
-          max_tokens: maxTokens,
-        };
-
-        const response = await fetch(`${baseURL}/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: JSON.stringify(requestBody),
-        });
-
-        const responseClone = response.clone();
-        const rawResponseBody = await responseClone.text();
-
-        if (!response.ok) {
-          throw new Error(`EigenAI API error: ${response.status}`);
-        }
-
-        const result: unknown = await response.json();
-
-        type OpenAIResponseType = {
-          choices?: Array<{
-            message?: { content?: string };
-            finish_reason?: string;
-          }>;
-          usage?: {
-            prompt_tokens: number;
-            completion_tokens: number;
-            total_tokens: number;
-          };
-        };
-
-        const typedResult = result as OpenAIResponseType;
-        const content = typedResult.choices?.[0]?.message?.content;
-
-        if (typedResult.usage) {
-          emitModelUsageEvent(
-            runtime,
-            ModelType.IMAGE_DESCRIPTION,
-            typeof params === 'string' ? params : params.prompt || '',
-            {
-              promptTokens: typedResult.usage.prompt_tokens,
-              completionTokens: typedResult.usage.completion_tokens,
-              totalTokens: typedResult.usage.total_tokens,
-            }
-          );
-        }
-
-        if (!content) {
-          return {
-            title: 'Failed to analyze image',
-            description: 'No response from API',
-          };
-        }
-
-        // Check if a custom prompt was provided (not the default prompt)
-        const isCustomPrompt =
-          typeof params === 'object' &&
-          params.prompt &&
-          params.prompt !==
-            'Please analyze this image and provide a title and detailed description.';
-
-        // If custom prompt is used, return the raw content
-        if (isCustomPrompt) {
-          return content;
-        }
-
-        // Otherwise, maintain backwards compatibility with object return
-        const titleMatch = content.match(/title[:\s]+(.+?)(?:\n|$)/i);
-        const title = titleMatch?.[1]?.trim() || 'Image Analysis';
-        const description = content.replace(/title[:\s]+(.+?)(?:\n|$)/i, '').trim();
-
-        const processedResult = { title, description };
-        return processedResult;
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        logger.error(`Error analyzing image: ${message}`);
-        return {
-          title: 'Failed to analyze image',
-          description: `Error: ${message}`,
-        };
-      }
-    },
-    [ModelType.TRANSCRIPTION]: async (runtime: IAgentRuntime, audioBuffer: Buffer) => {
-      logger.log({ audioBuffer }, 'audioBuffer');
-
-      const modelName = 'whisper-1';
-      logger.log(`[EigenAI] Using TRANSCRIPTION model: ${modelName}`);
-
-      const baseURL = getBaseURL(runtime);
-      const apiKey = getApiKey(runtime);
-
-      if (!apiKey) {
-        throw new Error('EigenAI API key not configured - Cannot make request');
-      }
-      if (!audioBuffer || audioBuffer.length === 0) {
-        throw new Error('Audio buffer is empty or invalid for transcription');
-      }
-
-      const formData = new FormData();
-      formData.append('file', new Blob([audioBuffer]), 'recording.mp3');
-      formData.append('model', 'whisper-1');
-
-      try {
-        const response = await fetch(`${baseURL}/audio/transcriptions`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-          },
-          body: formData,
-        });
-
-        const responseClone = response.clone();
-        const rawResponseBody = await responseClone.text();
-
-        logger.log({ response }, 'response');
-
-        if (!response.ok) {
-          throw new Error(`Failed to transcribe audio: ${response.statusText}`);
-        }
-
-        const data = (await response.json()) as { text: string };
-        const processedText = data.text;
-
-        return processedText;
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw error;
-      }
-    },
-    [ModelType.TEXT_TO_SPEECH]: async (runtime: IAgentRuntime, text: string) => {
-      const ttsModelName = getSetting(runtime, 'EIGENAI_TTS_MODEL', 'gpt-4o-mini-tts');
-      logger.log(`[EigenAI] Using TEXT_TO_SPEECH model: ${ttsModelName}`);
-      try {
-        const speechStream = await fetchTextToSpeech(runtime, text);
-        return speechStream;
-      } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw error;
-      }
-    },
     [ModelType.OBJECT_SMALL]: async (runtime: IAgentRuntime, params: ObjectGenerationParams) => {
       return generateObjectByModelType(runtime, params, ModelType.OBJECT_SMALL, getSmallModel);
     },
@@ -891,7 +552,7 @@ export const eigenAIPlugin: Plugin = {
                 text: 'Hello, world!',
               });
               logger.log({ embedding }, 'embedding');
-            } catch (error: unknown) {
+            } catch (error) {
               const message = error instanceof Error ? error.message : String(error);
               logger.error(`Error in test_text_embedding: ${message}`);
               throw error;
@@ -909,7 +570,7 @@ export const eigenAIPlugin: Plugin = {
                 throw new Error('Failed to generate text');
               }
               logger.log({ text }, 'generated with test_text_large');
-            } catch (error: unknown) {
+            } catch (error) {
               const message = error instanceof Error ? error.message : String(error);
               logger.error(`Error in test_text_large: ${message}`);
               throw error;
@@ -927,121 +588,9 @@ export const eigenAIPlugin: Plugin = {
                 throw new Error('Failed to generate text');
               }
               logger.log({ text }, 'generated with test_text_small');
-            } catch (error: unknown) {
+            } catch (error) {
               const message = error instanceof Error ? error.message : String(error);
               logger.error(`Error in test_text_small: ${message}`);
-              throw error;
-            }
-          },
-        },
-        {
-          name: 'eigenAI_test_image_generation',
-          fn: async (runtime: IAgentRuntime) => {
-            logger.log('eigenAI_test_image_generation');
-            try {
-              const image = await runtime.useModel(ModelType.IMAGE, {
-                prompt: 'A beautiful sunset over a calm ocean',
-                n: 1,
-                size: '1024x1024',
-              });
-              logger.log({ image }, 'generated with test_image_generation');
-            } catch (error: unknown) {
-              const message = error instanceof Error ? error.message : String(error);
-              logger.error(`Error in test_image_generation: ${message}`);
-              throw error;
-            }
-          },
-        },
-        {
-          name: 'image-description',
-          fn: async (runtime: IAgentRuntime) => {
-            try {
-              logger.log('eigenAI_test_image_description');
-              try {
-                const result = await runtime.useModel(
-                  ModelType.IMAGE_DESCRIPTION,
-                  'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1c/Vitalik_Buterin_TechCrunch_London_2015_%28cropped%29.jpg/537px-Vitalik_Buterin_TechCrunch_London_2015_%28cropped%29.jpg'
-                );
-
-                if (
-                  result &&
-                  typeof result === 'object' &&
-                  'title' in result &&
-                  'description' in result
-                ) {
-                  logger.log({ result }, 'Image description');
-                } else {
-                  logger.error('Invalid image description result format:', result);
-                }
-              } catch (e: unknown) {
-                const message = e instanceof Error ? e.message : String(e);
-                logger.error(`Error in image description test: ${message}`);
-              }
-            } catch (e: unknown) {
-              const message = e instanceof Error ? e.message : String(e);
-              logger.error(`Error in eigenAI_test_image_description: ${message}`);
-            }
-          },
-        },
-        {
-          name: 'eigenAI_test_transcription',
-          fn: async (runtime: IAgentRuntime) => {
-            logger.log('eigenAI_test_transcription');
-            try {
-              const response = await fetch(
-                'https://upload.wikimedia.org/wikipedia/en/4/40/Chris_Benoit_Voice_Message.ogg'
-              );
-              const arrayBuffer = await response.arrayBuffer();
-              const transcription = await runtime.useModel(
-                ModelType.TRANSCRIPTION,
-                Buffer.from(new Uint8Array(arrayBuffer))
-              );
-              logger.log({ transcription }, 'generated with test_transcription');
-            } catch (error: unknown) {
-              const message = error instanceof Error ? error.message : String(error);
-              logger.error(`Error in test_transcription: ${message}`);
-              throw error;
-            }
-          },
-        },
-        {
-          name: 'eigenAI_test_text_tokenizer_encode',
-          fn: async (runtime: IAgentRuntime) => {
-            const prompt = 'Hello tokenizer encode!';
-            const tokens = await runtime.useModel(ModelType.TEXT_TOKENIZER_ENCODE, { prompt });
-            if (!Array.isArray(tokens) || tokens.length === 0) {
-              throw new Error('Failed to tokenize text: expected non-empty array of tokens');
-            }
-            logger.log({ tokens }, 'Tokenized output');
-          },
-        },
-        {
-          name: 'eigenAI_test_text_tokenizer_decode',
-          fn: async (runtime: IAgentRuntime) => {
-            const prompt = 'Hello tokenizer decode!';
-            const tokens = await runtime.useModel(ModelType.TEXT_TOKENIZER_ENCODE, { prompt });
-            const decodedText = await runtime.useModel(ModelType.TEXT_TOKENIZER_DECODE, { tokens });
-            if (decodedText !== prompt) {
-              throw new Error(
-                `Decoded text does not match original. Expected "${prompt}", got "${decodedText}"`
-              );
-            }
-            logger.log({ decodedText }, 'Decoded text');
-          },
-        },
-        {
-          name: 'eigenAI_test_text_to_speech',
-          fn: async (runtime: IAgentRuntime) => {
-            try {
-              const text = 'Hello, this is a test for text-to-speech.';
-              const response = await fetchTextToSpeech(runtime, text);
-              if (!response) {
-                throw new Error('Failed to generate speech');
-              }
-              logger.log('Generated speech successfully');
-            } catch (error: unknown) {
-              const message = error instanceof Error ? error.message : String(error);
-              logger.error(`Error in eigenAI_test_text_to_speech: ${message}`);
               throw error;
             }
           },

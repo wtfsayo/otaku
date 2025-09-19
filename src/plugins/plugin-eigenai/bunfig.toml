@@ -1,0 +1,2 @@
+[install.scopes]
+"@elizaos" = { token = "$BUN_AUTH_TOKEN" }
