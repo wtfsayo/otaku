@@ -10,6 +10,7 @@ import evmPlugin from "./plugins/plugin-evm/src/index.ts";
 import morphoPlugin from "./plugins/plugin-morpho/src/plugin.ts";
 import ethWalletPlugin from "./plugins/plugin-ethwallet/index.ts";
 import bootstrapPlugin from "./plugins/plugin-bootstrap/src/index.ts";
+import eigenAIPlugin from "./plugins/plugin-eigenai/src/index.ts";
 
 const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
   logger.info("Initializing character");
@@ -25,6 +26,7 @@ export const projectAgent: ProjectAgent = {
     clankerPlugin,
     morphoPlugin,
     ethWalletPlugin,
+    eigenAIPlugin,
   ],
 };
 const project: Project = {

@@ -13,21 +13,6 @@ export const character: Character = {
     // Core plugins first
     "@elizaos/plugin-sql",
     "@elizaos/plugin-defillama",
-
-    // Text-only plugins (no embedding support)
-    ...(process.env.ANTHROPIC_API_KEY?.trim()
-      ? ["@elizaos/plugin-anthropic"]
-      : []),
-    ...(process.env.OPENROUTER_API_KEY?.trim()
-      ? ["@elizaos/plugin-openrouter"]
-      : []),
-
-    // Embedding-capable plugins (optional, based on available credentials)
-    ...(process.env.OPENAI_API_KEY?.trim() ? ["@elizaos/plugin-openai"] : []),
-    ...(process.env.GOOGLE_GENERATIVE_AI_API_KEY?.trim()
-      ? ["@elizaos/plugin-google-genai"]
-      : []),
-
     // Platform plugins
     ...(process.env.DISCORD_API_TOKEN?.trim()
       ? ["@elizaos/plugin-discord"]

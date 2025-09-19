@@ -37,23 +37,23 @@ function getSetting(
 }
 
 /**
- * Retrieves the OpenAI API base URL from runtime settings, environment variables, or defaults, using provider-aware resolution.
+ * Retrieves the EigenAI API base URL from runtime settings, environment variables, or defaults, using provider-aware resolution.
  *
- * @returns The resolved base URL for OpenAI API requests.
+ * @returns The resolved base URL for EigenAI API requests.
  */
 function getBaseURL(runtime: IAgentRuntime): string {
-  const baseURL = getSetting(runtime, 'OPENAI_BASE_URL', 'https://api.openai.com/v1') as string;
+  const baseURL = getSetting(runtime, 'EIGENAI_BASE_URL', 'https://api.openai.com/v1') as string;
       logger.debug(`[EigenAI] Default base URL: ${baseURL}`);
   return baseURL;
 }
 
 /**
- * Retrieves the OpenAI API base URL for embeddings, falling back to the general base URL.
+ * Retrieves the EigenAI API base URL for embeddings, falling back to the general base URL.
  *
- * @returns The resolved base URL for OpenAI embedding requests.
+ * @returns The resolved base URL for EigenAI embedding requests.
  */
 function getEmbeddingBaseURL(runtime: IAgentRuntime): string {
-  const embeddingURL = getSetting(runtime, 'OPENAI_EMBEDDING_URL');
+  const embeddingURL = getSetting(runtime, 'EIGENAI_EMBEDDING_URL');
   if (embeddingURL) {
     logger.debug(`[EigenAI] Using specific embedding base URL: ${embeddingURL}`);
     return embeddingURL;
@@ -63,23 +63,23 @@ function getEmbeddingBaseURL(runtime: IAgentRuntime): string {
 }
 
 /**
- * Helper function to get the API key for OpenAI
+ * Helper function to get the API key for EigenAI
  *
  * @param runtime The runtime context
  * @returns The configured API key
  */
 function getApiKey(runtime: IAgentRuntime): string | undefined {
-  return getSetting(runtime, 'OPENAI_API_KEY');
+  return getSetting(runtime, 'EIGENAI_API_KEY');
 }
 
 /**
- * Helper function to get the embedding API key for OpenAI, falling back to the general API key if not set.
+ * Helper function to get the embedding API key for EigenAI, falling back to the general API key if not set.
  *
  * @param runtime The runtime context
  * @returns The configured API key
  */
 function getEmbeddingApiKey(runtime: IAgentRuntime): string | undefined {
-  const embeddingApiKey = getSetting(runtime, 'OPENAI_EMBEDDING_API_KEY');
+  const embeddingApiKey = getSetting(runtime, 'EIGENAI_EMBEDDING_API_KEY');
   if (embeddingApiKey) {
     logger.debug(`[EigenAI] Using specific embedding API key: ${embeddingApiKey}`);
     return embeddingApiKey;
@@ -96,7 +96,7 @@ function getEmbeddingApiKey(runtime: IAgentRuntime): string | undefined {
  */
 function getSmallModel(runtime: IAgentRuntime): string {
   return (
-    getSetting(runtime, 'OPENAI_SMALL_MODEL') ??
+    getSetting(runtime, 'EIGENAI_SMALL_MODEL') ??
     (getSetting(runtime, 'SMALL_MODEL', 'gpt-5-nano') as string)
   );
 }
@@ -109,7 +109,7 @@ function getSmallModel(runtime: IAgentRuntime): string {
  */
 function getLargeModel(runtime: IAgentRuntime): string {
   return (
-    getSetting(runtime, 'OPENAI_LARGE_MODEL') ??
+    getSetting(runtime, 'EIGENAI_LARGE_MODEL') ??
     (getSetting(runtime, 'LARGE_MODEL', 'gpt-5-mini') as string)
   );
 }
@@ -121,7 +121,7 @@ function getLargeModel(runtime: IAgentRuntime): string {
  * @returns The configured image description model name
  */
 function getImageDescriptionModel(runtime: IAgentRuntime): string {
-  return getSetting(runtime, 'OPENAI_IMAGE_DESCRIPTION_MODEL', 'gpt-5-nano') ?? 'gpt-5-nano';
+  return getSetting(runtime, 'EIGENAI_IMAGE_DESCRIPTION_MODEL', 'gpt-5-nano') ?? 'gpt-5-nano';
 }
 
 /**
@@ -131,7 +131,7 @@ function getImageDescriptionModel(runtime: IAgentRuntime): string {
  * @returns Whether experimental telemetry is enabled
  */
 function getExperimentalTelemetry(runtime: IAgentRuntime): boolean {
-  const setting = getSetting(runtime, 'OPENAI_EXPERIMENTAL_TELEMETRY', 'false');
+  const setting = getSetting(runtime, 'EIGENAI_EXPERIMENTAL_TELEMETRY', 'false');
   // Convert to string and check for truthy values
   const normalizedSetting = String(setting).toLowerCase();
   const result = normalizedSetting === 'true';
@@ -176,7 +176,7 @@ function createOpenAIClient(runtime: IAgentRuntime) {
 async function tokenizeText(model: ModelTypeName, prompt: string) {
   const modelName =
     model === ModelType.TEXT_SMALL
-      ? (process.env.OPENAI_SMALL_MODEL ?? process.env.SMALL_MODEL ?? 'gpt-5-nano')
+      ? (process.env.EIGENAI_SMALL_MODEL ?? process.env.SMALL_MODEL ?? 'gpt-5-nano')
       : (process.env.LARGE_MODEL ?? 'gpt-5-mini');
   const encoding = encodingForModel(modelName as TiktokenModel);
   const tokens = encoding.encode(prompt);
@@ -193,8 +193,8 @@ async function tokenizeText(model: ModelTypeName, prompt: string) {
 async function detokenizeText(model: ModelTypeName, tokens: number[]) {
   const modelName =
     model === ModelType.TEXT_SMALL
-      ? (process.env.OPENAI_SMALL_MODEL ?? process.env.SMALL_MODEL ?? 'gpt-5-nano')
-      : (process.env.OPENAI_LARGE_MODEL ?? process.env.LARGE_MODEL ?? 'gpt-5-mini');
+      ? (process.env.EIGENAI_SMALL_MODEL ?? process.env.SMALL_MODEL ?? 'gpt-5-nano')
+      : (process.env.EIGENAI_LARGE_MODEL ?? process.env.LARGE_MODEL ?? 'gpt-5-mini');
   const encoding = encodingForModel(modelName as TiktokenModel);
   return encoding.decode(tokens);
 }
@@ -226,6 +226,7 @@ async function generateObjectByModelType(
       output: 'no-schema',
       prompt: params.prompt,
       temperature: temperature,
+      seed: getEigenAISeed(runtime),
       experimental_repairText: getJsonRepairFunction(),
     });
 
@@ -319,9 +320,9 @@ function emitModelUsageEvent(
  */
 async function fetchTextToSpeech(runtime: IAgentRuntime, text: string) {
   const apiKey = getApiKey(runtime);
-  const model = getSetting(runtime, 'OPENAI_TTS_MODEL', 'gpt-4o-mini-tts');
-  const voice = getSetting(runtime, 'OPENAI_TTS_VOICE', 'nova');
-  const instructions = getSetting(runtime, 'OPENAI_TTS_INSTRUCTIONS', '');
+  const model = getSetting(runtime, 'EIGENAI_TTS_MODEL', 'gpt-4o-mini-tts');
+  const voice = getSetting(runtime, 'EIGENAI_TTS_VOICE', 'nova');
+  const instructions = getSetting(runtime, 'EIGENAI_TTS_INSTRUCTIONS', '');
   const baseURL = getBaseURL(runtime);
 
   try {
@@ -359,19 +360,19 @@ export const eigenAIPlugin: Plugin = {
   name: 'eigenAI',
   description: 'EigenAI plugin',
   config: {
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-    OPENAI_BASE_URL: process.env.OPENAI_BASE_URL,
-    OPENAI_SMALL_MODEL: process.env.OPENAI_SMALL_MODEL,
-    OPENAI_LARGE_MODEL: process.env.OPENAI_LARGE_MODEL,
+    EIGENAI_API_KEY: process.env.EIGENAI_API_KEY,
+    EIGENAI_BASE_URL: process.env.EIGENAI_BASE_URL,
+    EIGENAI_SMALL_MODEL: process.env.EIGENAI_SMALL_MODEL,
+    EIGENAI_LARGE_MODEL: process.env.EIGENAI_LARGE_MODEL,
     SMALL_MODEL: process.env.SMALL_MODEL,
     LARGE_MODEL: process.env.LARGE_MODEL,
-    OPENAI_EMBEDDING_MODEL: process.env.OPENAI_EMBEDDING_MODEL,
-    OPENAI_EMBEDDING_API_KEY: process.env.OPENAI_EMBEDDING_API_KEY,
-    OPENAI_EMBEDDING_URL: process.env.OPENAI_EMBEDDING_URL,
-    OPENAI_EMBEDDING_DIMENSIONS: process.env.OPENAI_EMBEDDING_DIMENSIONS,
-    OPENAI_IMAGE_DESCRIPTION_MODEL: process.env.OPENAI_IMAGE_DESCRIPTION_MODEL,
-    OPENAI_IMAGE_DESCRIPTION_MAX_TOKENS: process.env.OPENAI_IMAGE_DESCRIPTION_MAX_TOKENS,
-    OPENAI_EXPERIMENTAL_TELEMETRY: process.env.OPENAI_EXPERIMENTAL_TELEMETRY,
+    EIGENAI_EMBEDDING_MODEL: process.env.EIGENAI_EMBEDDING_MODEL,
+    EIGENAI_EMBEDDING_API_KEY: process.env.EIGENAI_EMBEDDING_API_KEY,
+    EIGENAI_EMBEDDING_URL: process.env.EIGENAI_EMBEDDING_URL,
+    EIGENAI_EMBEDDING_DIMENSIONS: process.env.EIGENAI_EMBEDDING_DIMENSIONS,
+    EIGENAI_IMAGE_DESCRIPTION_MODEL: process.env.EIGENAI_IMAGE_DESCRIPTION_MODEL,
+    EIGENAI_IMAGE_DESCRIPTION_MAX_TOKENS: process.env.EIGENAI_IMAGE_DESCRIPTION_MAX_TOKENS,
+    EIGENAI_EXPERIMENTAL_TELEMETRY: process.env.EIGENAI_EXPERIMENTAL_TELEMETRY,
     EIGENAI_SEED: process.env.EIGENAI_SEED || '42',
   },
   async init(_config, runtime) {
@@ -381,7 +382,7 @@ export const eigenAIPlugin: Plugin = {
       try {
         if (!getApiKey(runtime)) {
           logger.warn(
-            'OPENAI_API_KEY is not set in environment - EigenAI functionality will be limited'
+            'EIGENAI_API_KEY is not set in environment - EigenAI functionality will be limited'
           );
           return;
         }
@@ -407,7 +408,7 @@ export const eigenAIPlugin: Plugin = {
             ?.map((e) => e.message)
             .join(', ') || (error instanceof Error ? error.message : String(error));
         logger.warn(
-          `EigenAI plugin configuration issue: ${message} - You need to configure the OPENAI_API_KEY in your environment variables`
+          `EigenAI plugin configuration issue: ${message} - You need to configure the EIGENAI_API_KEY in your environment variables`
         );
       }
     });
@@ -420,11 +421,11 @@ export const eigenAIPlugin: Plugin = {
     ): Promise<number[]> => {
       const embeddingModelName = getSetting(
         runtime,
-        'OPENAI_EMBEDDING_MODEL',
+        'EIGENAI_EMBEDDING_MODEL',
         'text-embedding-3-small'
       );
       const embeddingDimension = Number.parseInt(
-        getSetting(runtime, 'OPENAI_EMBEDDING_DIMENSIONS', '1536') || '1536',
+        getSetting(runtime, 'EIGENAI_EMBEDDING_DIMENSIONS', '1536') || '1536',
         10
       ) as (typeof VECTOR_DIMS)[keyof typeof VECTOR_DIMS];
 
@@ -560,6 +561,7 @@ export const eigenAIPlugin: Plugin = {
         frequencyPenalty: frequencyPenalty,
         presencePenalty: presencePenalty,
         stopSequences: stopSequences,
+        seed: getEigenAISeed(runtime),
         experimental_telemetry: {
           isEnabled: experimentalTelemetry,
         },
@@ -598,6 +600,7 @@ export const eigenAIPlugin: Plugin = {
         frequencyPenalty: frequencyPenalty,
         presencePenalty: presencePenalty,
         stopSequences: stopSequences,
+        seed: getEigenAISeed(runtime),
         experimental_telemetry: {
           isEnabled: experimentalTelemetry,
         },
@@ -669,7 +672,7 @@ export const eigenAIPlugin: Plugin = {
       const modelName = getImageDescriptionModel(runtime);
       logger.log(`[EigenAI] Using IMAGE_DESCRIPTION model: ${modelName}`);
       const maxTokens = Number.parseInt(
-        getSetting(runtime, 'OPENAI_IMAGE_DESCRIPTION_MAX_TOKENS', '8192') || '8192',
+        getSetting(runtime, 'EIGENAI_IMAGE_DESCRIPTION_MAX_TOKENS', '8192') || '8192',
         10
       );
 
@@ -840,7 +843,7 @@ export const eigenAIPlugin: Plugin = {
       }
     },
     [ModelType.TEXT_TO_SPEECH]: async (runtime: IAgentRuntime, text: string) => {
-      const ttsModelName = getSetting(runtime, 'OPENAI_TTS_MODEL', 'gpt-4o-mini-tts');
+      const ttsModelName = getSetting(runtime, 'EIGENAI_TTS_MODEL', 'gpt-4o-mini-tts');
       logger.log(`[EigenAI] Using TEXT_TO_SPEECH model: ${ttsModelName}`);
       try {
         const speechStream = await fetchTextToSpeech(runtime, text);
