@@ -11,6 +11,7 @@ export const walletStatusProvider: Provider = {
   description:
     "Provides wallet status context to guide AI behavior when users lack wallets",
   position: 99999,
+  dynamic: true,
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
     try {
       const entityId = message.entityId;

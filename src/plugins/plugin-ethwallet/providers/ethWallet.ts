@@ -9,7 +9,7 @@ export const ethWalletProvider: Provider = {
   name: "ETH_WALLET_PROVIDER",
   description:
     "Provides information about Ethereum and EVM wallet capabilities",
-  dynamic: false,
+  dynamic: true,
   get: async (runtime: IAgentRuntime, message: Memory, state: State) => {
     const evmChainService = runtime.getService("EVM_CHAIN_SERVICE") as any;
 
