@@ -93,7 +93,7 @@ function getEmbeddingApiKey(runtime: IAgentRuntime): string | undefined {
 function getSmallModel(runtime: IAgentRuntime): string {
   return (
     getSetting(runtime, 'EIGENAI_SMALL_MODEL') ??
-    (getSetting(runtime, 'SMALL_MODEL', 'gpt-5-nano') as string)
+    (getSetting(runtime, 'SMALL_MODEL', 'gemma-3-27b-it-q4') as string)
   );
 }
 
@@ -106,7 +106,7 @@ function getSmallModel(runtime: IAgentRuntime): string {
 function getLargeModel(runtime: IAgentRuntime): string {
   return (
     getSetting(runtime, 'EIGENAI_LARGE_MODEL') ??
-    (getSetting(runtime, 'LARGE_MODEL', 'gpt-5-mini') as string)
+    (getSetting(runtime, 'LARGE_MODEL', 'gemma-3-27b-it-q4') as string)
   );
 }
 
