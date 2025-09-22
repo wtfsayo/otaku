@@ -10,6 +10,7 @@ export const character: Character = {
     // Core plugins first
     "@elizaos/plugin-sql",
     '@elizaos/plugin-bootstrap',
+    '@elizaos/plugin-openai',
     // Platform plugins
     ...(process.env.DISCORD_API_TOKEN?.trim()
       ? ["@elizaos/plugin-discord"]

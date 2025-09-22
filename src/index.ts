@@ -24,7 +24,7 @@ export const projectAgent: ProjectAgent = {
     clankerPlugin,
     morphoPlugin,
     ethWalletPlugin,
-    eigenAIPlugin,
+    // eigenAIPlugin,
   ],
 };
 const project: Project = {
