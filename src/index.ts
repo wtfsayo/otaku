@@ -9,7 +9,7 @@ import clankerPlugin from "./plugins//plugin-clanker/src/plugin.ts";
 import evmPlugin from "./plugins/plugin-evm/src/index.ts";
 import morphoPlugin from "./plugins/plugin-morpho/src/plugin.ts";
 import ethWalletPlugin from "./plugins/plugin-ethwallet/index.ts";
-import bootstrapPlugin from "./plugins/plugin-bootstrap/src/index.ts";
+
 
 const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
   logger.info("Initializing character");
@@ -20,7 +20,6 @@ export const projectAgent: ProjectAgent = {
   character,
   init: async (runtime: IAgentRuntime) => await initCharacter({ runtime }),
   plugins: [
-    bootstrapPlugin,
     evmPlugin,
     clankerPlugin,
     morphoPlugin,
