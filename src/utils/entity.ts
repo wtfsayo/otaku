@@ -10,6 +10,9 @@ export interface EntityWalletResult {
   success: true;
   walletAddress: string;
   walletPrivateKey: string;
+  provider?: string;
+  metadata?: Record<string, any>;
+  chain?: string;
 }
 
 export interface EntityWalletError {
@@ -87,6 +90,8 @@ export async function getEntityWallet(
 
     const walletAddress = entity.metadata.wallet.address;
     const walletPrivateKey = entity.metadata.wallet.privateKey;
+    const provider = entity.metadata.wallet.provider;
+    const chain = entity.metadata.wallet.chain;
 
     if (!walletAddress) {
       const errorText = "Wallet address not found in entity metadata.";
@@ -117,6 +122,9 @@ export async function getEntityWallet(
       success: true,
       walletAddress,
       walletPrivateKey,
+      provider,
+      metadata: entity.metadata.wallet,
+      chain,
     };
   } catch (error) {
     logger.error("Error getting entity wallet address:", error);

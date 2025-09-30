@@ -14,6 +14,13 @@ import { ClankerService } from "../services/clanker.service";
 import { shortenAddress } from "../utils/format";
 import { handleError } from "../utils/errors";
 import { getEntityWallet } from "../../../../utils/entity";
+import {
+  createWalletClient,
+  createPublicClient,
+  http,
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { base } from "viem/chains";
 
 // Utility function to safely serialize objects with BigInt values
 function safeStringify(obj: any): any {
@@ -115,7 +122,10 @@ export const tokenDeployAction: Action = {
 
       return hasDeploymentIntent;
     } catch (error) {
-      logger.error("Error validating token deployment action:", error);
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
       return false;
     }
   },
@@ -142,6 +152,7 @@ export const tokenDeployAction: Action = {
         return walletResult.result;
       }
       const walletPrivateKey = walletResult.walletPrivateKey;
+      const walletProvider = walletResult.provider;
 
       // Get services
       const clankerService = runtime.getService(
@@ -185,8 +196,29 @@ export const tokenDeployAction: Action = {
 
       const deployParams = validation.data;
 
-      // Deploy token
-      const result = await clankerService.deployToken(
+      // Build viem clients (CDP or private key), then deploy via a single method
+      let walletClient: any;
+      let publicClient: any;
+
+      if (walletProvider === "cdp") {
+        const cdpService: any = runtime.getService("CDP_SERVICE" as any);
+        if (!cdpService || typeof cdpService.getViemClientsForAccount !== "function") {
+          throw new Error("CDP not available");
+        }
+        const viemClient = await cdpService.getViemClientsForAccount({
+          accountName: message.entityId,
+          network: "base",
+        });
+        walletClient = viemClient.walletClient;
+        publicClient = viemClient.publicClient;
+      } else {
+        const rpcUrl = process.env.BASE_RPC_URL || "https://mainnet.base.org";
+        const account = privateKeyToAccount(walletPrivateKey as `0x${string}`);
+        publicClient = createPublicClient({ chain: base, transport: http(rpcUrl) });
+        walletClient = createWalletClient({ account, chain: base, transport: http(rpcUrl) });
+      }
+
+      const result = await clankerService.deployTokenWithClient(
         {
           name: deployParams.name,
           symbol: deployParams.symbol,
@@ -200,8 +232,8 @@ export const tokenDeployAction: Action = {
           vault: deployParams.vault,
           devBuy: deployParams.devBuy,
         },
-
-        walletPrivateKey,
+        walletClient,
+        publicClient,
       );
 
       // Prepare response
@@ -239,7 +271,10 @@ export const tokenDeployAction: Action = {
         }),
       };
     } catch (error) {
-      logger.error("Error in DEPLOY_TOKEN action:", error);
+      logger.error(
+        "Error in DEPLOY_TOKEN action:",
+        error instanceof Error ? error.message : String(error),
+      );
       const errorResponse = handleError(error);
 
       if (callback) {

@@ -1,5 +1,14 @@
 import { IAgentRuntime, Service, logger } from "@elizaos/core";
 import { CdpClient, EvmServerAccount } from "@coinbase/cdp-sdk";
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  type PublicClient,
+  type WalletClient,
+} from "viem";
+import { base, baseSepolia } from "viem/chains";
+import { toAccount } from "viem/accounts";
 
 export class CdpService extends Service {
   static serviceType = "CDP_SERVICE";
@@ -86,6 +95,63 @@ export class CdpService extends Service {
     });
 
     return { transactionHash: result.transactionHash };
+  }
+
+  /**
+   * Returns viem wallet/public clients backed by a CDP EVM account.
+   * Falls back with an error if viem compatibility helpers are unavailable.
+   */
+  async getViemClientsForAccount(options: {
+    accountName: string;
+    network?: "base" | "base-sepolia";
+    rpcUrl?: string;
+  }): Promise<{
+    address: `0x${string}`;
+    walletClient: WalletClient;
+    publicClient: PublicClient;
+  }> {
+    if (!this.client) {
+      throw new Error("CDP is not authenticated");
+    }
+
+    const network = options.network ?? "base";
+    const chain = network === "base" ? base : baseSepolia;
+    const rpcUrl = options.rpcUrl || process.env.BASE_RPC_URL || "https://mainnet.base.org";
+
+    const account = await this.getOrCreateAccount({ name: options.accountName });
+    const address = account.address as `0x${string}`;
+
+    console.log("####################################### address", address);
+
+    // Prefer viem's toAccount wrapper around CDP EvmServerAccount (as in CDP examples)
+    let viemAccount: any = null;
+    try {
+      viemAccount = toAccount(account as any);
+    } catch (e) {
+      logger.warn("toAccount(serverAccount) failed", e);
+      // Fallback: try SDK helpers if present
+      const anyAccount = account as any;
+      try {
+        if (typeof anyAccount.toViemAccount === "function") {
+          viemAccount = await anyAccount.toViemAccount();
+        } else if (typeof anyAccount.asViemAccount === "function") {
+          viemAccount = await anyAccount.asViemAccount();
+        }
+      } catch (e2) {
+        logger.warn("CDP viem account conversion helpers failed", e2);
+      }
+    }
+
+    if (!viemAccount) {
+      throw new Error(
+        "CDP viem compatibility not available. Ensure @coinbase/cdp-sdk and viem are up to date.",
+      );
+    }
+
+    const publicClient = createPublicClient({ chain, transport: http(rpcUrl) }) as PublicClient;
+    const walletClient = createWalletClient({ account: viemAccount, chain, transport: http(rpcUrl) });
+
+    return { address, walletClient, publicClient };
   }
 }
 

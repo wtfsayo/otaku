@@ -1431,9 +1431,16 @@ export class MorphoService extends Service {
   ): Promise<UserPosition[]> {
     this.ensurePublicClient();
     const wallet = this.createWalletClient(walletPrivateKey);
-
-    const address = wallet.account?.address;
+    const address = wallet.account?.address as `0x${string}` | undefined;
     if (!address) throw new Error("Wallet account address is required");
+    return this.getUserPositionsByAddress(address, market);
+  }
+
+  async getUserPositionsByAddress(
+    address: `0x${string}`,
+    market?: string,
+  ): Promise<UserPosition[]> {
+    this.ensurePublicClient();
 
     if (market?.trim()) {
       const marketId = await this.getMarketId(market);
@@ -1450,9 +1457,7 @@ export class MorphoService extends Service {
     for (let i = 0; i < positions.length; i += BATCH_SIZE) {
       const batch = positions.slice(i, i + BATCH_SIZE);
       const out = await Promise.all(
-        batch.map((id) =>
-          this.buildUserPosition(address, id).catch(() => null),
-        ),
+        batch.map((id) => this.buildUserPosition(address, id).catch(() => null)),
       );
       for (const r of out) if (r?.hasPosition) results.push(r);
     }
@@ -1491,7 +1496,12 @@ export class MorphoService extends Service {
     const wallet = this.createWalletClient(walletPrivateKey);
     const address = wallet.account?.address;
     if (!address) throw new Error("Wallet account address is required");
+    return this.getUserVaultPositionsByAddress(address as `0x${string}`);
+  }
 
+  public async getUserVaultPositionsByAddress(
+    address: `0x${string}`,
+  ): Promise<UserVaultPosition[]> {
     const data = await this.gql.query<{
       userByAddress?: { vaultPositions?: any[] };
     }>(Q_USER_VAULT_POSITIONS, { chainId: this.getChainId(), address });
@@ -1567,7 +1577,10 @@ export class MorphoService extends Service {
         marketCap: parseFloat(p.fdv || "0"),
       };
     } catch (error) {
-      logger.warn("Failed to fetch from DEX Screener:", error);
+      logger.warn(
+        "Failed to fetch from DEX Screener:",
+        error instanceof Error ? error.message : String(error),
+      );
       return null;
     }
   }

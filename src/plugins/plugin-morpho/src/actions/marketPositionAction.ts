@@ -13,6 +13,8 @@ import { MorphoService } from "../services";
 import { MorphoMarketData, UserPosition } from "../types";
 import { fmtNum, fmtPct, fmtTok, fmtUSD } from "./utils";
 import { getEntityWallet } from "../../../../utils/entity";
+import { CdpService } from "../../../plugin-cdp/services/cdp.service";
+import { privateKeyToAccount } from "viem/accounts";
 /* =========================
  * Prompt helper
  * ========================= */
@@ -84,7 +86,38 @@ export const marketPositionsAction: Action = {
       if (!walletResult.success) {
         return walletResult.result;
       }
+      const provider = (walletResult as any).provider;
+      let walletAddress = walletResult.walletAddress as `0x${string}`;
       const walletPrivateKey = walletResult.walletPrivateKey;
+
+      // If CDP wallet, resolve the canonical address from CDP (optional safety)
+      if (provider === "cdp") {
+        try {
+          const cdp = runtime.getService(CdpService.serviceType) as CdpService | undefined;
+          if (cdp) {
+            const acct = await cdp.getOrCreateAccount({ name: message.entityId });
+            walletAddress = acct.address as `0x${string}`;
+          }
+        } catch (e) {
+          logger.warn(
+            "CDP address resolution failed; falling back to entity metadata address",
+            e instanceof Error ? e.message : String(e),
+          );
+        }
+      }
+
+      // Fallback for general wallets if address missing (derive from private key)
+      if (!walletAddress && walletPrivateKey) {
+        try {
+          const acc = privateKeyToAccount(walletPrivateKey as `0x${string}`);
+          walletAddress = acc.address as `0x${string}`;
+        } catch (e) {
+          logger.warn(
+            "Failed to derive address from private key",
+            e instanceof Error ? e.message : String(e),
+          );
+        }
+      }
 
       const userText = message.content.text || "";
       const prompt = getPositionXmlPrompt(userText);
@@ -105,15 +138,18 @@ export const marketPositionsAction: Action = {
         if (m.marketId) marketById.set(m.marketId, m);
       }
 
-      // Fetch positions
+      // Fetch positions (no signing needed) via address for CDP/general wallets
       let positions: UserPosition[] = [];
       try {
-        positions = await service.getUserPositions(
-          walletPrivateKey,
+        positions = await service.getUserPositionsByAddress(
+          walletAddress,
           params.market,
         );
       } catch (err) {
-        logger.warn("Could not fetch position data:", err);
+        logger.warn(
+          "Could not fetch position data:",
+          err instanceof Error ? err.message : String(err),
+        );
       }
 
       let text: string;

@@ -14,6 +14,8 @@ import type { UserVaultPosition } from "../types";
 import { fmtNum, fmtPct } from "./utils";
 import BigNumber from "bignumber.js";
 import { getEntityWallet } from "../../../../utils/entity";
+import { CdpService } from "../../../plugin-cdp/services/cdp.service";
+import { privateKeyToAccount } from "viem/accounts";
 
 /* =========================
  * Prompt helper (optional single vault filter)
@@ -85,7 +87,36 @@ export const vaultPositionsAction: Action = {
       if (!walletResult.success) {
         return walletResult.result;
       }
+      const provider = (walletResult as any).provider;
+      let walletAddress = walletResult.walletAddress as `0x${string}`;
       const walletPrivateKey = walletResult.walletPrivateKey;
+
+      if (provider === "cdp") {
+        try {
+          const cdp = runtime.getService(CdpService.serviceType) as CdpService | undefined;
+          if (cdp) {
+            const acct = await cdp.getOrCreateAccount({ name: message.entityId });
+            walletAddress = acct.address as `0x${string}`;
+          }
+        } catch (e) {
+          logger.warn(
+            "CDP address resolution failed; using entity metadata address",
+            e instanceof Error ? e.message : String(e),
+          );
+        }
+      }
+
+      if (!walletAddress && walletPrivateKey) {
+        try {
+          const acc = privateKeyToAccount(walletPrivateKey as `0x${string}`);
+          walletAddress = acc.address as `0x${string}`;
+        } catch (e) {
+          logger.warn(
+            "Failed to derive address from private key",
+            e instanceof Error ? e.message : String(e),
+          );
+        }
+      }
 
       const userText = message.content.text || "";
       const prompt = getVaultPositionXmlPrompt(userText);
@@ -101,9 +132,12 @@ export const vaultPositionsAction: Action = {
 
       let vaults: UserVaultPosition[] = [];
       try {
-        vaults = await service.getUserVaultPositions(walletPrivateKey);
+        vaults = await service.getUserVaultPositionsByAddress(walletAddress);
       } catch (err) {
-        logger.warn("Could not fetch vault positions:", err);
+        logger.warn(
+          "Could not fetch vault positions:",
+          err instanceof Error ? err.message : String(err),
+        );
       }
 
       // Optional filter by vault name substring or exact address
