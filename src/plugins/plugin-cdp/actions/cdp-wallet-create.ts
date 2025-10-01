@@ -129,10 +129,37 @@ export const cdpCreateWallet: Action = {
   },
   examples: [
     [
-      { name: "{{user}}", content: { text: "create wallet with coinbase" } },
+      {
+        name: "{{user}}",
+        content: {
+          text: "I need to set up a wallet with Coinbase Developer Platform",
+        },
+      },
       {
         name: "{{agent}}",
-        content: { text: "Creating CDP wallet...", action: "CDP_CREATE_WALLET" },
+        content: {
+          text: "I'll create a secure wallet for you using Coinbase CDP. This will give you an EVM-compatible address on Base network that you can use for transactions.",
+          action: "CDP_CREATE_WALLET",
+        },
+      },
+      {
+        name: "{{agent}}",
+        content: {
+          text: "🎉 **Created CDP EVM Wallet**\n\n**Address:** `0x1234...5678`\n✅ Wallet information has been saved to your profile.",
+        },
+      },
+    ],
+    [
+      {
+        name: "{{user}}",
+        content: { text: "create a new cdp wallet for me" },
+      },
+      {
+        name: "{{agent}}",
+        content: {
+          text: "Setting up your Coinbase CDP wallet now...",
+          action: "CDP_CREATE_WALLET",
+        },
       },
     ],
   ],

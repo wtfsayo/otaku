@@ -128,8 +128,8 @@ export const morphoPlugin: Plugin = {
       );
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const errorMessages = error.errors
-          .map((e) => `${e.path.join(".")}: ${e.message}`)
+        const errorMessages = error.issues
+          .map((e: z.ZodIssue) => `${e.path.join(".")}: ${e.message}`)
           .join(", ");
         throw new Error(
           `Invalid Morpho plugin configuration: ${errorMessages}`,

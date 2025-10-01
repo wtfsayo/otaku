@@ -35,20 +35,30 @@ export class CdpService extends Service {
       const apiKeySecret = process.env.COINBASE_PRIVATE_KEY as string;
       const walletSecret = process.env.COINBASE_WALLET_SECRET as string;
 
-      if (!apiKeyId || !apiKeySecret || !walletSecret) {
+      if (!apiKeyId || !apiKeySecret) {
         logger.warn(
-          "CDP_SERVICE: Missing env vars (COINBASE_API_KEY_NAME, COINBASE_PRIVATE_KEY, COINBASE_WALLET_SECRET)",
+          "CDP_SERVICE: Missing required env vars (COINBASE_API_KEY_NAME, COINBASE_PRIVATE_KEY)",
         );
         this.client = null;
         return;
       }
 
-      this.client = new CdpClient({
+      // walletSecret is optional - if not provided, CDP will use server-signer mode
+      const config: {
+        apiKeyId: string;
+        apiKeySecret: string;
+        walletSecret?: string;
+      } = {
         apiKeyId,
         apiKeySecret,
-        walletSecret,
-      });
-      logger.info("CDP_SERVICE initialized");
+      };
+
+      if (walletSecret) {
+        config.walletSecret = walletSecret;
+      }
+
+      this.client = new CdpClient(config);
+      logger.info("CDP_SERVICE initialized" + (walletSecret ? " with wallet secret" : " in server-signer mode"));
     } catch (error) {
       logger.error("CDP_SERVICE init error:", error);
       this.client = null;

@@ -9,6 +9,7 @@ import {
   logger,
   parseKeyValueXml,
 } from "@elizaos/core";
+import { z } from "zod";
 import { TokenDeploySchema } from "../types";
 import { ClankerService } from "../services/clanker.service";
 import { shortenAddress } from "../utils/format";
@@ -188,8 +189,8 @@ export const tokenDeployAction: Action = {
       // Validate parameters
       const validation = TokenDeploySchema.safeParse(params);
       if (!validation.success) {
-        const errors = validation.error.errors
-          .map((e) => `${e.path.join(".")}: ${e.message}`)
+        const errors = validation.error.issues
+          .map((e: z.ZodIssue) => `${e.path.join(".")}: ${e.message}`)
           .join(", ");
         throw new Error(`Invalid parameters: ${errors}`);
       }
