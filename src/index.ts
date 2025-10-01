@@ -22,7 +22,7 @@ export const projectAgent: ProjectAgent = {
   init: async (runtime: IAgentRuntime) => await initCharacter({ runtime }),
   plugins: [
     cdpPlugin,
-    evmPlugin,
+    // evmPlugin,
     clankerPlugin,
     morphoPlugin,
     // ethWalletPlugin,
