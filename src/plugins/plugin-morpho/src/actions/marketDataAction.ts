@@ -10,6 +10,7 @@ import {
   parseKeyValueXml,
 } from "@elizaos/core";
 import { MorphoService } from "../services";
+import { CdpService } from "../../../plugin-cdp/services/cdp.service";
 import { MorphoMarketData } from "../types";
 import {
   fmtPct,
@@ -88,7 +89,21 @@ export const marketInfoAction: Action = {
       const service = runtime.getService(
         MorphoService.serviceType,
       ) as MorphoService;
-      const markets = await service.getMarketData(params.market);
+
+      // Try to use CDP public client if available
+      let pcOverride: any | undefined = undefined;
+      try {
+        const cdp = runtime.getService(CdpService.serviceType) as CdpService | undefined;
+        if (cdp) {
+          const viem = await cdp.getViemClientsForAccount({
+            accountName: message.entityId,
+            network: service.getChainSlug(),
+          });
+          pcOverride = viem.publicClient;
+        }
+      } catch {}
+
+      const markets = await service.getMarketData(params.market, pcOverride);
 
       if (!markets.length) {
         const errorText = `❌ No market data${params.market ? ` for ${params.market}` : ""} found.`;
