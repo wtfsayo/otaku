@@ -63,7 +63,10 @@ export class ClankerService extends Service {
 
       logger.info("Clanker service initialized successfully");
     } catch (error) {
-      logger.error("Failed to initialize Clanker service:", error);
+      logger.error(
+        "Failed to initialize Clanker service:",
+        error instanceof Error ? error.message : String(error),
+      );
       throw new ClankerError(
         ErrorCode.NETWORK_ERROR,
         "Failed to initialize Clanker service",
@@ -78,6 +81,7 @@ export class ClankerService extends Service {
     return service;
   }
 
+  // TODO: remove this function
   async deployToken(
     params: TokenDeployParams,
     walletPrivateKey: string,
@@ -104,8 +108,8 @@ export class ClankerService extends Service {
     });
 
     const clanker = new Clanker({
-      wallet: walletClient,
-      publicClient,
+      wallet: walletClient as any,
+      publicClient: publicClient as any,
     });
 
     // Test connections
@@ -248,9 +252,127 @@ export class ClankerService extends Service {
 
       return deployResult;
     } catch (error) {
-      logger.error("Token deployment failed:", error);
+      logger.error(
+        "Token deployment failed:",
+        error instanceof Error ? error.message : String(error),
+      );
       if (error instanceof ClankerError) throw error;
 
+      throw new ClankerError(
+        ErrorCode.PROTOCOL_ERROR,
+        "Token deployment failed",
+        error,
+      );
+    }
+  }
+
+  async deployTokenWithClient(
+    params: TokenDeployParams,
+    walletClient: ReturnType<typeof createWalletClient>,
+    publicClient: PublicClient,
+  ): Promise<DeployResult> {
+    if (!this.clankerConfig) {
+      throw new ClankerError(
+        ErrorCode.PROTOCOL_ERROR,
+        "Service not initialized",
+      );
+    }
+
+    const clanker = new Clanker({ wallet: walletClient as any, publicClient: publicClient as any });
+
+    // Test connections
+    await publicClient.getChainId();
+
+    try {
+      // Validate parameters
+      if (!params.name || params.name.length > 50) {
+        throw new ClankerError(
+          ErrorCode.VALIDATION_ERROR,
+          "Invalid token name - must be 1-50 characters",
+        );
+      }
+
+      if (!params.symbol || params.symbol.length > 10) {
+        throw new ClankerError(
+          ErrorCode.VALIDATION_ERROR,
+          "Invalid token symbol - must be 1-10 characters",
+        );
+      }
+
+      const tokenConfig: any = {
+        name: params.name,
+        symbol: params.symbol,
+        tokenAdmin: (walletClient as any).account?.address || params.tokenAdmin,
+        vanity: params.vanity || false,
+      };
+
+      if (params.image) tokenConfig.image = params.image;
+      if (params.metadata) {
+        tokenConfig.metadata = {
+          description: params.metadata.description || "",
+          socialMediaUrls: params.metadata.socialMediaUrls || [],
+          auditUrls: params.metadata.auditUrls || [],
+        };
+      }
+      tokenConfig.context = {
+        interface: params.context?.interface || "Clanker SDK",
+        platform: params.context?.platform || "",
+        messageId: params.context?.messageId || "",
+        id: params.context?.id || "",
+      };
+      if (params.pool) tokenConfig.pool = params.pool;
+      if (params.fees) tokenConfig.fees = params.fees;
+      if (params.rewards) tokenConfig.rewards = params.rewards;
+      if (params.vault) tokenConfig.vault = params.vault;
+      if (params.devBuy) tokenConfig.devBuy = { ethAmount: params.devBuy.ethAmount };
+
+      const deployResult = await retryTransaction(async () => {
+        logger.info(
+          "Deploying token with config:",
+          JSON.stringify(tokenConfig, null, 2),
+        );
+
+        const { txHash, waitForTransaction, error } = await clanker!.deploy(tokenConfig);
+        if (error) {
+          logger.error(`Clanker deploy error: ${error.message || String(error)}`);
+          throw error;
+        }
+        if (!txHash) throw new Error("No transaction hash returned from deployment");
+        logger.info("Token deployment transaction submitted:", txHash);
+
+        const { address, error: waitError } = await waitForTransaction();
+        if (waitError) {
+          logger.error(
+            `Clanker waitForTransaction error: ${waitError.message || String(waitError)}`,
+          );
+          throw waitError;
+        }
+        if (!address) throw new Error("No contract address returned from deployment");
+        logger.info("Token deployed successfully to address:", address);
+        return {
+          contractAddress: address,
+          transactionHash: txHash,
+          deploymentCost: parseUnits("0", 18),
+          tokenId: `clanker_${params.symbol.toLowerCase()}_${Date.now()}`,
+        };
+      }, this.clankerConfig.RETRY_ATTEMPTS || 3);
+
+      this.tokenCache.set(deployResult.contractAddress, {
+        address: deployResult.contractAddress,
+        name: params.name,
+        symbol: params.symbol,
+        decimals: 18,
+        totalSupply: parseUnits("1000000000", 18),
+        createdAt: Date.now(),
+      });
+
+      return deployResult;
+    } catch (error) {
+      logger.error(
+        "Token deployment failed:",
+        error instanceof Error ? error.message : String(error),
+      );
+      if (error instanceof ClankerError) throw error;
       throw new ClankerError(
         ErrorCode.PROTOCOL_ERROR,
         "Token deployment failed",
@@ -286,7 +408,10 @@ export class ClankerService extends Service {
         marketCap: parseFloat(firstPair.fdv || "0"),
       };
     } catch (error) {
-      logger.warn("Failed to fetch from DEX Screener:", error);
+      logger.warn(
+        "Failed to fetch from DEX Screener:",
+        error instanceof Error ? error.message : String(error),
+      );
       return null;
     }
   }
@@ -357,7 +482,10 @@ export class ClankerService extends Service {
 
       return tokenInfo;
     } catch (error) {
-      logger.error("Failed to get token info:", error);
+      logger.error(
+        "Failed to get token info:",
+        error instanceof Error ? error.message : String(error),
+      );
       throw new ClankerError(
         ErrorCode.NETWORK_ERROR,
         "Failed to retrieve token information",
@@ -405,7 +533,10 @@ export class ClankerService extends Service {
           createdAt: Date.now(),
         };
       } catch (error) {
-        logger.warn(`Attempt ${attempt} failed to fetch ETH info:`, error);
+        logger.warn(
+          `Attempt ${attempt} failed to fetch ETH info:`,
+          error instanceof Error ? error.message : String(error),
+        );
 
         if (attempt === maxRetries) {
           logger.error("All retries failed. Giving up.");
@@ -473,14 +604,20 @@ export class ClankerService extends Service {
             tokenInfos.push(info);
           }
         } catch (err) {
-          logger.warn(`⚠️ Skipping token ${contractAddress}:`, err);
+          logger.warn(
+            `⚠️ Skipping token ${contractAddress}:`,
+            err instanceof Error ? err.message : String(err),
+          );
         }
       }
 
       logger.info(`✅ Found ${tokenInfos.length} tokens with non-zero balance`);
       return tokenInfos;
     } catch (error) {
-      logger.error("Failed to fetch wallet tokens from Alchemy:", error);
+      logger.error(
+        "Failed to fetch wallet tokens from Alchemy:",
+        error instanceof Error ? error.message : String(error),
+      );
       throw new ClankerError(
         ErrorCode.NETWORK_ERROR,
         "Could not retrieve token balances from Alchemy",
@@ -523,7 +660,10 @@ export class ClankerService extends Service {
 
       return match?.address || null;
     } catch (err) {
-      logger.warn("resolveTokenAddressBySymbol fallback failed:", err);
+      logger.warn(
+        "resolveTokenAddressBySymbol fallback failed:",
+        err instanceof Error ? err.message : String(err),
+      );
       return null;
     }
   }

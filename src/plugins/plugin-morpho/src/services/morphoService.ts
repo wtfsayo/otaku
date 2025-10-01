@@ -43,7 +43,6 @@ export class MorphoService extends Service {
   static serviceType = "morpho";
   capabilityDescription = "";
 
-  private publicClient: PublicClient | null = null;
   private network: "base" | "base-sepolia";
 
   private gql = new GqlClient(MORPHO_GQL);
@@ -65,11 +64,6 @@ export class MorphoService extends Service {
     return this.network;
   }
 
-  private ensurePublicClient(): PublicClient {
-    if (!this.publicClient) throw new Error("Service not initialized");
-    return this.publicClient;
-  }
-
   private createWalletClient(walletPrivateKey: string): WalletClient {
     const rpcUrl =
       this.runtime.getSetting("BASE_RPC_URL") || "https://mainnet.base.org";
@@ -84,13 +78,6 @@ export class MorphoService extends Service {
   async initialize(runtime: IAgentRuntime): Promise<void> {
     const rpcUrl =
       runtime.getSetting("BASE_RPC_URL") || "https://mainnet.base.org";
-    this.publicClient = createPublicClient({
-      chain: this.chainObj(),
-      transport: http(rpcUrl),
-    }) as PublicClient;
-
-    const block = await this.publicClient.getBlockNumber();
-    logger.info(`Connected to ${this.network} at block ${block}`);
   }
 
   static async start(runtime: IAgentRuntime): Promise<MorphoService> {
@@ -101,85 +88,6 @@ export class MorphoService extends Service {
 
   async stop(): Promise<void> {
     logger.info("Stopping service...");
-  }
-
-  /**
-   * Get supply position info for a specific market (lending positions)
-   */
-  async getSupplyPositions(
-    market: string,
-    walletPrivateKey: string,
-  ): Promise<{
-    suppliedAssets: number;
-    suppliedShares: number;
-    withdrawableAssets: number;
-    assetSymbol: string;
-    marketId: string;
-  }> {
-    const pc = this.ensurePublicClient();
-    const wallet = this.createWalletClient(walletPrivateKey);
-
-    const address = wallet.account?.address;
-    if (!address) throw new Error("Wallet account address is required");
-
-    const marketId = await this.getMarketId(market);
-    const marketParams = await MarketParams.fetch(marketId as MarketId, pc);
-
-    // Get user's supply position
-    const position = await AccrualPosition.fetch(
-      address,
-      marketId as MarketId,
-      pc,
-    );
-    const supplyShares = (position as any).supplyShares ?? 0n;
-
-    // Get asset decimals
-    const loanDecimals = (await pc.readContract({
-      address: marketParams.loanToken as `0x${string}`,
-      abi: [
-        {
-          type: "function",
-          name: "decimals",
-          stateMutability: "view",
-          inputs: [],
-          outputs: [{ type: "uint8" }],
-        },
-      ],
-      functionName: "decimals",
-    })) as number;
-
-    // Get asset symbol
-    const assetSymbol = (await pc.readContract({
-      address: marketParams.loanToken as `0x${string}`,
-      abi: [
-        {
-          type: "function",
-          name: "symbol",
-          stateMutability: "view",
-          inputs: [],
-          outputs: [{ type: "string" }],
-        },
-      ],
-      functionName: "symbol",
-    })) as string;
-
-    // Convert shares to assets (Note: this is simplified - in reality you'd use Market.convertToAssets)
-    const suppliedAssetsBase = supplyShares;
-    const suppliedAssets =
-      Number(suppliedAssetsBase) / Math.pow(10, loanDecimals);
-    const suppliedSharesFormatted =
-      Number(supplyShares) / Math.pow(10, loanDecimals);
-
-    // For simplicity, assume withdrawable = supplied (in practice, might be limited by market liquidity)
-    const withdrawableAssets = suppliedAssets;
-
-    return {
-      suppliedAssets,
-      suppliedShares: suppliedSharesFormatted,
-      withdrawableAssets,
-      assetSymbol,
-      marketId,
-    };
   }
 
   // ----------------------------
@@ -195,12 +103,12 @@ export class MorphoService extends Service {
       assets?: string | number | bigint;
       onBehalf?: `0x${string}`;
     } = {},
-    walletPrivateKey: string,
+    clients: { walletClient: WalletClient; publicClient: PublicClient },
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.supply: start ---");
     try {
-      const wallet = this.createWalletClient(walletPrivateKey);
-      const pc = this.ensurePublicClient();
+      const wallet = clients.walletClient;
+      const pc = clients.publicClient;
 
       const onBehalf = params.onBehalf ?? wallet.account?.address;
       if (!onBehalf) throw new Error("Wallet account address is required");
@@ -216,7 +124,7 @@ export class MorphoService extends Service {
       console.log("Input -> market:", cfg.market, "assets:", cfg.assets);
 
       const { requests, marketParams, assetsBase } =
-        await this.buildSupplyTx(cfg);
+        await this.buildSupplyTx(cfg, pc);
 
       console.log("Prepared", requests.length, "request(s) for supply.");
       console.log("Market:", marketParams.loanToken);
@@ -272,12 +180,12 @@ export class MorphoService extends Service {
       assets?: string | number | bigint;
       onBehalf?: `0x${string}`;
     } = {},
-    walletPrivateKey: string,
+    clients: { walletClient: WalletClient; publicClient: PublicClient },
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.supplyCollateral: start ---");
     try {
-      const wallet = this.createWalletClient(walletPrivateKey);
-      const pc = this.ensurePublicClient();
+      const wallet = clients.walletClient;
+      const pc = clients.publicClient;
 
       const onBehalf = params.onBehalf ?? wallet.account?.address;
       if (!onBehalf) throw new Error("Wallet account address is required");
@@ -293,7 +201,7 @@ export class MorphoService extends Service {
       console.log("Input -> market:", cfg.market, "assets:", cfg.assets);
 
       const { requests, marketParams, assetsBase } =
-        await this.buildSupplyCollateralTx(cfg);
+        await this.buildSupplyCollateralTx(cfg, pc);
 
       console.log(
         "Prepared",
@@ -360,12 +268,12 @@ export class MorphoService extends Service {
       receiver?: `0x${string}`;
       onBehalf?: `0x${string}`;
     } = {},
-    walletPrivateKey: string,
+    clients: { walletClient: WalletClient; publicClient: PublicClient },
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.borrow: start ---");
     try {
-      const wallet = this.createWalletClient(walletPrivateKey);
-      const pc = this.ensurePublicClient();
+      const wallet = clients.walletClient;
+      const pc = clients.publicClient;
 
       const onBehalf = params.onBehalf ?? wallet.account?.address;
       const receiver = params.receiver ?? wallet.account?.address;
@@ -384,7 +292,7 @@ export class MorphoService extends Service {
       console.log("Input -> market:", cfg.market, "assets:", cfg.assets);
 
       const { requests, marketParams, assetsBase } =
-        await this.buildBorrowTx(cfg);
+        await this.buildBorrowTx(cfg, pc);
 
       console.log("Prepared", requests.length, "request(s) for borrow.");
       console.log("Market loan token:", marketParams.loanToken);
@@ -442,12 +350,12 @@ export class MorphoService extends Service {
       onBehalf?: `0x${string}`;
       fullRepayment?: boolean;
     } = {},
-    walletPrivateKey: string,
+    clients: { walletClient: WalletClient; publicClient: PublicClient },
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.repay: start ---");
     try {
-      const wallet = this.createWalletClient(walletPrivateKey);
-      const pc = this.ensurePublicClient();
+      const wallet = clients.walletClient;
+      const pc = clients.publicClient;
 
       const onBehalf = params.onBehalf ?? wallet.account?.address;
       if (!onBehalf) throw new Error("Wallet account address is required");
@@ -474,7 +382,7 @@ export class MorphoService extends Service {
       );
 
       const { requests, marketParams, assetsBase, sharesBase } =
-        await this.buildRepayTx(cfg);
+        await this.buildRepayTx(cfg, pc);
 
       console.log("Prepared", requests.length, "request(s) for repay.");
       console.log("Market loan token:", marketParams.loanToken);
@@ -535,12 +443,12 @@ export class MorphoService extends Service {
       receiver?: `0x${string}`;
       onBehalf?: `0x${string}`;
     } = {},
-    walletPrivateKey: string,
+    clients: { walletClient: WalletClient; publicClient: PublicClient },
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.withdraw: start ---");
     try {
-      const wallet = this.createWalletClient(walletPrivateKey);
-      const pc = this.ensurePublicClient();
+      const wallet = clients.walletClient;
+      const pc = clients.publicClient;
 
       const onBehalf = params.onBehalf ?? wallet.account?.address;
       const receiver = params.receiver ?? wallet.account?.address;
@@ -567,7 +475,7 @@ export class MorphoService extends Service {
       );
 
       const { requests, marketParams, assetsBase, sharesBase } =
-        await this.buildWithdrawTx(cfg);
+        await this.buildWithdrawTx(cfg, pc);
 
       console.log("Prepared", requests.length, "request(s) for withdraw.");
       console.log("Market loan token:", marketParams.loanToken);
@@ -630,12 +538,12 @@ export class MorphoService extends Service {
       receiver?: `0x${string}`;
       onBehalf?: `0x${string}`;
     } = {},
-    walletPrivateKey: string,
+    clients: { walletClient: WalletClient; publicClient: PublicClient },
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.withdrawCollateral: start ---");
     try {
-      const wallet = this.createWalletClient(walletPrivateKey);
-      const pc = this.ensurePublicClient();
+      const wallet = clients.walletClient;
+      const pc = clients.publicClient;
 
       const onBehalf = params.onBehalf ?? wallet.account?.address;
       const receiver = params.receiver ?? wallet.account?.address;
@@ -654,7 +562,7 @@ export class MorphoService extends Service {
       console.log("Input -> market:", cfg.market, "assets:", cfg.assets);
 
       const { requests, marketParams, assetsBase } =
-        await this.buildWithdrawCollateralTx(cfg);
+        await this.buildWithdrawCollateralTx(cfg, pc);
 
       console.log(
         "Prepared",
@@ -715,16 +623,18 @@ export class MorphoService extends Service {
   // Transaction builders for market operations
   // ----------------------------
 
-  public async buildSupplyTx(params: {
+  public async buildSupplyTx(
+    params: {
     market: string;
     assets: string | number | bigint;
     onBehalf: `0x${string}`;
-  }): Promise<{
+    },
+    pc: PublicClient,
+  ): Promise<{
     requests: any[];
     marketParams: any;
     assetsBase: bigint;
   }> {
-    const pc = this.ensurePublicClient();
     const marketId = await this.getMarketId(params.market);
     const marketParams = await MarketParams.fetch(marketId as MarketId, pc);
 
@@ -786,16 +696,18 @@ export class MorphoService extends Service {
     return { requests, marketParams, assetsBase };
   }
 
-  public async buildSupplyCollateralTx(params: {
+  public async buildSupplyCollateralTx(
+    params: {
     market: string;
     assets: string | number | bigint;
     onBehalf: `0x${string}`;
-  }): Promise<{
+    },
+    pc: PublicClient,
+  ): Promise<{
     requests: any[];
     marketParams: any;
     assetsBase: bigint;
   }> {
-    const pc = this.ensurePublicClient();
     const marketId = await this.getMarketId(params.market);
     const marketParams = await MarketParams.fetch(marketId as MarketId, pc);
 
@@ -857,17 +769,19 @@ export class MorphoService extends Service {
     return { requests, marketParams, assetsBase };
   }
 
-  public async buildBorrowTx(params: {
+  public async buildBorrowTx(
+    params: {
     market: string;
     assets: string | number | bigint;
     receiver: `0x${string}`;
     onBehalf: `0x${string}`;
-  }): Promise<{
+    },
+    pc: PublicClient,
+  ): Promise<{
     requests: any[];
     marketParams: any;
     assetsBase: bigint;
   }> {
-    const pc = this.ensurePublicClient();
     const marketId = await this.getMarketId(params.market);
     const marketParams = await MarketParams.fetch(marketId as MarketId, pc);
 
@@ -894,19 +808,21 @@ export class MorphoService extends Service {
     return { requests: [borrowReq], marketParams, assetsBase };
   }
 
-  public async buildRepayTx(params: {
+  public async buildRepayTx(
+    params: {
     market: string;
     assets?: string | number | bigint;
     shares?: string | number | bigint;
     onBehalf: `0x${string}`;
     fullRepayment?: boolean;
-  }): Promise<{
+    },
+    pc: PublicClient,
+  ): Promise<{
     requests: any[];
     marketParams: any;
     assetsBase?: bigint;
     sharesBase?: bigint;
   }> {
-    const pc = this.ensurePublicClient();
     const marketId = await this.getMarketId(params.market);
     const marketParams = await MarketParams.fetch(marketId as MarketId, pc);
 
@@ -1053,19 +969,21 @@ export class MorphoService extends Service {
     return { requests, marketParams, assetsBase, sharesBase };
   }
 
-  public async buildWithdrawTx(params: {
+  public async buildWithdrawTx(
+    params: {
     market: string;
     assets?: string | number | bigint;
     shares?: string | number | bigint;
     receiver: `0x${string}`;
     onBehalf: `0x${string}`;
-  }): Promise<{
+    },
+    pc: PublicClient,
+  ): Promise<{
     requests: any[];
     marketParams: any;
     assetsBase?: bigint;
     sharesBase?: bigint;
   }> {
-    const pc = this.ensurePublicClient();
     const marketId = await this.getMarketId(params.market);
     const marketParams = await MarketParams.fetch(marketId as MarketId, pc);
 
@@ -1116,17 +1034,19 @@ export class MorphoService extends Service {
     }
   }
 
-  public async buildWithdrawCollateralTx(params: {
+  public async buildWithdrawCollateralTx(
+    params: {
     market: string;
     assets: string | number | bigint;
     receiver: `0x${string}`;
     onBehalf: `0x${string}`;
-  }): Promise<{
+    },
+    pc: PublicClient,
+  ): Promise<{
     requests: any[];
     marketParams: any;
     assetsBase: bigint;
   }> {
-    const pc = this.ensurePublicClient();
     const marketId = await this.getMarketId(params.market);
     const marketParams = await MarketParams.fetch(marketId as MarketId, pc);
 
@@ -1339,8 +1259,10 @@ export class MorphoService extends Service {
   // ----------------------------
   // Public API
   // ----------------------------
-  async getMarketData(market?: string): Promise<MorphoMarketData[]> {
-    this.ensurePublicClient();
+  async getMarketData(
+    market: string | undefined,
+    pc: PublicClient,
+  ): Promise<MorphoMarketData[]> {
     const out: MorphoMarketData[] = [];
 
     // Single market path: on-chain LIF + summary
@@ -1349,7 +1271,7 @@ export class MorphoService extends Service {
         const marketId = await this.getMarketId(market);
         const [summary, params] = await Promise.all([
           this.fetchMarketSummaryById(marketId),
-          MarketParams.fetch(marketId as MarketId, this.publicClient!),
+          MarketParams.fetch(marketId as MarketId, pc),
         ]);
 
         const symbol = `${summary.collateralAsset.symbol} / ${summary.loanAsset.symbol}`;
@@ -1429,15 +1351,17 @@ export class MorphoService extends Service {
     walletPrivateKey: string,
     market?: string,
   ): Promise<UserPosition[]> {
-    this.ensurePublicClient();
-    const wallet = this.createWalletClient(walletPrivateKey);
+    throw new Error("getUserPositions with private key is not supported; use CDP clients and getUserPositionsByAddress instead");
+  }
 
-    const address = wallet.account?.address;
-    if (!address) throw new Error("Wallet account address is required");
-
+  async getUserPositionsByAddress(
+    address: `0x${string}`,
+    market: string | undefined,
+    pc: PublicClient,
+  ): Promise<UserPosition[]> {
     if (market?.trim()) {
       const marketId = await this.getMarketId(market);
-      const result = await this.buildUserPosition(address, marketId);
+      const result = await this.buildUserPosition(address, marketId, pc);
       return [result];
     }
 
@@ -1450,9 +1374,7 @@ export class MorphoService extends Service {
     for (let i = 0; i < positions.length; i += BATCH_SIZE) {
       const batch = positions.slice(i, i + BATCH_SIZE);
       const out = await Promise.all(
-        batch.map((id) =>
-          this.buildUserPosition(address, id).catch(() => null),
-        ),
+        batch.map((id) => this.buildUserPosition(address, id, pc).catch(() => null)),
       );
       for (const r of out) if (r?.hasPosition) results.push(r);
     }
@@ -1461,7 +1383,6 @@ export class MorphoService extends Service {
   }
 
   public async getVaultData(vault?: string): Promise<MorphoVaultData[]> {
-    this.ensurePublicClient();
     const chainId = this.getChainId();
 
     // Single vault
@@ -1491,7 +1412,12 @@ export class MorphoService extends Service {
     const wallet = this.createWalletClient(walletPrivateKey);
     const address = wallet.account?.address;
     if (!address) throw new Error("Wallet account address is required");
+    return this.getUserVaultPositionsByAddress(address as `0x${string}`);
+  }
 
+  public async getUserVaultPositionsByAddress(
+    address: `0x${string}`,
+  ): Promise<UserVaultPosition[]> {
     const data = await this.gql.query<{
       userByAddress?: { vaultPositions?: any[] };
     }>(Q_USER_VAULT_POSITIONS, { chainId: this.getChainId(), address });
@@ -1567,7 +1493,10 @@ export class MorphoService extends Service {
         marketCap: parseFloat(p.fdv || "0"),
       };
     } catch (error) {
-      logger.warn("Failed to fetch from DEX Screener:", error);
+      logger.warn(
+        "Failed to fetch from DEX Screener:",
+        error instanceof Error ? error.message : String(error),
+      );
       return null;
     }
   }
@@ -1575,9 +1504,8 @@ export class MorphoService extends Service {
   private async buildUserPosition(
     address: `0x${string}`,
     marketId: string,
+    pc: PublicClient,
   ): Promise<UserPosition> {
-    const pc = this.ensurePublicClient();
-
     const raw = await AccrualPosition.fetch(address, marketId as MarketId, pc);
     const pos = raw.accrueInterest(Time.timestamp());
 
@@ -1704,12 +1632,14 @@ export class MorphoService extends Service {
     };
   }
 
-  private async readVaultMeta(vaultAddr: `0x${string}`): Promise<{
+  private async readVaultMeta(
+    vaultAddr: `0x${string}`,
+    pc: PublicClient,
+  ): Promise<{
     asset: `0x${string}`;
     assetDecimals: number;
     shareDecimals: number;
   }> {
-    const pc = this.ensurePublicClient();
     const [asset, shareDecimals] = await Promise.all([
       pc.readContract({
         address: vaultAddr,
@@ -1756,12 +1686,12 @@ export class MorphoService extends Service {
       approveAmount?: "exact" | "max";
       receiver?: `0x${string}`;
     } = {},
-    walletPrivateKey: string,
+    clients: { walletClient: WalletClient; publicClient: PublicClient },
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.depositToVault: start ---");
     try {
-      const wallet = this.createWalletClient(walletPrivateKey);
-      const pc = this.ensurePublicClient();
+      const wallet = clients.walletClient;
+      const pc = clients.publicClient;
 
       const receiver = params.receiver ?? wallet.account?.address;
       if (!receiver) throw new Error("Wallet account address is required");
@@ -1791,7 +1721,7 @@ export class MorphoService extends Service {
         assetsBase,
         expectedShares,
         shareDecimals,
-      } = await this.buildVaultDepositTx(cfg);
+      } = await this.buildVaultDepositTx(cfg, pc);
 
       console.log("Prepared", requests.length, "request(s).");
       console.log("Vault:", vault);
@@ -1859,12 +1789,12 @@ export class MorphoService extends Service {
       receiver?: `0x${string}`;
       owner?: `0x${string}`;
     } = {},
-    walletPrivateKey: string,
+    clients: { walletClient: WalletClient; publicClient: PublicClient },
   ): Promise<`0x${string}`[]> {
     console.log("--- MorphoService.withdrawFromVault: start ---");
     try {
-      const wallet = this.createWalletClient(walletPrivateKey);
-      const pc = this.ensurePublicClient();
+      const wallet = clients.walletClient;
+      const pc = clients.publicClient;
 
       const walletAddress = wallet.account?.address;
       if (!walletAddress) throw new Error("Wallet account address is required");
@@ -1881,7 +1811,7 @@ export class MorphoService extends Service {
       console.log("Input -> vault:", cfg.vault, "assets:", cfg.assets);
 
       const { requests, vault, assetsBase } =
-        await this.buildVaultWithdrawTx(cfg);
+        await this.buildVaultWithdrawTx(cfg, pc);
 
       console.log("Prepared", requests.length, "request(s) for withdraw.");
       console.log("Vault:", vault);
@@ -1934,12 +1864,15 @@ export class MorphoService extends Service {
     }
   }
 
-  public async buildVaultDepositTx(params: {
-    vault: string;
-    assets: string | number | bigint;
-    receiver: `0x${string}`; // Make receiver required
-    approveAmount?: "exact" | "max";
-  }): Promise<{
+  public async buildVaultDepositTx(
+    params: {
+      vault: string;
+      assets: string | number | bigint;
+      receiver: `0x${string}`; // Make receiver required
+      approveAmount?: "exact" | "max";
+    },
+    pc: PublicClient,
+  ): Promise<{
     requests: any[];
     asset: `0x${string}`;
     vault: `0x${string}`;
@@ -1947,13 +1880,13 @@ export class MorphoService extends Service {
     expectedShares?: bigint;
     shareDecimals?: number;
   }> {
-    const pc = this.ensurePublicClient();
+    // pc provided by caller (CDP)
 
     const receiver = params.receiver;
     const vaultAddr = await this.resolveVaultAddress(params.vault);
 
     const { asset, assetDecimals, shareDecimals } =
-      await this.readVaultMeta(vaultAddr);
+      await this.readVaultMeta(vaultAddr, pc);
 
     const assetsBase = parseUnits(String(params.assets), assetDecimals);
 
@@ -2039,13 +1972,15 @@ export class MorphoService extends Service {
     };
   }
 
-  public async buildVaultWithdrawTx(params: {
-    vault: string;
-    assets: string | number | bigint;
-    receiver: `0x${string}`; // Make receiver required
-    owner: `0x${string}`; // Make owner required
-  }): Promise<{ requests: any[]; vault: `0x${string}`; assetsBase: bigint }> {
-    const pc = this.ensurePublicClient();
+  public async buildVaultWithdrawTx(
+    params: {
+      vault: string;
+      assets: string | number | bigint;
+      receiver: `0x${string}`; // Make receiver required
+      owner: `0x${string}`; // Make owner required
+    },
+    pc: PublicClient,
+  ): Promise<{ requests: any[]; vault: `0x${string}`; assetsBase: bigint }> {
     const chainId = this.getChainId();
 
     const receiver = params.receiver;

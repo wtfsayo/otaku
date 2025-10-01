@@ -13,6 +13,8 @@ import { MorphoService } from "../services";
 import { MorphoMarketData, UserPosition } from "../types";
 import { fmtNum, fmtPct, fmtTok, fmtUSD } from "./utils";
 import { getEntityWallet } from "../../../../utils/entity";
+import { CdpService } from "../../../plugin-cdp/services/cdp.service";
+import { privateKeyToAccount } from "viem/accounts";
 /* =========================
  * Prompt helper
  * ========================= */
@@ -84,7 +86,25 @@ export const marketPositionsAction: Action = {
       if (!walletResult.success) {
         return walletResult.result;
       }
-      const walletPrivateKey = walletResult.walletPrivateKey;
+
+      let walletAddress: `0x${string}` | undefined;
+
+      try {
+        const cdp = runtime.getService(CdpService.serviceType) as CdpService | undefined;
+        if (cdp) {
+          const acct = await cdp.getOrCreateAccount({ name: message.entityId });
+          walletAddress = acct.address as `0x${string}`;
+        }
+      } catch (e) {
+        logger.warn(
+          "CDP address resolution failed; falling back to entity metadata address",
+          e instanceof Error ? e.message : String(e),
+        );
+      }
+
+      if (!walletAddress) {
+        throw new Error("Wallet address not available. Please create or connect a wallet.");
+      }
 
       const userText = message.content.text || "";
       const prompt = getPositionXmlPrompt(userText);
@@ -99,21 +119,37 @@ export const marketPositionsAction: Action = {
       ) as MorphoService;
 
       // Fetch markets to enrich compact view with borrow rate (if needed)
-      const markets = await service.getMarketData(params.market);
+      // Try to use CDP public client if available
+      let publicClient: any | undefined;
+      try {
+        const cdp = runtime.getService(CdpService.serviceType) as CdpService | undefined;
+        if (cdp) {
+          const viem = await cdp.getViemClientsForAccount({
+            accountName: message.entityId,
+            network: service.getChainSlug(),
+          });
+          publicClient = viem.publicClient;
+        }
+      } catch {}
+      const markets = await service.getMarketData(params.market, publicClient);
       const marketById = new Map<string, MorphoMarketData>();
       for (const m of markets) {
         if (m.marketId) marketById.set(m.marketId, m);
       }
 
-      // Fetch positions
+      // Fetch positions (no signing needed) via address for CDP/general wallets
       let positions: UserPosition[] = [];
       try {
-        positions = await service.getUserPositions(
-          walletPrivateKey,
+        positions = await service.getUserPositionsByAddress(
+          walletAddress,
           params.market,
+          publicClient
         );
       } catch (err) {
-        logger.warn("Could not fetch position data:", err);
+        logger.warn(
+          "Could not fetch position data:",
+          err instanceof Error ? err.message : String(err),
+        );
       }
 
       let text: string;

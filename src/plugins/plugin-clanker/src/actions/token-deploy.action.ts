@@ -9,11 +9,19 @@ import {
   logger,
   parseKeyValueXml,
 } from "@elizaos/core";
+import { z } from "zod";
 import { TokenDeploySchema } from "../types";
 import { ClankerService } from "../services/clanker.service";
 import { shortenAddress } from "../utils/format";
 import { handleError } from "../utils/errors";
 import { getEntityWallet } from "../../../../utils/entity";
+import {
+  createWalletClient,
+  createPublicClient,
+  http,
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { base } from "viem/chains";
 
 // Utility function to safely serialize objects with BigInt values
 function safeStringify(obj: any): any {
@@ -115,7 +123,10 @@ export const tokenDeployAction: Action = {
 
       return hasDeploymentIntent;
     } catch (error) {
-      logger.error("Error validating token deployment action:", error);
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
       return false;
     }
   },
@@ -141,7 +152,6 @@ export const tokenDeployAction: Action = {
       if (!walletResult.success) {
         return walletResult.result;
       }
-      const walletPrivateKey = walletResult.walletPrivateKey;
 
       // Get services
       const clankerService = runtime.getService(
@@ -177,16 +187,32 @@ export const tokenDeployAction: Action = {
       // Validate parameters
       const validation = TokenDeploySchema.safeParse(params);
       if (!validation.success) {
-        const errors = validation.error.errors
-          .map((e) => `${e.path.join(".")}: ${e.message}`)
+        const errors = validation.error.issues
+          .map((e: z.ZodIssue) => `${e.path.join(".")}: ${e.message}`)
           .join(", ");
         throw new Error(`Invalid parameters: ${errors}`);
       }
 
       const deployParams = validation.data;
 
-      // Deploy token
-      const result = await clankerService.deployToken(
+      // Build viem clients (CDP or private key), then deploy via a single method
+      let walletClient: any;
+      let publicClient: any;
+
+      
+      const cdpService: any = runtime.getService("CDP_SERVICE" as any);
+      if (!cdpService || typeof cdpService.getViemClientsForAccount !== "function") {
+        throw new Error("CDP not available");
+      }
+      const viemClient = await cdpService.getViemClientsForAccount({
+        accountName: message.entityId,
+        network: "base",
+      });
+      walletClient = viemClient.walletClient;
+      publicClient = viemClient.publicClient;
+     
+
+      const result = await clankerService.deployTokenWithClient(
         {
           name: deployParams.name,
           symbol: deployParams.symbol,
@@ -200,8 +226,8 @@ export const tokenDeployAction: Action = {
           vault: deployParams.vault,
           devBuy: deployParams.devBuy,
         },
-
-        walletPrivateKey,
+        walletClient,
+        publicClient,
       );
 
       // Prepare response
@@ -239,7 +265,10 @@ export const tokenDeployAction: Action = {
         }),
       };
     } catch (error) {
-      logger.error("Error in DEPLOY_TOKEN action:", error);
+      logger.error(
+        "Error in DEPLOY_TOKEN action:",
+        error instanceof Error ? error.message : String(error),
+      );
       const errorResponse = handleError(error);
 
       if (callback) {

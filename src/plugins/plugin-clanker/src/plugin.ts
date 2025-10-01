@@ -44,8 +44,8 @@ export const clankerPlugin: Plugin = {
       );
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const errors = error.errors
-          .map((e) => `${e.path.join(".")}: ${e.message}`)
+        const errors = error.issues
+          .map((e: z.ZodIssue) => `${e.path.join(".")}: ${e.message}`)
           .join(", ");
         throw new Error(`Invalid Clanker plugin configuration: ${errors}`);
       }
