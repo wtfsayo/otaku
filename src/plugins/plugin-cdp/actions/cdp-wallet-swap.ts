@@ -13,10 +13,7 @@ import {
 import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
 import { getTokenMetadata, getTokenDecimals } from "../utils/coingecko";
-
-// Network types based on CDP SDK support
-type CdpSwapNetwork = "base" | "ethereum" | "arbitrum" | "optimism";
-type CdpNetwork = CdpSwapNetwork | "base-sepolia" | "ethereum-sepolia" | "ethereum-hoodi" | "polygon" | "polygon-mumbai" | "arbitrum-sepolia" | "optimism-sepolia";
+import { type CdpSwapNetwork } from "../types";
 
 const swapTemplate = `# CDP Token Swap Request
 

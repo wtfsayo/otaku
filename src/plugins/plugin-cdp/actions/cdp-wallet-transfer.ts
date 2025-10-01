@@ -14,9 +14,7 @@ import { parseUnits } from "viem";
 import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
 import { getTokenMetadata, getTokenDecimals } from "../utils/coingecko";
-
-// Network types based on CDP SDK support
-type CdpTransferNetwork = "base" | "base-sepolia" | "ethereum" | "ethereum-sepolia" | "arbitrum" | "arbitrum-sepolia" | "optimism" | "optimism-sepolia" | "polygon";
+import { type CdpTransferNetwork } from "../types";
 
 const transferTemplate = `# CDP Token Transfer Request
 

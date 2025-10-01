@@ -9,10 +9,7 @@ import {
 } from "viem";
 import { toAccount } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
-
-// Network types based on CDP SDK support (from EvmSwapsNetwork and related types)
-type CdpSwapNetwork = "base" | "ethereum" | "arbitrum" | "optimism";
-type CdpNetwork = CdpSwapNetwork | "base-sepolia" | "ethereum-sepolia" | "ethereum-hoodi" | "polygon" | "polygon-mumbai" | "arbitrum-sepolia" | "optimism-sepolia";
+import { type CdpSwapNetwork } from "../types";
 
 export class CdpService extends Service {
   static serviceType = "CDP_SERVICE";

@@ -123,7 +123,7 @@ export class WalletProvider {
             balances[chainName] = balance;
           }
         } catch (error) {
-          elizaLogger.error(`Error getting balance for ${chainName}:`, error);
+          elizaLogger.error(`Error getting balance for ${chainName}:`, JSON.stringify(error));
         }
       }),
     );
@@ -257,7 +257,7 @@ const genChainsFromRuntime = (
       chains[chainName] = chain;
       elizaLogger.log(`Configured chain: ${chainName}`);
     } catch (error) {
-      elizaLogger.error(`Error configuring chain ${chainName}:`, error);
+      elizaLogger.error(`Error configuring chain ${chainName}:`, JSON.stringify(error));
     }
   }
 

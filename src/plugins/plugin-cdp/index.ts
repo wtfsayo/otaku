@@ -13,6 +13,9 @@ import { cdpWalletBalance } from "./actions/cdp-wallet-balance";
 import { cdpWalletSwap } from "./actions/cdp-wallet-swap";
 import { cdpWalletTransfer } from "./actions/cdp-wallet-transfer";
 
+// Types
+export type { CdpSwapNetwork, CdpNetwork, CdpTransferNetwork } from "./types";
+
 export const cdpPlugin: Plugin = {
   name: "cdp",
   description:
