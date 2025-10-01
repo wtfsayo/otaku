@@ -15,10 +15,13 @@ import { ClankerService } from "../services/clanker.service";
 import { shortenAddress } from "../utils/format";
 import { handleError } from "../utils/errors";
 import { getEntityWallet } from "../../../../utils/entity";
+import { CdpService } from "../../../plugin-cdp/services/cdp.service";
 import {
   createWalletClient,
   createPublicClient,
   http,
+  WalletClient,
+  PublicClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base } from "viem/chains";
@@ -196,15 +199,15 @@ export const tokenDeployAction: Action = {
       const deployParams = validation.data;
 
       // Build viem clients (CDP or private key), then deploy via a single method
-      let walletClient: any;
-      let publicClient: any;
+      let walletClient: WalletClient;
+      let publicClient: PublicClient;
 
       
-      const cdpService: any = runtime.getService("CDP_SERVICE" as any);
-      if (!cdpService || typeof cdpService.getViemClientsForAccount !== "function") {
+      const cdp = runtime.getService(CdpService.serviceType) as CdpService | undefined;
+      if (!cdp || typeof cdp.getViemClientsForAccount !== "function") {
         throw new Error("CDP not available");
       }
-      const viemClient = await cdpService.getViemClientsForAccount({
+      const viemClient = await cdp.getViemClientsForAccount({
         accountName: message.entityId,
         network: "base",
       });
