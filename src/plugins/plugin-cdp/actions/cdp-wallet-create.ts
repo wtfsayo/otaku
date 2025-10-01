@@ -45,7 +45,7 @@ export const cdpCreateWallet: Action = {
           `🏦 **Wallet Already Exists**\n\n` +
           `You already have a wallet configured:\n` +
           `**Address:** \`${walletResult.walletAddress}\`\n` +
-          `**Provider:** ${walletResult.provider === "cdp" ? "Coinbase CDP" : "Self-managed"}\n` +
+          `**Provider:** "Coinbase CDP"\n` +
           `ℹ️ Use your existing wallet.`;
 
         callback?.({
@@ -53,7 +53,6 @@ export const cdpCreateWallet: Action = {
           content: {
             action: "wallet_already_exists",
             address: walletResult.walletAddress,
-            provider: walletResult.provider,
           },
         });
 
@@ -69,7 +68,6 @@ export const cdpCreateWallet: Action = {
             actionName: "CDP_CREATE_WALLET",
             type: "existing-wallet",
             address: walletResult.walletAddress,
-            provider: walletResult.provider,
           },
         };
       }
