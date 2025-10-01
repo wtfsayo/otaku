@@ -127,6 +127,17 @@ const resolveTokenToAddress = async (
   return null;
 };
 
+/**
+ * Note: According to CDP SDK documentation, the swap method uses an "all-in-one pattern"
+ * that handles token approvals internally. This eliminates the need for manual approval steps.
+ * 
+ * From the official docs:
+ * "The SDK offers an all-in-one pattern that simplifies the swap process. This method handles 
+ * the entire swap operation, including any necessary token approvals, within a single function call."
+ * 
+ * Reference: https://coinbase.github.io/cdp-sdk/python/
+ */
+
 export const cdpWalletSwap: Action = {
   name: "CDP_WALLET_SWAP",
   similes: [
@@ -137,7 +148,7 @@ export const cdpWalletSwap: Action = {
     "TRADE_TOKENS_CDP",
     "EXCHANGE_TOKENS_CDP",
   ],
-  description: "Swap tokens on supported networks using Coinbase CDP SDK",
+  description: "Swap tokens from one to another on EVM; e.g. USDC -> BNKR or USDC -> ETH or ETH -> USDC",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
     const text = message.content.text?.toLowerCase() || "";
     const hasSwapKeywords = ["swap", "exchange", "trade", "convert", "sell", "buy"].some(
@@ -217,6 +228,10 @@ export const cdpWalletSwap: Action = {
       const amountInWei = parseUnits(swapParams.amount, decimals);
 
       logger.info(`Executing CDP swap: network=${swapParams.network}, fromToken=${fromToken}, toToken=${toToken}, amount=${swapParams.amount}, slippageBps=${swapParams.slippageBps}`);
+
+      // Note: CDP SDK uses an "all-in-one pattern" that handles token approvals internally
+      // No manual approval step is needed as per official documentation
+      logger.info("CDP SDK will handle token approvals internally during swap execution");
 
       // Execute the swap using CDP service
       const result = await cdpService.swap({
