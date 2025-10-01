@@ -10,7 +10,7 @@ import {
   parseKeyValueXml,
 } from "@elizaos/core";
 import { MorphoService } from "../services";
-import { getEntityWallet } from "../../../../utils/entity";
+import { CdpService } from "../../../plugin-cdp/services/cdp.service";
 
 function getTransferXmlPrompt(userMessage: string): string {
   return `<task>Extract an intent (deposit or withdraw), vault, and amount for a Morpho vault transfer.</task>
@@ -108,17 +108,7 @@ export const vaultTransferAction: Action = {
     try {
       logger.info("Handling MORPHO_VAULT_TRANSFER action");
 
-      // Get entity wallet address
-      const walletResult = await getEntityWallet(
-        runtime,
-        message,
-        "MORPHO_VAULT_TRANSFER",
-        callback,
-      );
-      if (!walletResult.success) {
-        return walletResult.result;
-      }
-      const walletPrivateKey = walletResult.walletPrivateKey;
+      // Require CDP viem clients
 
       const userText = message.content.text || "";
       const prompt = getTransferXmlPrompt(userText);
@@ -166,6 +156,22 @@ export const vaultTransferAction: Action = {
       ) as MorphoService;
       const chainSlug = service.getChainSlug(); // 'base' | 'base-sepolia'
 
+      const cdp = runtime.getService(CdpService.serviceType) as CdpService | undefined;
+      if (!cdp) {
+        return await fail("CDP service not available. Please configure CDP credentials.");
+      }
+      let viemClients: { walletClient: any; publicClient: any };
+      try {
+        const viem = await cdp.getViemClientsForAccount({
+          accountName: message.entityId,
+          network: chainSlug,
+        });
+        viemClients = { walletClient: viem.walletClient, publicClient: viem.publicClient };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return await fail(`Unable to initialize CDP wallet: ${msg}`);
+      }
+
       let hashes: `0x${string}`[] = [];
       if (rawIntent === "withdraw") {
         hashes = await service.withdrawFromVault(
@@ -173,7 +179,7 @@ export const vaultTransferAction: Action = {
             vault: rawVault,
             assets: rawAssets,
           },
-          walletPrivateKey,
+          viemClients,
         );
       } else {
         hashes = await service.depositToVault(
@@ -182,7 +188,7 @@ export const vaultTransferAction: Action = {
             assets: rawAssets,
             approveAmount: "max",
           },
-          walletPrivateKey,
+          viemClients,
         );
       }
 

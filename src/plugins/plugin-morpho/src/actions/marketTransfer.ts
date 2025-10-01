@@ -10,7 +10,7 @@ import {
   parseKeyValueXml,
 } from "@elizaos/core";
 import { MorphoService } from "../services";
-import { getEntityWallet } from "../../../../utils/entity";
+import { CdpService } from "../../../plugin-cdp/services/cdp.service";
 
 function getMarketTransferXmlPrompt(userMessage: string): string {
   return `<task>Extract intent, market, amount, and optional parameters for a Morpho market operation.</task>
@@ -165,17 +165,28 @@ export const marketTransferAction: Action = {
     try {
       logger.info("Handling MORPHO_MARKET_TRANSFER action");
 
-      // Get entity wallet address
-      const walletResult = await getEntityWallet(
-        runtime,
-        message,
-        "MORPHO_MARKET_TRANSFER",
-        callback,
-      );
-      if (!walletResult.success) {
-        return walletResult.result;
+      // Require CDP viem clients
+      const service = runtime.getService(
+        MorphoService.serviceType,
+      ) as MorphoService;
+      const chainSlug = service.getChainSlug();
+
+      const cdp = runtime.getService(CdpService.serviceType) as CdpService | undefined;
+      if (!cdp) {
+        return await fail("CDP service not available. Please configure CDP credentials.");
       }
-      const walletPrivateKey = walletResult.walletPrivateKey;
+
+      let viemClients: { walletClient: any; publicClient: any };
+      try {
+        const viem = await cdp.getViemClientsForAccount({
+          accountName: message.entityId,
+          network: chainSlug,
+        });
+        viemClients = { walletClient: viem.walletClient, publicClient: viem.publicClient };
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return await fail(`Unable to initialize CDP wallet: ${msg}`);
+      }
 
       const userText = message.content.text || "";
       const prompt = getMarketTransferXmlPrompt(userText);
@@ -232,10 +243,7 @@ export const marketTransferAction: Action = {
         }
       }
 
-      const service = runtime.getService(
-        MorphoService.serviceType,
-      ) as MorphoService;
-      const chainSlug = service.getChainSlug();
+      // service and chainSlug initialized above
 
       // Execute the appropriate operation
       let hashes: `0x${string}`[] = [];
@@ -244,20 +252,17 @@ export const marketTransferAction: Action = {
       switch (rawIntent) {
         case "supply":
           operationParams.assets = rawAssets;
-          hashes = await service.supply(operationParams, walletPrivateKey);
+          hashes = await service.supply(operationParams, viemClients);
           break;
 
         case "supplycollateral":
           operationParams.assets = rawAssets;
-          hashes = await service.supplyCollateral(
-            operationParams,
-            walletPrivateKey,
-          );
+          hashes = await service.supplyCollateral(operationParams, viemClients);
           break;
 
         case "borrow":
           operationParams.assets = rawAssets;
-          hashes = await service.borrow(operationParams, walletPrivateKey);
+          hashes = await service.borrow(operationParams, viemClients);
           break;
 
         case "repay":
@@ -266,20 +271,17 @@ export const marketTransferAction: Action = {
           } else {
             operationParams.assets = rawAssets;
           }
-          hashes = await service.repay(operationParams, walletPrivateKey);
+          hashes = await service.repay(operationParams, viemClients);
           break;
 
         case "withdraw":
           operationParams.assets = rawAssets;
-          hashes = await service.withdraw(operationParams, walletPrivateKey);
+          hashes = await service.withdraw(operationParams, viemClients);
           break;
 
         case "withdrawcollateral":
           operationParams.assets = rawAssets;
-          hashes = await service.withdrawCollateral(
-            operationParams,
-            walletPrivateKey,
-          );
+          hashes = await service.withdrawCollateral(operationParams, viemClients);
           break;
 
         default:

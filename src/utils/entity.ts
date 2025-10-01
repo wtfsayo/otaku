@@ -9,8 +9,6 @@ import {
 export interface EntityWalletResult {
   success: true;
   walletAddress: string;
-  walletPrivateKey: string;
-  provider?: string;
   metadata?: Record<string, any>;
   chain?: string;
 }
@@ -89,8 +87,6 @@ export async function getEntityWallet(
     }
 
     const walletAddress = entity.metadata.wallet.address;
-    const walletPrivateKey = entity.metadata.wallet.privateKey;
-    const provider = entity.metadata.wallet.provider;
     const chain = entity.metadata.wallet.chain;
 
     if (!walletAddress) {
@@ -121,8 +117,6 @@ export async function getEntityWallet(
     return {
       success: true,
       walletAddress,
-      walletPrivateKey,
-      provider,
       metadata: entity.metadata.wallet,
       chain,
     };

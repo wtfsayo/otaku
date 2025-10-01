@@ -86,37 +86,24 @@ export const marketPositionsAction: Action = {
       if (!walletResult.success) {
         return walletResult.result;
       }
-      const provider = (walletResult as any).provider;
-      let walletAddress = walletResult.walletAddress as `0x${string}`;
-      const walletPrivateKey = walletResult.walletPrivateKey;
 
-      // If CDP wallet, resolve the canonical address from CDP (optional safety)
-      if (provider === "cdp") {
-        try {
-          const cdp = runtime.getService(CdpService.serviceType) as CdpService | undefined;
-          if (cdp) {
-            const acct = await cdp.getOrCreateAccount({ name: message.entityId });
-            walletAddress = acct.address as `0x${string}`;
-          }
-        } catch (e) {
-          logger.warn(
-            "CDP address resolution failed; falling back to entity metadata address",
-            e instanceof Error ? e.message : String(e),
-          );
+      let walletAddress: `0x${string}` | undefined;
+
+      try {
+        const cdp = runtime.getService(CdpService.serviceType) as CdpService | undefined;
+        if (cdp) {
+          const acct = await cdp.getOrCreateAccount({ name: message.entityId });
+          walletAddress = acct.address as `0x${string}`;
         }
+      } catch (e) {
+        logger.warn(
+          "CDP address resolution failed; falling back to entity metadata address",
+          e instanceof Error ? e.message : String(e),
+        );
       }
 
-      // Fallback for general wallets if address missing (derive from private key)
-      if (!walletAddress && walletPrivateKey) {
-        try {
-          const acc = privateKeyToAccount(walletPrivateKey as `0x${string}`);
-          walletAddress = acc.address as `0x${string}`;
-        } catch (e) {
-          logger.warn(
-            "Failed to derive address from private key",
-            e instanceof Error ? e.message : String(e),
-          );
-        }
+      if (!walletAddress) {
+        throw new Error("Wallet address not available. Please create or connect a wallet.");
       }
 
       const userText = message.content.text || "";

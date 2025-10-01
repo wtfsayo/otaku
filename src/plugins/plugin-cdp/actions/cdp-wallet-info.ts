@@ -38,17 +38,15 @@ export const cdpWalletInfo: Action = {
     }
 
     const address = wallet.walletAddress;
-    const provider = wallet.provider ?? "cdp";
     const chain = wallet.chain ?? "base";
 
     const text =
       `🏦 CDP Wallet Info\n\n` +
       `Address: \`${address}\`\n` +
-      `Provider: ${provider}\n` +
       `Chain: ${chain}`;
 
-    callback?.({ text, content: { address, provider, chain } });
-    return { text, success: true, data: { address, provider, chain } };
+    callback?.({ text, content: { address, chain } });
+    return { text, success: true, data: { address, chain } };
   },
   examples: [
     [

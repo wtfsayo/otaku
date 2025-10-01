@@ -152,8 +152,6 @@ export const tokenDeployAction: Action = {
       if (!walletResult.success) {
         return walletResult.result;
       }
-      const walletPrivateKey = walletResult.walletPrivateKey;
-      const walletProvider = walletResult.provider;
 
       // Get services
       const clankerService = runtime.getService(
@@ -201,23 +199,18 @@ export const tokenDeployAction: Action = {
       let walletClient: any;
       let publicClient: any;
 
-      if (walletProvider === "cdp") {
-        const cdpService: any = runtime.getService("CDP_SERVICE" as any);
-        if (!cdpService || typeof cdpService.getViemClientsForAccount !== "function") {
-          throw new Error("CDP not available");
-        }
-        const viemClient = await cdpService.getViemClientsForAccount({
-          accountName: message.entityId,
-          network: "base",
-        });
-        walletClient = viemClient.walletClient;
-        publicClient = viemClient.publicClient;
-      } else {
-        const rpcUrl = process.env.BASE_RPC_URL || "https://mainnet.base.org";
-        const account = privateKeyToAccount(walletPrivateKey as `0x${string}`);
-        publicClient = createPublicClient({ chain: base, transport: http(rpcUrl) });
-        walletClient = createWalletClient({ account, chain: base, transport: http(rpcUrl) });
+      
+      const cdpService: any = runtime.getService("CDP_SERVICE" as any);
+      if (!cdpService || typeof cdpService.getViemClientsForAccount !== "function") {
+        throw new Error("CDP not available");
       }
+      const viemClient = await cdpService.getViemClientsForAccount({
+        accountName: message.entityId,
+        network: "base",
+      });
+      walletClient = viemClient.walletClient;
+      publicClient = viemClient.publicClient;
+     
 
       const result = await clankerService.deployTokenWithClient(
         {
