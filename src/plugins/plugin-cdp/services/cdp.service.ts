@@ -15,10 +15,7 @@ import { type CdpSwapNetwork } from "../types";
 const cdpConfigSchema = z.object({
   apiKeyId: z.string().min(1, "COINBASE_API_KEY_NAME must be a non-empty string"),
   apiKeySecret: z.string().min(1, "COINBASE_PRIVATE_KEY must be a non-empty string"),
-  walletSecret: z
-    .string()
-    .regex(/^[0-9a-fA-F]{64,}$/, "COINBASE_WALLET_SECRET must be a hex string of at least 64 characters (32 bytes)")
-    .min(64, "COINBASE_WALLET_SECRET must be at least 64 characters long"),
+  walletSecret: z.string().min(1, "COINBASE_WALLET_SECRET must be a non-empty string"),
 });
 
 type CdpConfig = z.infer<typeof cdpConfigSchema>;
@@ -43,8 +40,8 @@ export class CdpService extends Service {
 
   private async initClient(): Promise<void> {
     try {
-      const apiKeyId = process.env.COINBASE_API_KEY_NAME;
-      const apiKeySecret = process.env.COINBASE_PRIVATE_KEY;
+      const apiKeyId = process.env.COINBASE_API_KEY_NAME || process.env.CDP_API_KEY_ID;
+      const apiKeySecret = process.env.COINBASE_PRIVATE_KEY || process.env.CDP_API_KEY_SECRET;
       const walletSecret = process.env.COINBASE_WALLET_SECRET;
 
       if (!apiKeyId || !apiKeySecret) {
