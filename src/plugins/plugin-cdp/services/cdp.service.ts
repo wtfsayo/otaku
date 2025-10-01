@@ -109,6 +109,15 @@ export class CdpService extends Service {
     return this.client;
   }
 
+  /**
+   * Execute a swap using the all-in-one account.swap() pattern.
+   * This method handles everything automatically:
+   * - Creates swap quote
+   * - Handles token approvals (including Permit2)
+   * - Executes the swap
+   * 
+   * Reference: https://docs.cdp.coinbase.com/trade-api/quickstart#3-execute-a-swap
+   */
   async swap(options: {
     accountName: string;
     network: CdpSwapNetwork;
@@ -123,11 +132,11 @@ export class CdpService extends Service {
 
     const account = await this.getOrCreateAccount({ name: options.accountName });
     
-    logger.debug(`CDP account: ${JSON.stringify(account)}`);
+    logger.debug(`CDP account address: ${account.address}`);
+    logger.info(`Executing all-in-one swap: ${options.fromAmount.toString()} tokens on ${options.network}`);
     
-    // Step 1: Create a swap quote (handles permit2 setup)
-    logger.debug("Creating swap quote...");
-    const swapQuote = await account.quoteSwap({
+    // Use the all-in-one swap pattern - handles quote, approvals, and execution
+    const result = await account.swap({
       network: options.network,
       fromToken: options.fromToken,
       toToken: options.toToken,
@@ -135,17 +144,7 @@ export class CdpService extends Service {
       slippageBps: options.slippageBps ?? 100,
     });
 
-    logger.debug(`Swap quote created: ${JSON.stringify(swapQuote)}`);
-    
-    if (!swapQuote.liquidityAvailable) {
-      throw new Error("Insufficient liquidity available for this swap");
-    }
-
-    // Step 2: Execute the swap quote
-    logger.debug("Executing swap quote...");
-    const result = await swapQuote.execute();
-
-    logger.debug(`CDP swap result: ${JSON.stringify(result)}`);
+    logger.info(`Swap executed successfully - transaction hash: ${result.transactionHash}`);
 
     if (!result.transactionHash) {
       throw new Error("Swap execution did not return a transaction hash");

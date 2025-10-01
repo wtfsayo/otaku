@@ -140,16 +140,17 @@ const resolveTokenToAddress = async (
 };
 
 /**
- * Note: According to CDP Trade API documentation, swaps should use a two-step quote-based approach:
- * 1. Create a swap quote using account.quoteSwap()
- * 2. Execute the quote using swapQuote.execute()
+ * Note: According to CDP Trade API documentation, the all-in-one swap pattern is recommended:
  * 
- * This approach properly handles permit2 setup and ensures liquidity is available before execution.
+ * account.swap() handles everything automatically:
+ * - Creates swap quote
+ * - Handles token approvals (including Permit2)
+ * - Executes the swap
  * 
  * From the official docs:
- * "Creating a swap quote may reserve funds onchain. This action is strictly rate-limited."
+ * "You can also create and execute a swap in a single call using account.swap()."
  * 
- * Reference: https://docs.cdp.coinbase.com/trade-api/quickstart#1-estimate-a-swap-price
+ * Reference: https://docs.cdp.coinbase.com/trade-api/quickstart#3-execute-a-swap
  */
 
 export const cdpWalletSwap: Action = {
@@ -265,11 +266,11 @@ export const cdpWalletSwap: Action = {
 
       logger.info(`Executing CDP swap: network=${swapParams.network}, fromToken=${fromToken}, toToken=${toToken}, amount=${swapParams.amount}, slippageBps=${swapParams.slippageBps}`);
 
-      // Note: CDP service uses quoteSwap() followed by execute() to handle permit2 properly
-      // This two-step approach ensures liquidity is available and handles token approvals
-      logger.info("CDP service will create quote and execute swap (handles permit2 and approvals)");
+      // Note: CDP service uses the all-in-one account.swap() pattern
+      // This automatically handles: quote creation, token approvals (Permit2), and execution
+      logger.info("CDP service will execute all-in-one swap (handles quote, approvals, and execution)");
 
-      // Execute the swap using CDP service (quote + execute pattern)
+      // Execute the swap using CDP service (all-in-one pattern)
       logger.debug(`Calling CDP service swap method with params: ${JSON.stringify({
         accountName: message.entityId,
         network: swapParams.network,
