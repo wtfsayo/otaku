@@ -9,7 +9,19 @@ import {
 } from "viem";
 import { toAccount } from "viem/accounts";
 import { base, baseSepolia } from "viem/chains";
+import { z } from "zod";
 import { type CdpSwapNetwork } from "../types";
+
+const cdpConfigSchema = z.object({
+  apiKeyId: z.string().min(1, "COINBASE_API_KEY_NAME must be a non-empty string"),
+  apiKeySecret: z.string().min(1, "COINBASE_PRIVATE_KEY must be a non-empty string"),
+  walletSecret: z
+    .string()
+    .regex(/^[0-9a-fA-F]{64,}$/, "COINBASE_WALLET_SECRET must be a hex string of at least 64 characters (32 bytes)")
+    .min(64, "COINBASE_WALLET_SECRET must be at least 64 characters long"),
+});
+
+type CdpConfig = z.infer<typeof cdpConfigSchema>;
 
 export class CdpService extends Service {
   static serviceType = "CDP_SERVICE";
@@ -31,9 +43,9 @@ export class CdpService extends Service {
 
   private async initClient(): Promise<void> {
     try {
-      const apiKeyId = process.env.COINBASE_API_KEY_NAME as string;
-      const apiKeySecret = process.env.COINBASE_PRIVATE_KEY as string;
-      const walletSecret = process.env.COINBASE_WALLET_SECRET as string;
+      const apiKeyId = process.env.COINBASE_API_KEY_NAME;
+      const apiKeySecret = process.env.COINBASE_PRIVATE_KEY;
+      const walletSecret = process.env.COINBASE_WALLET_SECRET;
 
       if (!apiKeyId || !apiKeySecret) {
         logger.warn(
@@ -43,22 +55,39 @@ export class CdpService extends Service {
         return;
       }
 
-      // walletSecret is optional - if not provided, CDP will use server-signer mode
-      const config: {
-        apiKeyId: string;
-        apiKeySecret: string;
-        walletSecret?: string;
-      } = {
-        apiKeyId,
-        apiKeySecret,
-      };
-
-      if (walletSecret) {
-        config.walletSecret = walletSecret;
+      if (!walletSecret) {
+        logger.warn(
+          "CDP_SERVICE: COINBASE_WALLET_SECRET is required for wallet operations. Generate one with: openssl rand -hex 32",
+        );
+        this.client = null;
+        return;
       }
 
-      this.client = new CdpClient(config);
-      logger.info("CDP_SERVICE initialized" + (walletSecret ? " with wallet secret" : " in server-signer mode"));
+      // Validate configuration with Zod schema
+      const validationResult = cdpConfigSchema.safeParse({
+        apiKeyId,
+        apiKeySecret,
+        walletSecret,
+      });
+
+      if (!validationResult.success) {
+        const errors = validationResult.error.issues
+          .map((issue: z.ZodIssue) => `${issue.path.join(".")}: ${issue.message}`)
+          .join("; ");
+        logger.error(`CDP_SERVICE: Configuration validation failed - ${errors}`);
+        this.client = null;
+        return;
+      }
+
+      const config: CdpConfig = validationResult.data;
+
+      this.client = new CdpClient({
+        apiKeyId: config.apiKeyId,
+        apiKeySecret: config.apiKeySecret,
+        walletSecret: config.walletSecret,
+      });
+      
+      logger.info("CDP_SERVICE initialized successfully with validated configuration");
     } catch (error) {
       logger.error("CDP_SERVICE init error:", error);
       this.client = null;

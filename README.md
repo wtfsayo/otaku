@@ -28,6 +28,7 @@ Meet **Otaku**, a specialized DeFi and portfolio analysis AI agent built on Eliz
 
 ### 💰 Wallet Management
 - **Multi-Chain Wallets**: Create and manage Ethereum wallets across multiple EVM chains
+- **Coinbase CDP Wallets**: Create secure, MPC-based wallets using Coinbase Developer Platform
 - **Balance Tracking**: Check ETH and token balances across different networks
 - **Secure Operations**: Private key generation and secure transaction signing
 - **Address Validation**: Smart contract and EOA address verification
@@ -97,6 +98,11 @@ bun install
 EVM_PRIVATE_KEY=your-wallet-private-key
 BASE_RPC_URL=https://mainnet.base.org
 
+# Coinbase CDP (Developer Platform) - Required for CDP wallet operations
+COINBASE_API_KEY_NAME=your-cdp-api-key-name
+COINBASE_PRIVATE_KEY=your-cdp-private-key
+COINBASE_WALLET_SECRET=your-wallet-secret-hex-string  # Generate with: openssl rand -hex 32
+
 # Optional: AI Model APIs
 OPENAI_API_KEY=your-openai-key
 ANTHROPIC_API_KEY=your-anthropic-key
@@ -111,6 +117,30 @@ TELEGRAM_BOT_TOKEN=your-telegram-bot-token
 MORPHO_API_KEY=your-morpho-api-key
 CLANKER_API_URL=https://api.clanker.com
 ```
+
+### Setting Up Coinbase CDP Wallet
+
+The `COINBASE_WALLET_SECRET` is **required** for creating and managing wallets through the Coinbase Developer Platform. This secret is used for multi-party computation (MPC) key management.
+
+**Generate a secure wallet secret:**
+```bash
+# Using OpenSSL (recommended)
+openssl rand -hex 32
+
+# Or using Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Copy the generated hex string and add it to your `.env` file:
+```bash
+COINBASE_WALLET_SECRET=<your_generated_hex_string>
+```
+
+**Important Notes:**
+- The wallet secret must be a hex-encoded string (64+ characters)
+- Keep this secret secure - it's used for wallet authentication
+- Do NOT commit this secret to version control
+- Coinbase CDP uses MPC (Multi-Party Computation) for enhanced security
 
 ### Quick Start
 ```bash
@@ -161,10 +191,15 @@ bun run test
 # Create wallets
 "Create a new Ethereum wallet"
 "Create a Base wallet"
+"Create a CDP wallet for me"  # Coinbase Developer Platform wallet
+
+# Wallet information
+"Show my CDP wallet info"
+"Check my wallet balance"
+"List my wallets"
 
 # Import existing wallets  
 "Import wallet with private key 0x..."
-"List my wallets"
 ```
 
 ### Market Analysis
@@ -187,11 +222,13 @@ bun run test
 #### Plugins
 - **Bootstrap Plugin**: Core message handling and action coordination
 - **Clanker Plugin**: Token deployment and management on Base L2
+- **CDP Plugin**: Coinbase Developer Platform integration for MPC wallet management
 - **EVM Plugin**: Multi-chain wallet operations and cross-chain bridging
 - **Morpho Plugin**: Advanced DeFi lending and yield optimization
 - **Eth Wallet Plugin**: Secure wallet creation and management
 
 #### Services
+- **CdpService**: Manages Coinbase Developer Platform authentication and wallet operations
 - **ClankerService**: Interfaces with Clanker SDK for token operations
 - **MorphoService**: Integrates with Morpho Blue protocol via official SDK
 - **WalletService**: Manages multi-chain wallet operations and transactions
@@ -266,6 +303,7 @@ src/
 ├── index.ts             # Main agent entry point
 ├── plugins/             # Specialized plugin modules
 │   ├── plugin-bootstrap/    # Core message handling
+│   ├── plugin-cdp/         # Coinbase Developer Platform
 │   ├── plugin-clanker/     # Token deployment
 │   ├── plugin-evm/         # Multi-chain operations
 │   ├── plugin-morpho/      # DeFi lending
