@@ -39,6 +39,7 @@ Extract the swap details from the user's request. If any detail is missing, use 
 - Only use contract addresses if explicitly provided by the user or if it's a well-known token
 - Common tokens on Base: USDC, WETH, DAI, BNKR, ETH
 - Common tokens on Ethereum: USDC, WETH, DAI
+- **For "all", "max", "full balance", or "entire balance" requests, use "MAX" as the amount**
 
 Respond with the swap parameters in this exact format:
 <swapParams>
@@ -253,6 +254,75 @@ export const cdpWalletSwap: Action = {
       const decimals = await getTokenDecimals(fromToken, swapParams.network);
       logger.debug(`Token decimals: ${decimals}`);
 
+      // Handle "MAX" amount - fetch token balance using same logic as CDP_WALLET_BALANCE action
+      let amountToSwap = swapParams.amount;
+      if (swapParams.amount.toUpperCase() === "MAX") {
+        logger.info("MAX amount detected, fetching token balance...");
+        const account = await cdpService.getOrCreateAccount({ name: message.entityId });
+        const balancesResponse = await account.listTokenBalances({ network: swapParams.network as any });
+        const rows = balancesResponse?.balances || [];
+        
+        if (!rows.length) {
+          logger.error(`No token balances found on ${swapParams.network}`);
+          throw new Error(`No token balances found in your wallet. Please check your wallet balance first.`);
+        }
+
+        // Helper to convert values to integer strings (same as balance action)
+        const toIntegerString = (v: unknown): string => {
+          if (typeof v === "bigint") return v.toString();
+          if (typeof v === "number") return Math.trunc(v).toString();
+          if (typeof v === "string") return v;
+          return "0";
+        };
+
+        // Helper to format units (same as balance action)
+        const formatUnits = (amountInBaseUnits: string, decimals: number): string => {
+          if (!/^-?\d+$/.test(amountInBaseUnits)) return amountInBaseUnits;
+          const negative = amountInBaseUnits.startsWith("-");
+          const digits = negative ? amountInBaseUnits.slice(1) : amountInBaseUnits;
+          const d = Math.max(0, decimals | 0);
+          if (d === 0) return (negative ? "-" : "") + digits;
+          const padded = digits.padStart(d + 1, "0");
+          const i = padded.length - d;
+          let head = padded.slice(0, i);
+          let tail = padded.slice(i);
+          // trim trailing zeros on fractional part
+          tail = tail.replace(/0+$/, "");
+          if (tail.length === 0) return (negative ? "-" : "") + head;
+          // trim leading zeros on integer part
+          head = head.replace(/^0+(?=\d)/, "");
+          return (negative ? "-" : "") + head + "." + tail;
+        };
+        
+        // Find the balance for the from token (same pattern as balance action)
+        const tokenBalance = rows.find((b: any) => {
+          const address = (b?.token?.contractAddress || b?.token?.address || "").toLowerCase();
+          return address === fromToken.toLowerCase();
+        });
+
+        if (!tokenBalance) {
+          logger.error(`Token ${fromToken} not found in wallet balances on ${swapParams.network}`);
+          throw new Error(`No balance found for the token you're trying to swap. Please check your wallet balance first.`);
+        }
+
+        // Extract raw amount and decimals (same as balance action)
+        const raw = toIntegerString(tokenBalance?.amount?.amount ?? tokenBalance?.amount ?? "0");
+        const tokenDecimals = ((tokenBalance?.amount as any)?.decimals ?? (tokenBalance?.token as any)?.decimals ?? decimals) as number;
+        
+        logger.info(`Found token balance: ${raw} (${tokenDecimals} decimals)`);
+        
+        // Check if balance is zero or negative
+        const balanceInWei = BigInt(raw);
+        if (balanceInWei <= 0n) {
+          logger.error(`Zero or negative balance for token ${fromToken}: ${raw}`);
+          throw new Error(`You have zero balance for this token. Cannot swap.`);
+        }
+        
+        // Format to human-readable amount (same as balance action)
+        amountToSwap = formatUnits(raw, tokenDecimals);
+        logger.info(`Using MAX balance: ${amountToSwap} (validated non-zero)`);
+      }
+
       // Parse amount to wei using correct decimals
       const parseUnits = (value: string, decimals: number): bigint => {
         const [integer, fractional = ""] = value.split(".");
@@ -260,7 +330,7 @@ export const cdpWalletSwap: Action = {
         return BigInt(integer + paddedFractional);
       };
 
-      const amountInWei = parseUnits(swapParams.amount, decimals);
+      const amountInWei = parseUnits(amountToSwap, decimals);
       logger.debug(`Amount in wei: ${amountInWei.toString()}`);
 
       logger.info(`Executing CDP swap: network=${swapParams.network}, fromToken=${fromToken}, toToken=${toToken}, amount=${swapParams.amount}, slippageBps=${swapParams.slippageBps}`);
@@ -292,7 +362,7 @@ export const cdpWalletSwap: Action = {
       logger.info("CDP swap executed successfully");
       logger.debug(`Swap result: ${JSON.stringify(result)}`);
 
-      const successText = `✅ Successfully swapped ${swapParams.amount} tokens on ${swapParams.network}\n` +
+      const successText = `✅ Successfully swapped ${amountToSwap} tokens on ${swapParams.network}\n` +
                          `Transaction Hash: ${result.transactionHash}\n` +
                          `From: ${fromToken}\n` +
                          `To: ${toToken}`;
@@ -306,7 +376,7 @@ export const cdpWalletSwap: Action = {
           network: swapParams.network,
           fromToken,
           toToken,
-          amount: swapParams.amount,
+          amount: amountToSwap,
         },
       });
 
@@ -319,7 +389,7 @@ export const cdpWalletSwap: Action = {
           network: swapParams.network,
           fromToken,
           toToken,
-          amount: swapParams.amount,
+          amount: amountToSwap,
           slippageBps: swapParams.slippageBps,
         },
         values: {
