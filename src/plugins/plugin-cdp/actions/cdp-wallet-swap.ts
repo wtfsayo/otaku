@@ -12,6 +12,8 @@ import {
 } from "@elizaos/core";
 import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
+import { getTokenMetadata, getTokenDecimals } from "../utils/coingecko";
+import { type CdpSwapNetwork } from "../types";
 
 const swapTemplate = `# CDP Token Swap Request
 
@@ -51,7 +53,7 @@ Respond with the swap parameters in this exact format:
 </swapParams>`;
 
 interface SwapParams {
-  network: "base" | "base-sepolia" | "ethereum" | "arbitrum" | "optimism" | "polygon";
+  network: CdpSwapNetwork;
   fromToken: `0x${string}`;
   toToken: `0x${string}`;
   amount: string;
@@ -94,45 +96,35 @@ const parseSwapParams = (text: string): SwapParams | null => {
   };
 };
 
-const resolveCommonTokens = (
-  symbol: string,
+/**
+ * Resolve token to address using CoinGecko
+ * Handles both symbols and addresses
+ */
+const resolveTokenToAddress = async (
+  token: string,
   network: string
-): `0x${string}` | null => {
-  const tokens: Record<string, Record<string, `0x${string}`>> = {
-    base: {
-      USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
-      WETH: "0x4200000000000000000000000000000000000006",
-      DAI: "0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb",
-      ETH: "0x0000000000000000000000000000000000000000",
-    },
-    ethereum: {
-      USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-      WETH: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-      DAI: "0x6B175474E89094C44Da98b954EedeAC495271d0F",
-      ETH: "0x0000000000000000000000000000000000000000",
-    },
-    arbitrum: {
-      USDC: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
-      WETH: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
-      DAI: "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
-      ETH: "0x0000000000000000000000000000000000000000",
-    },
-    optimism: {
-      USDC: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
-      WETH: "0x4200000000000000000000000000000000000006",
-      DAI: "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
-      ETH: "0x0000000000000000000000000000000000000000",
-    },
-    polygon: {
-      USDC: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
-      WETH: "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
-      DAI: "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
-      MATIC: "0x0000000000000000000000000000000000000000",
-    },
-  };
-
-  const upperSymbol = symbol.toUpperCase();
-  return tokens[network]?.[upperSymbol] || null;
+): Promise<`0x${string}` | null> => {
+  const trimmedToken = token.trim();
+  
+  // If it's already a valid address, return it
+  if (trimmedToken.startsWith("0x") && trimmedToken.length === 42) {
+    return trimmedToken.toLowerCase() as `0x${string}`;
+  }
+  
+  // For native tokens
+  if (trimmedToken.toLowerCase() === "eth" || trimmedToken.toLowerCase() === "matic") {
+    return "0x0000000000000000000000000000000000000000";
+  }
+  
+  // Try to fetch from CoinGecko
+  const metadata = await getTokenMetadata(trimmedToken, network);
+  if (metadata?.address) {
+    logger.info(`Resolved ${token} to ${metadata.address} via CoinGecko`);
+    return metadata.address as `0x${string}`;
+  }
+  
+  logger.warn(`Could not resolve token ${token} on ${network}`);
+  return null;
 };
 
 export const cdpWalletSwap: Action = {
@@ -198,32 +190,31 @@ export const cdpWalletSwap: Action = {
         throw new Error("Failed to parse swap parameters from request");
       }
 
-      // Try to resolve token symbols to addresses if they're not valid addresses
-      let fromToken = swapParams.fromToken;
-      let toToken = swapParams.toToken;
+      // Resolve token symbols to addresses using CoinGecko
+      const fromTokenResolved = await resolveTokenToAddress(swapParams.fromToken, swapParams.network);
+      const toTokenResolved = await resolveTokenToAddress(swapParams.toToken, swapParams.network);
       
-      if (!fromToken.startsWith("0x") || fromToken.length !== 42) {
-        const resolved = resolveCommonTokens(fromToken.replace("0x", ""), swapParams.network);
-        if (resolved) {
-          fromToken = resolved;
-        }
+      if (!fromTokenResolved) {
+        throw new Error(`Could not resolve source token: ${swapParams.fromToken}`);
       }
-      
-      if (!toToken.startsWith("0x") || toToken.length !== 42) {
-        const resolved = resolveCommonTokens(toToken.replace("0x", ""), swapParams.network);
-        if (resolved) {
-          toToken = resolved;
-        }
+      if (!toTokenResolved) {
+        throw new Error(`Could not resolve destination token: ${swapParams.toToken}`);
       }
 
-      // Parse amount to wei (assuming 18 decimals for now, could be improved)
-      const parseUnits = (value: string, decimals: number = 18): bigint => {
+      const fromToken = fromTokenResolved;
+      const toToken = toTokenResolved;
+
+      // Get decimals for the source token from CoinGecko
+      const decimals = await getTokenDecimals(fromToken, swapParams.network);
+
+      // Parse amount to wei using correct decimals
+      const parseUnits = (value: string, decimals: number): bigint => {
         const [integer, fractional = ""] = value.split(".");
         const paddedFractional = fractional.padEnd(decimals, "0").slice(0, decimals);
         return BigInt(integer + paddedFractional);
       };
 
-      const amountInWei = parseUnits(swapParams.amount);
+      const amountInWei = parseUnits(swapParams.amount, decimals);
 
       logger.info(`Executing CDP swap: network=${swapParams.network}, fromToken=${fromToken}, toToken=${toToken}, amount=${swapParams.amount}, slippageBps=${swapParams.slippageBps}`);
 
