@@ -13,6 +13,10 @@ import {
 import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
 
+// Network types based on CDP SDK support
+type CdpSwapNetwork = "base" | "ethereum" | "arbitrum" | "optimism";
+type CdpNetwork = CdpSwapNetwork | "base-sepolia" | "ethereum-sepolia" | "ethereum-hoodi" | "polygon" | "polygon-mumbai" | "arbitrum-sepolia" | "optimism-sepolia";
+
 const swapTemplate = `# CDP Token Swap Request
 
 ## User Request
@@ -51,7 +55,7 @@ Respond with the swap parameters in this exact format:
 </swapParams>`;
 
 interface SwapParams {
-  network: "base" | "base-sepolia" | "ethereum" | "arbitrum" | "optimism" | "polygon";
+  network: CdpSwapNetwork;
   fromToken: `0x${string}`;
   toToken: `0x${string}`;
   amount: string;
