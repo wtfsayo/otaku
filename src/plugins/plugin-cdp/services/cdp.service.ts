@@ -122,6 +122,9 @@ export class CdpService extends Service {
     }
 
     const account = await this.getOrCreateAccount({ name: options.accountName });
+    
+    logger.debug(`CDP account: ${JSON.stringify(account)}`);
+    
     const result = await account.swap({
       network: options.network,
       fromToken: options.fromToken,
@@ -129,6 +132,8 @@ export class CdpService extends Service {
       fromAmount: options.fromAmount,
       slippageBps: options.slippageBps ?? 100,
     });
+
+    logger.debug(`CDP swap result: ${JSON.stringify(result)}`);
 
     return { transactionHash: result.transactionHash };
   }
