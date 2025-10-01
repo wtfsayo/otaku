@@ -10,11 +10,6 @@ import {
   composePromptFromState,
   parseKeyValueXml,
 } from "@elizaos/core";
-import {
-  type Address,
-  encodeFunctionData,
-  parseAbi,
-} from "viem";
 import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
 import { getTokenMetadata, getTokenDecimals } from "../utils/coingecko";
@@ -133,47 +128,15 @@ const resolveTokenToAddress = async (
 };
 
 /**
- * Check and handle token approval for CDP swaps if needed
- * Note: CDP SDK likely handles approvals internally, but this provides
- * explicit approval handling similar to other DEX implementations
- * Returns the spender address that was approved, or null if not needed
+ * Note: According to CDP SDK documentation, the swap method uses an "all-in-one pattern"
+ * that handles token approvals internally. This eliminates the need for manual approval steps.
+ * 
+ * From the official docs:
+ * "The SDK offers an all-in-one pattern that simplifies the swap process. This method handles 
+ * the entire swap operation, including any necessary token approvals, within a single function call."
+ * 
+ * Reference: https://coinbase.github.io/cdp-sdk/python/
  */
-const checkAndApproveToken = async (
-  cdpService: CdpService,
-  accountName: string,
-  network: CdpSwapNetwork,
-  tokenAddress: `0x${string}`,
-  requiredAmount: bigint,
-  callback?: HandlerCallback,
-): Promise<`0x${string}` | null> => {
-  // Skip approval for native tokens
-  if (tokenAddress === "0x0000000000000000000000000000000000000000") {
-    logger.info("Skipping approval for native token");
-    return null;
-  }
-
-  // Note: CDP SDK likely handles token approvals internally during the swap process
-  // This explicit approval step is added for consistency with other swap implementations
-  // and to provide better user feedback about the approval process
-  
-  try {
-    logger.info("CDP SDK typically handles token approvals internally during swaps");
-    logger.info("Skipping explicit approval step - CDP will handle if needed");
-    
-    // If we wanted to implement explicit approval checking, we would:
-    // 1. Get the CDP swap contract address for the specific network
-    // 2. Check current allowance against that contract
-    // 3. Approve if insufficient
-    // 
-    // For now, we let CDP SDK handle this internally
-    
-    return null;
-  } catch (error) {
-    logger.error("Approval check failed:", error);
-    // Don't throw here - let CDP SDK handle approvals
-    return null;
-  }
-};
 
 export const cdpWalletSwap: Action = {
   name: "CDP_WALLET_SWAP",
@@ -266,15 +229,9 @@ export const cdpWalletSwap: Action = {
 
       logger.info(`Executing CDP swap: network=${swapParams.network}, fromToken=${fromToken}, toToken=${toToken}, amount=${swapParams.amount}, slippageBps=${swapParams.slippageBps}`);
 
-      // Check and approve token if needed (for ERC20 tokens, not native tokens)
-      await checkAndApproveToken(
-        cdpService,
-        message.entityId,
-        swapParams.network,
-        fromToken,
-        amountInWei,
-        callback,
-      );
+      // Note: CDP SDK uses an "all-in-one pattern" that handles token approvals internally
+      // No manual approval step is needed as per official documentation
+      logger.info("CDP SDK will handle token approvals internally during swap execution");
 
       // Execute the swap using CDP service
       const result = await cdpService.swap({
@@ -330,10 +287,6 @@ export const cdpWalletSwap: Action = {
           errorMessage = "Swap failed due to price movement. Try increasing slippage tolerance.";
         } else if (error.message.includes("not authenticated")) {
           errorMessage = "CDP service is not authenticated. Please check your API credentials.";
-        } else if (error.message.includes("Token approval failed")) {
-          errorMessage = "Token approval failed. Please try again or check your wallet balance.";
-        } else if (error.message.includes("allowance")) {
-          errorMessage = "Token allowance check failed. Please try again.";
         } else {
           errorMessage = `Swap failed: ${error.message}`;
         }
