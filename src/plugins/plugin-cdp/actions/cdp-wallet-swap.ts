@@ -140,15 +140,14 @@ const resolveTokenToAddress = async (
 };
 
 /**
- * Note: According to CDP Trade API documentation, the all-in-one swap pattern is recommended:
+ * Note: CDP swaps require Permit2 token approval before execution.
  * 
- * account.swap() handles everything automatically:
- * - Creates swap quote
- * - Handles token approvals (including Permit2)
- * - Executes the swap
+ * The CDP service handles this in two steps:
+ * 1. Approve the token for Permit2 contract (0x000000000022D473030F116dDEE9F6B43aC78BA3)
+ * 2. Execute the swap using account.swap()
  * 
- * From the official docs:
- * "You can also create and execute a swap in a single call using account.swap()."
+ * Permit2 is a token approval contract that provides a secure way to manage
+ * ERC20 token approvals for swaps across different protocols.
  * 
  * Reference: https://docs.cdp.coinbase.com/trade-api/quickstart#3-execute-a-swap
  */
@@ -266,11 +265,12 @@ export const cdpWalletSwap: Action = {
 
       logger.info(`Executing CDP swap: network=${swapParams.network}, fromToken=${fromToken}, toToken=${toToken}, amount=${swapParams.amount}, slippageBps=${swapParams.slippageBps}`);
 
-      // Note: CDP service uses the all-in-one account.swap() pattern
-      // This automatically handles: quote creation, token approvals (Permit2), and execution
-      logger.info("CDP service will execute all-in-one swap (handles quote, approvals, and execution)");
+      // Note: CDP service will handle token approval and swap execution
+      // Step 1: Approve token for Permit2 contract
+      // Step 2: Execute the swap via account.swap()
+      logger.info("CDP service will approve token and execute swap");
 
-      // Execute the swap using CDP service (all-in-one pattern)
+      // Execute the swap using CDP service
       logger.debug(`Calling CDP service swap method with params: ${JSON.stringify({
         accountName: message.entityId,
         network: swapParams.network,
