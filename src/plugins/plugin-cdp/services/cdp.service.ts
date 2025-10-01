@@ -125,7 +125,9 @@ export class CdpService extends Service {
     
     logger.debug(`CDP account: ${JSON.stringify(account)}`);
     
-    const result = await account.swap({
+    // Step 1: Create a swap quote (handles permit2 setup)
+    logger.debug("Creating swap quote...");
+    const swapQuote = await account.quoteSwap({
       network: options.network,
       fromToken: options.fromToken,
       toToken: options.toToken,
@@ -133,7 +135,21 @@ export class CdpService extends Service {
       slippageBps: options.slippageBps ?? 100,
     });
 
+    logger.debug(`Swap quote created: ${JSON.stringify(swapQuote)}`);
+    
+    if (!swapQuote.liquidityAvailable) {
+      throw new Error("Insufficient liquidity available for this swap");
+    }
+
+    // Step 2: Execute the swap quote
+    logger.debug("Executing swap quote...");
+    const result = await swapQuote.execute();
+
     logger.debug(`CDP swap result: ${JSON.stringify(result)}`);
+
+    if (!result.transactionHash) {
+      throw new Error("Swap execution did not return a transaction hash");
+    }
 
     return { transactionHash: result.transactionHash };
   }

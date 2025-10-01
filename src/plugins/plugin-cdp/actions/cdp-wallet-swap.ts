@@ -140,14 +140,16 @@ const resolveTokenToAddress = async (
 };
 
 /**
- * Note: According to CDP SDK documentation, the swap method uses an "all-in-one pattern"
- * that handles token approvals internally. This eliminates the need for manual approval steps.
+ * Note: According to CDP Trade API documentation, swaps should use a two-step quote-based approach:
+ * 1. Create a swap quote using account.quoteSwap()
+ * 2. Execute the quote using swapQuote.execute()
+ * 
+ * This approach properly handles permit2 setup and ensures liquidity is available before execution.
  * 
  * From the official docs:
- * "The SDK offers an all-in-one pattern that simplifies the swap process. This method handles 
- * the entire swap operation, including any necessary token approvals, within a single function call."
+ * "Creating a swap quote may reserve funds onchain. This action is strictly rate-limited."
  * 
- * Reference: https://coinbase.github.io/cdp-sdk/python/
+ * Reference: https://docs.cdp.coinbase.com/trade-api/quickstart#1-estimate-a-swap-price
  */
 
 export const cdpWalletSwap: Action = {
@@ -263,11 +265,11 @@ export const cdpWalletSwap: Action = {
 
       logger.info(`Executing CDP swap: network=${swapParams.network}, fromToken=${fromToken}, toToken=${toToken}, amount=${swapParams.amount}, slippageBps=${swapParams.slippageBps}`);
 
-      // Note: CDP SDK uses an "all-in-one pattern" that handles token approvals internally
-      // No manual approval step is needed as per official documentation
-      logger.info("CDP SDK will handle token approvals internally during swap execution");
+      // Note: CDP service uses quoteSwap() followed by execute() to handle permit2 properly
+      // This two-step approach ensures liquidity is available and handles token approvals
+      logger.info("CDP service will create quote and execute swap (handles permit2 and approvals)");
 
-      // Execute the swap using CDP service
+      // Execute the swap using CDP service (quote + execute pattern)
       logger.debug(`Calling CDP service swap method with params: ${JSON.stringify({
         accountName: message.entityId,
         network: swapParams.network,
