@@ -128,78 +128,37 @@ export class CdpService extends Service {
     if (!this.client) {
       throw new Error("CDP is not authenticated");
     }
-
-    const account = await this.getOrCreateAccount({ name: options.accountName });
-    
-    logger.debug(`CDP account address: ${account.address}`);
-    logger.info(`Executing swap: ${options.fromAmount.toString()} tokens on ${options.network}`);
-    
-    // Permit2 contract address (same on all networks)
-    const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3" as `0x${string}`;
-    
-    // Step 1: Approve token for Permit2 contract (skip if it's native token)
-    if (options.fromToken.toLowerCase() !== "0x0000000000000000000000000000000000000000") {
-      logger.info("Approving token for Permit2 contract...");
-      
-      try {
-        // Get viem wallet client for this account
-        const { walletClient } = await this.getViemClientsForAccount({
-          accountName: options.accountName,
-          network: options.network === "base" ? "base" : "base-sepolia",
-        });
-        
-        // ERC20 approve ABI
-        const approveAbi = [{
-          name: "approve",
-          type: "function",
-          stateMutability: "nonpayable",
-          inputs: [
-            { name: "spender", type: "address" },
-            { name: "amount", type: "uint256" }
-          ],
-          outputs: [{ type: "bool" }]
-        }] as const;
-        
-        // Send approval transaction using viem
-        const approvalHash = await walletClient.writeContract({
-          address: options.fromToken,
-          abi: approveAbi,
-          functionName: "approve",
-          args: [
-            PERMIT2_ADDRESS,
-            // Approve max uint256 for convenience (standard practice)
-            BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
-          ],
-          chain: walletClient.chain,
-        } as any);
-        
-        logger.info(`Token approval sent: ${approvalHash}`);
-        
-        // Wait for approval to be mined
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      } catch (approvalError) {
-        logger.warn("Approval may have failed or was already granted:", approvalError);
-        // Continue anyway - approval might already exist
-      }
-    }
     
     // Step 2: Execute the swap
     logger.info("Executing swap transaction...");
-    const result = await account.swap({
+  
+    const account = await this.client.evm.getOrCreateAccount({ name: options.accountName });
+
+    const swapQuote = await account.quoteSwap({
       network: options.network,
-      fromToken: options.fromToken,
       toToken: options.toToken,
+      fromToken: options.fromToken,
       fromAmount: options.fromAmount,
       slippageBps: options.slippageBps ?? 100,
     });
+    
+    if (!swapQuote.liquidityAvailable) {
+      throw new Error("Swap liquidity unavailable for the requested pair/amount");
+    }
 
-    logger.info(`Swap executed successfully - transaction hash: ${result.transactionHash}`);
+    console.log(`Expected output: ${swapQuote.toAmount}`);
+    console.log(`Minimum output: ${swapQuote.minToAmount}`);
 
-    if (!result.transactionHash) {
+    const execResult = await swapQuote.execute();
+    const { transactionHash } = execResult;
+
+    console.log(`Swap executed: ${transactionHash}`);
+
+    if (!transactionHash) {
       throw new Error("Swap execution did not return a transaction hash");
     }
 
-    return { transactionHash: result.transactionHash };
+    return { transactionHash };
   }
 
   /**
