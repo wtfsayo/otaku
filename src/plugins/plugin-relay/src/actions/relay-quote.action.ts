@@ -395,7 +395,7 @@ function formatQuoteResponse(
 
 **Price Impact:** ${totalImpact}%
 
-The quote is ready for execution. Would you like to proceed with the bridge?
+The quote is ready for execution.
   `.trim();
 }
 

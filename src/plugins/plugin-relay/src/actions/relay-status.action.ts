@@ -1,6 +1,7 @@
 import {
   type Action,
   type IAgentRuntime,
+  logger,
   type Memory,
   type State,
   type HandlerCallback,
@@ -23,7 +24,7 @@ const parseStatusParams = (text: string): StatusParams | null => {
   
   // At least one identifier must be provided
   if (!parsed?.requestId && !parsed?.txHash && !parsed?.user) {
-    console.warn(`Missing status identifiers: ${JSON.stringify({ parsed })}`);
+    logger.warn(`Missing status identifiers: ${JSON.stringify({ parsed })}`);
     return null;
   }
 
@@ -51,7 +52,6 @@ Respond with the status parameters in this exact format:
 <statusParams>
 <requestId></requestId>
 <txHash></txHash>
-<user></user>
 </statusParams>`;
 
 export const relayStatusAction: Action = {
@@ -79,9 +79,12 @@ export const relayStatusAction: Action = {
 
     const text = message.content.text?.toLowerCase();
     const hasKeyword = keywords.some(keyword => text?.includes(keyword));
-    const hasIdentifier = /0x[a-fA-F0-9]{64}/.test(text || "") || /request|id/i.test(text || "");
+    const hasIdentifier = /0x[a-fA-F0-9]{64}/.test(text || "") || /request|id|pending/i.test(text || "");
 
-    return hasKeyword && hasIdentifier;
+    // Also validate if this is being called as a follow-up action after a bridge
+    const recentBridgeAction = state?.recentActions?.includes("EXECUTE_RELAY_BRIDGE");
+
+    return (hasKeyword && hasIdentifier) || recentBridgeAction;
   },
 
   handler: async (
@@ -99,19 +102,75 @@ export const relayStatusAction: Action = {
         throw new Error("Relay service not initialized");
       }
 
-      // Compose state and get status parameters from LLM
-      const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
-      const context = composePromptFromState({
-        state: composedState,
-        template: statusTemplate,
-      });
+      let statusParams: StatusParams | null = null;
 
-      // Extract status parameters using LLM
-      const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt: context,
-      });
-      
-      const statusParams = parseStatusParams(xmlResponse);
+      // First, check if requestId and txHashes are available from previous action (bridge completion)
+      // Check multiple possible locations where the data might be passed
+      const bridgeData = options?.data || 
+                         message.content?.data || 
+                         (state as any)?.lastActionResult?.data ||
+                         (state as any)?.recentMessages?.[0]?.content?.data;
+                         
+      if (bridgeData && typeof bridgeData === 'object') {
+        const requestId = bridgeData.requestId as string;
+        const txHashes = bridgeData.txHashes as Array<{ txHash: string; chainId: number }>;
+        
+        // If requestId is "pending" or not available, try using transaction hash
+        if (requestId && requestId !== 'pending') {
+          logger.info(`Using requestId from bridge action: ${requestId}`);
+          statusParams = {
+            requestId,
+          };
+        } else if (txHashes && txHashes.length > 0) {
+          // Use the first transaction hash (origin chain)
+          logger.info(`RequestId is pending, using tx hash: ${txHashes[0].txHash}`);
+          statusParams = {
+            txHash: txHashes[0].txHash,
+          };
+        } else if (requestId === 'pending') {
+          logger.warn('RequestId is pending and no transaction hashes available');
+          statusParams = {
+            requestId: 'pending',
+          };
+        }
+      }
+
+      // Try to find in recent messages if not found yet
+      if (!statusParams) {
+        const recentMessages = (state as any)?.recentMessages || [];
+        for (const msg of recentMessages) {
+          if (msg?.content?.data?.requestId && msg.content.data.requestId !== 'pending') {
+            logger.info(`Found requestId in recent message: ${msg.content.data.requestId}`);
+            statusParams = {
+              requestId: msg.content.data.requestId as string,
+            };
+            break;
+          }
+          // Also check for tx hashes
+          if (msg?.content?.data?.txHashes && msg.content.data.txHashes.length > 0) {
+            logger.info(`Found tx hash in recent message: ${msg.content.data.txHashes[0].txHash}`);
+            statusParams = {
+              txHash: msg.content.data.txHashes[0].txHash,
+            };
+            break;
+          }
+        }
+      }
+
+      // If no direct requestId, try to extract from message using LLM
+      if (!statusParams) {
+        const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
+        const context = composePromptFromState({
+          state: composedState,
+          template: statusTemplate,
+        });
+
+        const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+          prompt: context,
+        });
+        
+        statusParams = parseStatusParams(xmlResponse);
+      }
       
       if (!statusParams) {
         throw new Error("Failed to parse status parameters from request. Please provide a request ID, transaction hash, or user address.");

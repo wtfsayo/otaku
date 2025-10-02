@@ -218,8 +218,12 @@ export class RelayService extends Service {
       });
 
       // Extract request ID from the execution result
+      // Log the full result structure for debugging
+      logger.debug(`Execute result structure: ${JSON.stringify(Object.keys(result || {}))}`);
+      
       const requestId = (result as RelayExecuteResult)?.data?.request?.id ||
         (result as RelayExecuteResult)?.requestId ||
+        (result as any)?.id ||
         "pending";
 
       logger.info(`Bridge executed successfully. Request ID: ${requestId}`);
@@ -286,8 +290,8 @@ export class RelayService extends Service {
 
       return requestId;
     } catch (error) {
-      console.error("Relay executeCall error:", error);
       const err = error as Error;
+      logger.error(`Relay executeCall error: ${err.message}`);
       throw new Error(`Failed to execute call: ${err.message}`);
     }
   }

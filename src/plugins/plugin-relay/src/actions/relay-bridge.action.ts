@@ -267,12 +267,37 @@ export const relayBridgeAction: Action = {
         return obj;
       };
 
+      // Track transaction hashes as they come in
+      const collectedTxHashes: Array<{ txHash: string; chainId: number }> = [];
+
       const requestId = await relayService.executeBridge(
         resolvedRequest,
         (data: ProgressData) => {
-          currentStatus = `Bridge in progress...`;
-          if (callback) {
-            callback({ text: currentStatus });
+          // Collect transaction hashes from progress updates
+          if (data.txHashes && data.txHashes.length > 0) {
+            for (const tx of data.txHashes) {
+              if (!collectedTxHashes.find(h => h.txHash === tx.txHash)) {
+                collectedTxHashes.push(tx);
+                logger.info(`Transaction hash: ${tx.txHash} on chain ${tx.chainId}`);
+              }
+            }
+          }
+
+          // Extract meaningful progress information
+          const step = data.currentStep?.description || data.currentStep?.action || 'Processing';
+          // Use currentStepItem (not items[0]) - it's the SDK's dedicated property
+          const state = data.currentStepItem?.progressState || 
+                        data.currentStepItem?.checkStatus || 
+                        data.currentStepItem?.status || 
+                        'in_progress';
+          
+          // Only send callback if there's an actual status change
+          const newStatus = `Bridge ${state}: ${step}`;
+          if (newStatus !== currentStatus) {
+            currentStatus = newStatus;
+            if (callback) {
+              callback({ text: currentStatus });
+            }
           }
         }
       );
@@ -283,11 +308,12 @@ export const relayBridgeAction: Action = {
 
       // Format response (using serializeBigInt helper defined above)
       const response: ActionResult = {
-        text: formatBridgeResponse(status, resolvedRequest, requestId),
+        text: formatBridgeResponse(status, resolvedRequest, requestId, collectedTxHashes),
         success: true,
         data: serializeBigInt({
           requestId,
           status,
+          txHashes: collectedTxHashes,
           request: {
             ...bridgeParams,
             resolvedOriginChainId: originChainId,
@@ -300,7 +326,7 @@ export const relayBridgeAction: Action = {
       if (callback) {
         callback({
           text: response.text,
-          actions: ["EXECUTE_RELAY_BRIDGE"],
+          actions: ["EXECUTE_RELAY_BRIDGE", "CHECK_RELAY_STATUS"],
           source: message.content.source,
           data: response.data,
         });
@@ -362,8 +388,13 @@ export const relayBridgeAction: Action = {
   ],
 };
 
-function formatBridgeResponse(status: RelayStatus | undefined, request: ResolvedBridgeRequest, requestId: string): string {
-  const statusEmoji = status?.status === "success" ? "✅" : status?.status === "pending" ? "⏳" : "❌";
+function formatBridgeResponse(
+  status: RelayStatus | undefined, 
+  request: ResolvedBridgeRequest, 
+  requestId: string,
+  collectedTxHashes: Array<{ txHash: string; chainId: number }> = []
+): string {
+  const statusEmoji = status?.status === "success" ? "✅" : status?.status === "pending" ? "⏳" : "⚠️";
 
   let response = `
 ${statusEmoji} **Bridge ${(status?.status || "PENDING").toUpperCase()}**
@@ -374,12 +405,31 @@ ${statusEmoji} **Bridge ${(status?.status || "PENDING").toUpperCase()}**
 **Status:** ${status?.status || "pending"}
   `.trim();
 
-  if (status?.data?.inTxs?.[0]) {
-    response += `\n\n**Origin Transaction:**\n- Hash: \`${status.data.inTxs[0].hash}\``;
+  // Show transaction hashes from status (preferred) or from collected hashes
+  const originTxHash = status?.data?.inTxs?.[0]?.hash || 
+                       collectedTxHashes.find(tx => tx.chainId === request.originChainId)?.txHash;
+  const destTxHash = status?.data?.outTxs?.[0]?.hash || 
+                     collectedTxHashes.find(tx => tx.chainId === request.destinationChainId)?.txHash;
+
+  if (originTxHash) {
+    response += `\n\n**Origin Transaction:**\n- Hash: \`${originTxHash}\`\n- Chain: ${getChainName(request.originChainId)}`;
   }
 
-  if (status?.data?.outTxs?.[0]) {
-    response += `\n\n**Destination Transaction:**\n- Hash: \`${status.data.outTxs[0].hash}\``;
+  if (destTxHash) {
+    response += `\n\n**Destination Transaction:**\n- Hash: \`${destTxHash}\`\n- Chain: ${getChainName(request.destinationChainId)}`;
+  }
+
+  // Show all collected tx hashes if there are more than origin/dest
+  if (collectedTxHashes.length > 0) {
+    const otherTxs = collectedTxHashes.filter(
+      tx => tx.txHash !== originTxHash && tx.txHash !== destTxHash
+    );
+    if (otherTxs.length > 0) {
+      response += `\n\n**Other Transactions:**`;
+      for (const tx of otherTxs) {
+        response += `\n- \`${tx.txHash}\` (Chain ${tx.chainId})`;
+      }
+    }
   }
 
   if (status?.data?.fees) {
