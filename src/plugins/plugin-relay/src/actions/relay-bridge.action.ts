@@ -1,6 +1,7 @@
 import {
   type Action,
   type IAgentRuntime,
+  logger,
   type Memory,
   type State,
   type HandlerCallback,
@@ -161,20 +162,14 @@ export const relayBridgeAction: Action = {
     state: State,
     options?: { [key: string]: unknown },
     callback?: HandlerCallback
-  ): Promise<ActionResult> => {
-    console.log("[RELAY BRIDGE] Action handler started");
-    console.log("[RELAY BRIDGE] Message text:", message.content.text);
-    
-    try {
-      // Get Relay service
-      console.log("[RELAY BRIDGE] Attempting to get Relay service with type:", RelayService.serviceType);
-      const relayService = runtime.getService<RelayService>(RelayService.serviceType);
+    ): Promise<ActionResult> => {
+      try {
+        // Get Relay service
+        const relayService = runtime.getService<RelayService>(RelayService.serviceType);
 
-      if (!relayService) {
-        console.error("[RELAY BRIDGE] Relay service not found in runtime");
-        throw new Error("Relay service not initialized");
-      }
-      console.log("[RELAY BRIDGE] Relay service retrieved successfully");
+        if (!relayService) {
+          throw new Error("Relay service not initialized");
+        }
 
       // Compose state and get bridge parameters from LLM
       console.log("[RELAY BRIDGE] Composing state for LLM extraction");
