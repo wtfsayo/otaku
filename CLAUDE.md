@@ -6,7 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## PROJECT INFORMATION
 - **Project Name:** Otaku - DeFi Analysis AI Agent
-- **Working Directory:** `/Users/studio/Documents/GitHub/wise`
 - **Git Repository:** Yes
 - **Main Branch:** main
 - **Package Manager:** Bun (required)
@@ -153,7 +152,7 @@ Services handle external API integrations and should:
 ### Provider Pattern
 Providers supply real-time context to the agent:
 - **Position Context**: Current DeFi positions and health
-- **Market Data**: Real-time prices and market metrics  
+- **Market Data**: Real-time prices and market metrics
 - **Wallet Status**: Multi-chain wallet balances and status
 
 ---
@@ -200,7 +199,7 @@ git clone <repository-url>
 cd wise
 bun install
 
-# Development workflow  
+# Development workflow
 bun run dev                    # Start development server
 bun run type-check:watch       # Run TypeScript checking in watch mode
 bun run test:watch             # Run tests in watch mode
