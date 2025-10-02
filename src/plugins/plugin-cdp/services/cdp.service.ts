@@ -210,6 +210,40 @@ export class CdpService extends Service {
   }
 
   /**
+   * Execute a token transfer via CDP account on a specified network
+   */
+  async transfer(options: {
+    accountName: string;
+    network: CdpNetwork;
+    to: `0x${string}`;
+    token: `0x${string}` | "usdc" | "eth";
+    amount: bigint;
+  }): Promise<{ transactionHash: string }> {
+    if (!this.client) {
+      throw new Error("CDP is not authenticated");
+    }
+
+    const account = await this.getOrCreateAccount({ name: options.accountName });
+    const networkAccount = await account.useNetwork(options.network);
+
+    logger.info(
+      `Executing transfer on ${options.network}: to=${options.to}, token=${options.token}, amount=${options.amount.toString()}`,
+    );
+
+    const result = await networkAccount.transfer({
+      to: options.to,
+      amount: options.amount,
+      token: options.token,
+    });
+
+    if (!result.transactionHash) {
+      throw new Error("Transfer execution did not return a transaction hash");
+    }
+
+    return { transactionHash: result.transactionHash };
+  }
+
+  /**
    * Returns viem wallet/public clients backed by a CDP EVM account.
    * Uses viem's toAccount() wrapper as per CDP SDK documentation.
    * @see https://github.com/coinbase/cdp-sdk/blob/main/typescript/README.md#sending-transactions

@@ -195,16 +195,13 @@ export const cdpWalletTransfer: Action = {
 
       logger.info(`Executing CDP transfer: network=${transferParams.network}, to=${transferParams.to}, token=${token}, amount=${transferParams.amount}`);
 
-      // Get the account and execute transfer
-      const account = await cdpService.getOrCreateAccount({ name: message.entityId });
-      
-      // Use the network-scoped account for type safety
-      const networkAccount = await account.useNetwork(transferParams.network);
-      
-      const result = await networkAccount.transfer({
+      // Execute transfer via service method (centralizes nonce/rpc handling)
+      const result = await cdpService.transfer({
+        accountName: message.entityId,
+        network: transferParams.network,
         to: transferParams.to,
-        amount,
         token,
+        amount,
       });
 
       const successText = `✅ Successfully transferred ${transferParams.amount} ${transferParams.token.toUpperCase()} on ${transferParams.network}\n` +
