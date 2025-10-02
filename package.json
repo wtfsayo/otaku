@@ -30,6 +30,7 @@
     "@coinbase/cdp-sdk": "^1.38.3",
     "@elizaos/cli": "^1.6.1",
     "@elizaos/core": "^1.6.1",
+    "@elizaos/plugin-anthropic": "^1.0.6",
     "@elizaos/plugin-bootstrap": "^1.6.1",
     "@elizaos/plugin-coinmarketcap": "1.0.1",
     "@elizaos/plugin-defillama": "^1.3.5",

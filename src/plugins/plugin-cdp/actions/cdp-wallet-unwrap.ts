@@ -96,7 +96,7 @@ export const cdpWalletUnwrap: Action = {
     "UNWRAP_WETH_CDP",
     "WETH_TO_ETH_CDP",
   ],
-  description: "Unwrap WETH to native ETH using Coinbase CDP",
+  description: "Unwrap WETH to native ETH on EVM Based Chains",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
     const text = message.content.text?.toLowerCase() || "";
     const hasUnwrapKeywords = ["unwrap", "convert weth"].some(
