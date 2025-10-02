@@ -1,29 +1,30 @@
 import {
   type Action,
-  type IAgentRuntime,
-  type Memory,
-  type State,
-  type HandlerCallback,
   type ActionResult,
   composePromptFromState,
-  parseKeyValueXml,
+  type HandlerCallback,
+  type IAgentRuntime,
+  logger,
+  type Memory,
   ModelType,
+  parseKeyValueXml,
+  type State
 } from "@elizaos/core";
-import { 
-  mainnet, 
-  base, 
-  arbitrum, 
-  polygon, 
-  optimism, 
-  zora,
+import type { Execute } from "@relayprotocol/relay-sdk";
+import {
+  arbitrum,
+  base,
   blast,
-  scroll,
+  type Chain,
   linea,
-  type Chain
+  mainnet,
+  optimism,
+  polygon,
+  scroll,
+  zora
 } from "viem/chains";
 import { RelayService } from "../services/relay.service";
-import type { Execute } from "@relayprotocol/relay-sdk";
-import { resolveTokenToAddress, getTokenDecimals } from "../utils/token-resolver";
+import { getTokenDecimals, resolveTokenToAddress } from "../utils/token-resolver";
 
 // Supported chains mapping
 const SUPPORTED_CHAINS: Record<string, Chain> = {
@@ -162,123 +163,95 @@ export const relayQuoteAction: Action = {
     return hasKeyword && hasChains;
   },
 
-  handler: async (
-    runtime: IAgentRuntime,
-    message: Memory,
-    state: State,
-    options?: { [key: string]: unknown },
-    callback?: HandlerCallback
-  ): Promise<ActionResult> => {
-    console.log("[RELAY QUOTE] Action handler started");
-    console.log("[RELAY QUOTE] Message text:", message.content.text);
-    
-    try {
-      // Get Relay service
-      console.log("[RELAY QUOTE] Attempting to get Relay service with type:", RelayService.serviceType);
-      const relayService = runtime.getService<RelayService>(RelayService.serviceType);
+    handler: async (
+      runtime: IAgentRuntime,
+      message: Memory,
+      state: State,
+      options?: { [key: string]: unknown },
+      callback?: HandlerCallback
+    ): Promise<ActionResult> => {
+      try {
+        // Get Relay service
+        const relayService = runtime.getService<RelayService>(RelayService.serviceType);
 
-      if (!relayService) {
-        console.error("[RELAY QUOTE] Relay service not found in runtime");
-        throw new Error("Relay service not initialized");
-      }
-      console.log("[RELAY QUOTE] Relay service retrieved successfully");
+        if (!relayService) {
+          throw new Error("Relay service not initialized");
+        }
 
-      // Compose state and get quote parameters from LLM
-      console.log("[RELAY QUOTE] Composing state for LLM extraction");
-      const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
-      const context = composePromptFromState({
-        state: composedState,
-        template: quoteTemplate,
-      });
+        // Compose state and get quote parameters from LLM
+        const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
+        const context = composePromptFromState({
+          state: composedState,
+          template: quoteTemplate,
+        });
 
-      // Extract quote parameters using LLM (gets chain names, not IDs)
-      console.log("[RELAY QUOTE] Calling LLM to extract parameters");
-      const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt: context,
-      });
-      console.log("[RELAY QUOTE] LLM response:", xmlResponse);
-      
-      const quoteParams = parseQuoteParams(xmlResponse);
-      console.log("[RELAY QUOTE] Parsed parameters:", JSON.stringify(quoteParams, null, 2));
-      
-            if (!quoteParams) {
-              console.error("[RELAY QUOTE] Failed to parse parameters from LLM response");
-              throw new Error("Failed to parse quote parameters from request");
-            }
+        // Extract quote parameters using LLM
+        const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+          prompt: context,
+        });
 
-            // Always derive user address from EVM_PRIVATE_KEY
-            console.log("[RELAY QUOTE] Deriving user address from EVM_PRIVATE_KEY");
-            const privateKey = runtime.getSetting("EVM_PRIVATE_KEY");
-            if (!privateKey) {
-              throw new Error("EVM_PRIVATE_KEY not set - required for quote generation");
-            }
-            const normalizedPk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
-            const { privateKeyToAccount } = await import("viem/accounts");
-            const account = privateKeyToAccount(normalizedPk as `0x${string}`);
-            const userAddress = account.address;
-            console.log("[RELAY QUOTE] Using wallet address:", userAddress);
+        const quoteParams = parseQuoteParams(xmlResponse);
 
-      // Resolve chain names to IDs
-      console.log("[RELAY QUOTE] Resolving chain names to IDs");
-      const originChainId = resolveChainNameToId(quoteParams.originChain);
-      const destinationChainId = resolveChainNameToId(quoteParams.destinationChain);
-      console.log("[RELAY QUOTE] Origin chain ID:", originChainId, "Destination chain ID:", destinationChainId);
+        if (!quoteParams) {
+          throw new Error("Failed to parse quote parameters from request");
+        }
 
-      if (!originChainId) {
-        console.error("[RELAY QUOTE] Invalid origin chain:", quoteParams.originChain);
-        throw new Error(`Unsupported origin chain: ${quoteParams.originChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`);
-      }
+        // Always derive user address from EVM_PRIVATE_KEY
+        const privateKey = runtime.getSetting("EVM_PRIVATE_KEY");
+        if (!privateKey) {
+          throw new Error("EVM_PRIVATE_KEY not set - required for quote generation");
+        }
+        const normalizedPk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
+        const { privateKeyToAccount } = await import("viem/accounts");
+        const account = privateKeyToAccount(normalizedPk as `0x${string}`);
+        const userAddress = account.address;
 
-      if (!destinationChainId) {
-        console.error("[RELAY QUOTE] Invalid destination chain:", quoteParams.destinationChain);
-        throw new Error(`Unsupported destination chain: ${quoteParams.destinationChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`);
-      }
+        // Resolve chain names to IDs
+        const originChainId = resolveChainNameToId(quoteParams.originChain);
+        const destinationChainId = resolveChainNameToId(quoteParams.destinationChain);
 
-      // Resolve token symbols to contract addresses
-      console.log("[RELAY QUOTE] Resolving token addresses");
-      const currencyAddress = await resolveTokenToAddress(quoteParams.currency, quoteParams.originChain);
-      // If toCurrency not specified, use same symbol as currency but resolve on destination chain
-      const toCurrencySymbol = quoteParams.toCurrency || quoteParams.currency;
-      const toCurrencyAddress = await resolveTokenToAddress(toCurrencySymbol, quoteParams.destinationChain);
+        if (!originChainId) {
+          throw new Error(`Unsupported origin chain: ${quoteParams.originChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`);
+        }
 
-      if (!currencyAddress) {
-        console.error("[RELAY QUOTE] Could not resolve currency:", quoteParams.currency);
-        throw new Error(`Could not resolve currency: ${quoteParams.currency} on ${quoteParams.originChain}`);
-      }
+        if (!destinationChainId) {
+          throw new Error(`Unsupported destination chain: ${quoteParams.destinationChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`);
+        }
 
-      if (!toCurrencyAddress) {
-        console.error("[RELAY QUOTE] Could not resolve destination currency:", quoteParams.toCurrency);
-        throw new Error(`Could not resolve destination currency: ${quoteParams.toCurrency} on ${quoteParams.destinationChain}`);
-      }
+        // Resolve token symbols to contract addresses
+        const currencyAddress = await resolveTokenToAddress(quoteParams.currency, quoteParams.originChain);
+        const toCurrencySymbol = quoteParams.toCurrency || quoteParams.currency;
+        const toCurrencyAddress = await resolveTokenToAddress(toCurrencySymbol, quoteParams.destinationChain);
 
-      console.log("[RELAY QUOTE] Resolved addresses:", { currencyAddress, toCurrencyAddress });
+        if (!currencyAddress) {
+          throw new Error(`Could not resolve currency: ${quoteParams.currency} on ${quoteParams.originChain}`);
+        }
 
-      // Get token decimals for proper amount conversion
-      const decimals = await getTokenDecimals(currencyAddress, quoteParams.originChain);
-      console.log("[RELAY QUOTE] Token decimals:", decimals);
+        if (!toCurrencyAddress) {
+          throw new Error(`Could not resolve destination currency: ${toCurrencySymbol} on ${quoteParams.destinationChain}`);
+        }
 
-      // Parse amount to smallest unit
-      const [integer, fractional = ""] = quoteParams.amount.split(".");
-      const paddedFractional = fractional.padEnd(decimals, "0").slice(0, decimals);
-      const amountInWei = BigInt(integer + paddedFractional);
-      console.log("[RELAY QUOTE] Amount in smallest unit:", amountInWei.toString());
+        // Get token decimals for proper amount conversion
+        const decimals = await getTokenDecimals(currencyAddress, quoteParams.originChain);
 
-            // Get quote from Relay with resolved parameters
-            console.log("[RELAY QUOTE] Requesting quote from Relay service");
-            const quoteRequest = {
-              user: userAddress,
-              chainId: originChainId,
-              toChainId: destinationChainId,
-              currency: currencyAddress,
-              toCurrency: toCurrencyAddress,
-              amount: amountInWei.toString(),
-              recipient: quoteParams.recipient || userAddress,
-              tradeType: quoteParams.tradeType ?? "EXACT_INPUT",
-            };
-            console.log("[RELAY QUOTE] Quote request:", JSON.stringify(quoteRequest, null, 2));
-      
-      const quote = await relayService.getQuote(quoteRequest);
-      console.log("[RELAY QUOTE] Quote received successfully");
+        // Parse amount to smallest unit
+        const [integer, fractional = ""] = quoteParams.amount.split(".");
+        const paddedFractional = fractional.padEnd(decimals, "0").slice(0, decimals);
+        const amountInWei = BigInt(integer + paddedFractional);
+
+        // Get quote from Relay
+        const quoteRequest = {
+          user: userAddress,
+          chainId: originChainId,
+          toChainId: destinationChainId,
+          currency: currencyAddress,
+          toCurrency: toCurrencyAddress,
+          amount: amountInWei.toString(),
+          recipient: quoteParams.recipient || userAddress,
+          tradeType: quoteParams.tradeType ?? "EXACT_INPUT",
+        };
+  
+        const quote = await relayService.getQuote(quoteRequest);
 
       // Serialize BigInt values to strings for storage
       const serializeBigInt = (obj: any): any => {
@@ -325,13 +298,10 @@ export const relayQuoteAction: Action = {
         });
       }
 
-      return response;
-    } catch (error: unknown) {
-      console.error("[RELAY QUOTE] Error occurred:", error);
-      const errorMessage = (error as Error).message;
-      const errorStack = (error as Error).stack;
-      console.error("[RELAY QUOTE] Error message:", errorMessage);
-      console.error("[RELAY QUOTE] Error stack:", errorStack);
+        return response;
+      } catch (error: unknown) {
+        const errorMessage = (error as Error).message;
+        logger.error(`Relay quote failed: ${errorMessage}`);
       
       const errorResponse: ActionResult = {
         text: `Failed to get Relay quote: ${errorMessage}`,
