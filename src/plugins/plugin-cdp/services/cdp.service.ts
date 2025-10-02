@@ -109,6 +109,14 @@ export class CdpService extends Service {
     return this.client;
   }
 
+  /**
+   * Execute a swap with automatic token approval handling.
+   * Steps:
+   * 1. Approve token for Permit2 contract (if needed)
+   * 2. Execute the swap using account.swap()
+   * 
+   * Reference: https://docs.cdp.coinbase.com/trade-api/quickstart#3-execute-a-swap
+   */
   async swap(options: {
     accountName: string;
     network: CdpSwapNetwork;
@@ -122,6 +130,61 @@ export class CdpService extends Service {
     }
 
     const account = await this.getOrCreateAccount({ name: options.accountName });
+    
+    logger.debug(`CDP account address: ${account.address}`);
+    logger.info(`Executing swap: ${options.fromAmount.toString()} tokens on ${options.network}`);
+    
+    // Permit2 contract address (same on all networks)
+    const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3" as `0x${string}`;
+    
+    // Step 1: Approve token for Permit2 contract (skip if it's native token)
+    if (options.fromToken.toLowerCase() !== "0x0000000000000000000000000000000000000000") {
+      logger.info("Approving token for Permit2 contract...");
+      
+      try {
+        // Get viem wallet client for this account
+        const { walletClient } = await this.getViemClientsForAccount({
+          accountName: options.accountName,
+          network: options.network === "base" ? "base" : "base-sepolia",
+        });
+        
+        // ERC20 approve ABI
+        const approveAbi = [{
+          name: "approve",
+          type: "function",
+          stateMutability: "nonpayable",
+          inputs: [
+            { name: "spender", type: "address" },
+            { name: "amount", type: "uint256" }
+          ],
+          outputs: [{ type: "bool" }]
+        }] as const;
+        
+        // Send approval transaction using viem
+        const approvalHash = await walletClient.writeContract({
+          address: options.fromToken,
+          abi: approveAbi,
+          functionName: "approve",
+          args: [
+            PERMIT2_ADDRESS,
+            // Approve max uint256 for convenience (standard practice)
+            BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+          ],
+          chain: walletClient.chain,
+        } as any);
+        
+        logger.info(`Token approval sent: ${approvalHash}`);
+        
+        // Wait for approval to be mined
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      } catch (approvalError) {
+        logger.warn("Approval may have failed or was already granted:", approvalError);
+        // Continue anyway - approval might already exist
+      }
+    }
+    
+    // Step 2: Execute the swap
+    logger.info("Executing swap transaction...");
     const result = await account.swap({
       network: options.network,
       fromToken: options.fromToken,
@@ -129,6 +192,12 @@ export class CdpService extends Service {
       fromAmount: options.fromAmount,
       slippageBps: options.slippageBps ?? 100,
     });
+
+    logger.info(`Swap executed successfully - transaction hash: ${result.transactionHash}`);
+
+    if (!result.transactionHash) {
+      throw new Error("Swap execution did not return a transaction hash");
+    }
 
     return { transactionHash: result.transactionHash };
   }

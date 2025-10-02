@@ -57,7 +57,9 @@ export const clankerPlugin: Plugin = {
   services: [ClankerService],
 
   // Actions that handle user commands
-  actions: [tokenDeployAction, tokenInfoAction],
+  actions: [tokenDeployAction, 
+    // tokenInfoAction
+  ],
 
   // Providers that supply context
   providers: [],
