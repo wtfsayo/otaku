@@ -349,12 +349,15 @@ export const relayBridgeAction: Action = {
         callback?.({ text: 'Bridge is still processing. Check status later with the request ID.' });
       }
 
+      // Extract actual requestId from status if available
+      const actualRequestId = status?.id || requestId;
+
       // Format response (using serializeBigInt helper defined above)
       const response: ActionResult = {
-        text: formatBridgeResponse(status, resolvedRequest, requestId, collectedTxHashes),
+        text: formatBridgeResponse(status, resolvedRequest, actualRequestId, collectedTxHashes, bridgeParams.currency),
         success: true,
         data: serializeBigInt({
-          requestId,
+          requestId: actualRequestId,
           status,
           txHashes: collectedTxHashes,
           request: {
@@ -435,16 +438,24 @@ function formatBridgeResponse(
   status: RelayStatus | undefined, 
   request: ResolvedBridgeRequest, 
   requestId: string,
-  collectedTxHashes: Array<{ txHash: string; chainId: number }> = []
+  collectedTxHashes: Array<{ txHash: string; chainId: number }> = [],
+  tokenSymbol?: string
 ): string {
   const statusEmoji = status?.status === "success" ? "✅" : status?.status === "pending" ? "⏳" : "⚠️";
+
+  // Use token symbol from status metadata if available, otherwise use provided symbol
+  const statusData = status?.data as any;
+  const symbol = statusData?.metadata?.currencyIn?.currency?.symbol || 
+                 statusData?.currency || 
+                 tokenSymbol || 
+                 'TOKEN';
 
   let response = `
 ${statusEmoji} **Bridge ${(status?.status || "PENDING").toUpperCase()}**
 
 **Request ID:** \`${requestId}\`
 **Route:** ${getChainName(request.originChainId)} → ${getChainName(request.destinationChainId)}
-**Amount:** ${formatAmount(request.amount, request.currency)}
+**Amount:** ${formatAmount(request.amount, symbol)}
 **Status:** ${status?.status || "pending"}
   `.trim();
 
