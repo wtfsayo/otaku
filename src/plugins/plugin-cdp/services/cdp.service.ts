@@ -110,14 +110,10 @@ export class CdpService extends Service {
   }
 
   /**
-   * Execute a swap using CDP SDK.
+   * Execute a swap using CDP SDK with automatic approval handling.
    * 
-   * Note: CDP SDK's account.swap() automatically handles all required steps including:
-   * - Token approval for Permit2 contract
-   * - Nonce management
-   * - Transaction signing and submission
-   * 
-   * We don't need to manually approve tokens - the SDK handles everything internally.
+   * CDP SDK checks for Permit2 approval but doesn't automatically approve.
+   * If approval is needed, we handle it manually then retry the swap.
    * 
    * Reference: https://docs.cdp.coinbase.com/trade-api/quickstart#3-execute-a-swap
    */
@@ -138,23 +134,94 @@ export class CdpService extends Service {
     logger.debug(`CDP account address: ${account.address}`);
     logger.info(`Executing swap: ${options.fromAmount.toString()} tokens on ${options.network}`);
     
-    // Execute the swap - CDP SDK handles token approval and nonce management automatically
-    logger.info("Executing swap transaction (CDP SDK will handle approvals automatically)...");
-    const result = await account.swap({
-      network: options.network,
-      fromToken: options.fromToken,
-      toToken: options.toToken,
-      fromAmount: options.fromAmount,
-      slippageBps: options.slippageBps ?? 100,
-    });
+    const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3" as `0x${string}`;
+    
+    try {
+      // Try swap first - CDP SDK will check approvals
+      logger.info("Attempting swap...");
+      const result = await account.swap({
+        network: options.network,
+        fromToken: options.fromToken,
+        toToken: options.toToken,
+        fromAmount: options.fromAmount,
+        slippageBps: options.slippageBps ?? 100,
+      });
 
-    logger.info(`Swap executed successfully - transaction hash: ${result.transactionHash}`);
+      logger.info(`Swap executed successfully - transaction hash: ${result.transactionHash}`);
 
-    if (!result.transactionHash) {
-      throw new Error("Swap execution did not return a transaction hash");
+      if (!result.transactionHash) {
+        throw new Error("Swap execution did not return a transaction hash");
+      }
+
+      return { transactionHash: result.transactionHash };
+    } catch (error) {
+      // Check if error is about token approval
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("allowance") && errorMessage.includes("Permit2")) {
+        logger.info("Token approval needed for Permit2, approving now...");
+        
+        // Get viem clients for manual approval
+        const { walletClient, publicClient } = await this.getViemClientsForAccount({
+          accountName: options.accountName,
+          network: options.network === "base" ? "base" : "base-sepolia",
+        });
+        
+        // ERC20 approve ABI
+        const approveAbi = [{
+          name: "approve",
+          type: "function",
+          stateMutability: "nonpayable",
+          inputs: [
+            { name: "spender", type: "address" },
+            { name: "amount", type: "uint256" }
+          ],
+          outputs: [{ type: "bool" }]
+        }] as const;
+        
+        // Approve max uint256 for Permit2
+        const approvalHash = await walletClient.writeContract({
+          address: options.fromToken,
+          abi: approveAbi,
+          functionName: "approve",
+          args: [
+            PERMIT2_ADDRESS,
+            BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+          ],
+          chain: walletClient.chain,
+        } as any);
+        
+        logger.info(`Permit2 approval sent: ${approvalHash}`);
+        
+        // Wait for approval confirmation
+        logger.info("Waiting for approval confirmation...");
+        const receipt = await publicClient.waitForTransactionReceipt({ 
+          hash: approvalHash,
+          timeout: 60_000,
+        });
+        logger.info(`Approval confirmed in block ${receipt.blockNumber}`);
+        
+        // Retry swap after approval
+        logger.info("Retrying swap after approval...");
+        const result = await account.swap({
+          network: options.network,
+          fromToken: options.fromToken,
+          toToken: options.toToken,
+          fromAmount: options.fromAmount,
+          slippageBps: options.slippageBps ?? 100,
+        });
+
+        logger.info(`Swap executed successfully - transaction hash: ${result.transactionHash}`);
+
+        if (!result.transactionHash) {
+          throw new Error("Swap execution did not return a transaction hash");
+        }
+
+        return { transactionHash: result.transactionHash };
+      }
+      
+      // Re-throw if not an approval error
+      throw error;
     }
-
-    return { transactionHash: result.transactionHash };
   }
 
   /**

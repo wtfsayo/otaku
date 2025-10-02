@@ -83,10 +83,9 @@ const WETH_ADDRESSES: Record<string, string> = {
 };
 
 /**
- * Native ETH address (zero address) for CDP
- * CDP uses this to represent native ETH in swaps
+ * Note: WETH unwrapping is done by calling the withdraw() function on the WETH contract,
+ * not by using CDP's swap API. WETH → ETH is a 1:1 conversion, not a DEX swap.
  */
-const NATIVE_ETH_ADDRESS = "0x0000000000000000000000000000000000000000" as `0x${string}`;
 
 export const cdpWalletUnwrap: Action = {
   name: "CDP_WALLET_UNWRAP",
@@ -170,9 +169,8 @@ export const cdpWalletUnwrap: Action = {
         throw new Error(`WETH address not configured for network ${unwrapParams.network}`);
       }
       const fromToken = wethAddress as `0x${string}`;
-      const toToken = NATIVE_ETH_ADDRESS;
       
-      logger.debug(`Unwrapping: WETH (${fromToken}) -> ETH (${toToken}) on ${unwrapParams.network}`);
+      logger.debug(`Unwrapping: WETH (${fromToken}) -> ETH on ${unwrapParams.network}`);
 
       // Get decimals for WETH (always 18 for WETH)
       logger.debug(`Fetching decimals for WETH: ${fromToken}`);
@@ -260,31 +258,53 @@ export const cdpWalletUnwrap: Action = {
 
       logger.info(`Executing CDP unwrap: network=${unwrapParams.network}, amount=${amountToUnwrap} WETH -> ETH`);
 
-      // Execute the unwrap using CDP service's swap method
-      // Unwrapping is essentially swapping WETH -> ETH (native)
-      logger.debug(`Calling CDP service swap method to unwrap WETH`);
+      // Unwrap WETH by calling the withdraw() function on the WETH contract
+      // This is a direct contract call, not a swap
+      logger.debug(`Calling WETH contract withdraw function`);
       
-      const result = await cdpService.swap({
+      // Get viem clients for the account
+      const { walletClient, publicClient } = await cdpService.getViemClientsForAccount({
         accountName: message.entityId,
-        network: unwrapParams.network,
-        fromToken,
-        toToken,
-        fromAmount: amountInWei,
-        slippageBps: 100, // 1% slippage for unwrap
+        network: unwrapParams.network === "base" ? "base" : "base-sepolia",
       });
       
-      logger.info("CDP unwrap executed successfully");
-      logger.debug(`Unwrap result: ${JSON.stringify(result)}`);
-
+      // WETH withdraw ABI
+      const wethAbi = [{
+        name: "withdraw",
+        type: "function",
+        stateMutability: "nonpayable",
+        inputs: [{ name: "amount", type: "uint256" }],
+        outputs: []
+      }] as const;
+      
+      // Send withdraw transaction
+      const txHash = await walletClient.writeContract({
+        address: fromToken,
+        abi: wethAbi,
+        functionName: "withdraw",
+        args: [amountInWei],
+        chain: walletClient.chain,
+      } as any);
+      
+      logger.info(`WETH unwrap transaction sent: ${txHash}`);
+      
+      // Wait for transaction confirmation
+      logger.info("Waiting for unwrap transaction confirmation...");
+      const receipt = await publicClient.waitForTransactionReceipt({ 
+        hash: txHash,
+        timeout: 60_000,
+      });
+      logger.info(`Unwrap confirmed in block ${receipt.blockNumber} (status: ${receipt.status})`);
+      
       const successText = `✅ Successfully unwrapped ${amountToUnwrap} WETH to ETH on ${unwrapParams.network}\n` +
-                         `Transaction Hash: ${result.transactionHash}`;
+                         `Transaction Hash: ${txHash}`;
 
       logger.debug("Sending success callback");
       callback?.({
         text: successText,
         content: {
           success: true,
-          transactionHash: result.transactionHash,
+          transactionHash: txHash,
           network: unwrapParams.network,
           amount: amountToUnwrap,
         },
@@ -295,7 +315,7 @@ export const cdpWalletUnwrap: Action = {
         text: successText,
         success: true,
         data: {
-          transactionHash: result.transactionHash,
+          transactionHash: txHash,
           network: unwrapParams.network,
           amount: amountToUnwrap,
           fromToken: "WETH",
@@ -303,7 +323,7 @@ export const cdpWalletUnwrap: Action = {
         },
         values: {
           unwrapSuccess: true,
-          transactionHash: result.transactionHash,
+          transactionHash: txHash,
         },
       };
     } catch (error) {
