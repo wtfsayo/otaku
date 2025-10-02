@@ -13,7 +13,7 @@ import {
 import { parseUnits } from "viem";
 import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
-import { getTokenMetadata, getTokenDecimals } from "../utils/coingecko";
+import { getTokenMetadata, getTokenDecimals, resolveTokenToAddress } from "../utils/coingecko";
 import { type CdpTransferNetwork } from "../types";
 
 const transferTemplate = `# CDP Token Transfer Request
@@ -86,37 +86,7 @@ const parseTransferParams = (text: string): TransferParams | null => {
   };
 };
 
-/**
- * Resolve token to address using CoinGecko
- * Handles both symbols (e.g., "USDC") and addresses (0x...)
- */
-const resolveTokenToAddress = async (
-  token: string,
-  network: string
-): Promise<string> => {
-  const trimmedToken = token.trim();
-  
-  // If it's already a valid address, return it
-  if (trimmedToken.startsWith("0x") && trimmedToken.length === 42) {
-    return trimmedToken.toLowerCase();
-  }
-  
-  // For "eth" or "ETH", return native token representation
-  if (trimmedToken.toLowerCase() === "eth") {
-    return "eth";
-  }
-  
-  // For other tokens, try to fetch from CoinGecko
-  const metadata = await getTokenMetadata(trimmedToken, network);
-  if (metadata?.address) {
-    logger.info(`Resolved ${token} to ${metadata.address} via CoinGecko`);
-    return metadata.address;
-  }
-  
-  // If not found, return as-is and let CDP handle it
-  logger.warn(`Could not resolve token ${token} on ${network}, using as-is`);
-  return trimmedToken;
-};
+// use strict resolver from utils
 
 export const cdpWalletTransfer: Action = {
   name: "CDP_WALLET_TRANSFER",
@@ -182,10 +152,14 @@ export const cdpWalletTransfer: Action = {
       }
 
       // Resolve token using CoinGecko
-      const resolvedToken = await resolveTokenToAddress(
+      const resolvedTokenOrZero = await resolveTokenToAddress(
         transferParams.token,
         transferParams.network
       );
+      if (!resolvedTokenOrZero) {
+        throw new Error(`Could not resolve token: ${transferParams.token}`);
+      }
+      const resolvedToken = resolvedTokenOrZero === "0x0000000000000000000000000000000000000000" ? "eth" : resolvedTokenOrZero;
       
       // Determine token type for CDP API
       let token: `0x${string}` | "usdc" | "eth";
@@ -200,7 +174,10 @@ export const cdpWalletTransfer: Action = {
       }
       
       // Get token decimals from CoinGecko
-      const decimals = await getTokenDecimals(resolvedToken, transferParams.network);
+      const decimals = await getTokenDecimals(
+        resolvedToken === "eth" ? "0x0000000000000000000000000000000000000000" : resolvedToken,
+        transferParams.network
+      );
       
       // Parse amount to proper units
       const amount = parseUnits(transferParams.amount, decimals);

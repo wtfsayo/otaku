@@ -223,6 +223,50 @@ export async function resolveTokenSymbol(
 }
 
 /**
+ * Resolve token to address
+ * Handles both symbols (e.g., "USDC") and addresses (0x...)
+ * For native tokens (ETH/MATIC), returns zero address
+ *
+ * IMPORTANT: Always validates addresses with CoinGecko to prevent fake/invalid addresses.
+ */
+export async function resolveTokenToAddress(
+  token: string,
+  network: string
+): Promise<`0x${string}` | null> {
+  logger.debug(`Resolving token: ${token} on network: ${network}`);
+  const trimmedToken = token.trim();
+
+  // For native tokens
+  if (trimmedToken.toLowerCase() === "eth" || trimmedToken.toLowerCase() === "matic") {
+    logger.debug(`Token ${token} is a native token, using zero address`);
+    return "0x0000000000000000000000000000000000000000";
+  }
+
+  // If it looks like an address, validate it with CoinGecko to prevent fake addresses
+  if (trimmedToken.startsWith("0x") && trimmedToken.length === 42) {
+    logger.debug(`Token ${token} looks like an address, validating with CoinGecko`);
+    const metadata = await getTokenMetadata(trimmedToken, network);
+    if (metadata?.address) {
+      logger.info(`Validated address ${token} exists on CoinGecko: ${metadata.symbol} (${metadata.name})`);
+      return metadata.address as `0x${string}`;
+    }
+    logger.warn(`Address ${token} not found on CoinGecko for network ${network} - may be fake/invalid`);
+    return null;
+  }
+
+  // Try to resolve symbol to address via CoinGecko
+  logger.debug(`Resolving token symbol from CoinGecko for ${trimmedToken}`);
+  const address = await resolveTokenSymbol(trimmedToken, network);
+  if (address) {
+    logger.info(`Resolved ${token} to ${address} via CoinGecko`);
+    return address as `0x${string}`;
+  }
+
+  logger.warn(`Could not resolve token ${token} on ${network}`);
+  return null;
+}
+
+/**
  * Get token decimals (with fallback to common values)
  * 
  * @param address - Token address

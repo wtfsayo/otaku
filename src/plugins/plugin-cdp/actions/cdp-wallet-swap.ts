@@ -35,10 +35,11 @@ Extract the swap details from the user's request. If any detail is missing, use 
 - **Default network is "base"** - only specify another network if explicitly mentioned by the user
 - You can use EITHER token symbols (USDC, BNKR, DAI) OR contract addresses (0x...)
 - If the user provides a symbol, just return the symbol as-is - the system will resolve it automatically
-- For native tokens (ETH, MATIC, etc.), use the symbol: ETH, MATIC, etc.
+- For native tokens, use the symbol: ETH (converts to WETH), MATIC (converts to WMATIC), etc.
+- **ETH is automatically converted to WETH** for CDP swaps (CDP doesn't support native ETH)
 - Only use contract addresses if explicitly provided by the user or if it's a well-known token
-- Common tokens on Base: USDC, WETH, DAI, BNKR, ETH
-- Common tokens on Ethereum: USDC, WETH, DAI
+- Common tokens on Base: USDC, WETH, DAI, BNKR, ETH (as WETH)
+- Common tokens on Ethereum: USDC, WETH, DAI, ETH (as WETH)
 - **For "all", "max", "full balance", or "entire balance" requests, use "MAX" as the amount**
 
 Respond with the swap parameters in this exact format:
@@ -73,13 +74,8 @@ const parseSwapParams = (text: string): SwapParams | null => {
   const formatTokenAddress = (token: string): string => {
     const cleaned = token.trim();
     
-    // Handle native token symbols - convert to zero address
-    const nativeTokens = ["ETH", "MATIC", "BNB"];
-    if (nativeTokens.includes(cleaned.toUpperCase())) {
-      return "0x0000000000000000000000000000000000000000";
-    }
-    
-    // Return as-is - let resolveTokenToAddress handle symbol vs address logic
+    // Don't convert to zero address - just return as-is
+    // resolveTokenToAddress will handle native token conversion to WETH
     return cleaned;
   };
 
@@ -96,10 +92,26 @@ const parseSwapParams = (text: string): SwapParams | null => {
 };
 
 /**
+ * WETH addresses for CDP swaps
+ * CDP doesn't support native ETH in swaps - must use WETH instead
+ * See: https://docs.cdp.coinbase.com/sdks/cdp-sdks-v2/typescript/evm/Actions
+ */
+const WETH_ADDRESSES: Record<string, string> = {
+  "base": "0x4200000000000000000000000000000000000006",
+  "base-sepolia": "0x4200000000000000000000000000000000000006",
+  "ethereum": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+  "ethereum-sepolia": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+  "arbitrum": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+  "optimism": "0x4200000000000000000000000000000000000006",
+  "polygon": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619", // Note: Polygon uses different WETH
+};
+
+/**
  * Resolve token to address using CoinGecko
  * Handles both symbols and addresses
  * 
- * IMPORTANT: Always validates addresses with CoinGecko to prevent fake/invalid addresses.
+ * IMPORTANT: CDP doesn't support native ETH in swaps - converts ETH to WETH automatically.
+ * Always validates addresses with CoinGecko to prevent fake/invalid addresses.
  * The LLM may generate addresses that look valid but don't exist (e.g., 0xB1a2C3d4E5f678901234567890aBcDeFAbCdEf12).
  * This function ensures only real, verified tokens are used in swaps.
  */
@@ -110,10 +122,21 @@ const resolveTokenToAddress = async (
   logger.debug(`Resolving token: ${token} on network: ${network}`);
   const trimmedToken = token.trim();
   
-  // For native tokens
-  if (trimmedToken.toLowerCase() === "eth" || trimmedToken.toLowerCase() === "matic") {
-    logger.debug(`Token ${token} is a native token, using zero address`);
-    return "0x0000000000000000000000000000000000000000";
+  // For native ETH - CDP uses WETH addresses in swaps
+  if (trimmedToken.toLowerCase() === "eth") {
+    const wethAddress = WETH_ADDRESSES[network];
+    if (wethAddress) {
+      logger.info(`Converting ETH to WETH address for ${network}: ${wethAddress}`);
+      return wethAddress as `0x${string}`;
+    }
+    logger.warn(`No WETH address configured for network ${network}`);
+  }
+  
+  // For native MATIC on Polygon - use WMATIC
+  if (trimmedToken.toLowerCase() === "matic" && network === "polygon") {
+    const wmaticAddress = "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270";
+    logger.info(`Converting MATIC to WMATIC address for Polygon: ${wmaticAddress}`);
+    return wmaticAddress as `0x${string}`;
   }
   
   // If it looks like an address, validate it with CoinGecko to prevent fake addresses
