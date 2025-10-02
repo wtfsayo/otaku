@@ -171,87 +171,68 @@ export const relayBridgeAction: Action = {
           throw new Error("Relay service not initialized");
         }
 
-      // Compose state and get bridge parameters from LLM
-      console.log("[RELAY BRIDGE] Composing state for LLM extraction");
-      const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
-      const context = composePromptFromState({
-        state: composedState,
-        template: bridgeTemplate,
-      });
+        // Compose state and get bridge parameters from LLM
+        const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
+        const context = composePromptFromState({
+          state: composedState,
+          template: bridgeTemplate,
+        });
 
-      // Extract bridge parameters using LLM (gets chain names, not IDs)
-      console.log("[RELAY BRIDGE] Calling LLM to extract parameters");
-      const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt: context,
-      });
-      console.log("[RELAY BRIDGE] LLM response:", xmlResponse);
-      
-      const bridgeParams = parseBridgeParams(xmlResponse);
-      console.log("[RELAY BRIDGE] Parsed parameters:", JSON.stringify(bridgeParams, null, 2));
-      
-            if (!bridgeParams) {
-              console.error("[RELAY BRIDGE] Failed to parse parameters from LLM response");
-              throw new Error("Failed to parse bridge parameters from request");
-            }
+        // Extract bridge parameters using LLM
+        const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
+          prompt: context,
+        });
 
-            // Always derive user address from EVM_PRIVATE_KEY
-            console.log("[RELAY BRIDGE] Deriving user address from EVM_PRIVATE_KEY");
-            const privateKey = runtime.getSetting("EVM_PRIVATE_KEY");
-            if (!privateKey) {
-              throw new Error("EVM_PRIVATE_KEY not set - required for bridge execution");
-            }
-            const normalizedPk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
-            const { privateKeyToAccount } = await import("viem/accounts");
-            const account = privateKeyToAccount(normalizedPk as `0x${string}`);
-            const userAddress = account.address;
-            console.log("[RELAY BRIDGE] Using wallet address:", userAddress);
+        const bridgeParams = parseBridgeParams(xmlResponse);
 
-      // Resolve chain names to IDs (similar to token resolution in CDP swap)
-      console.log("[RELAY BRIDGE] Resolving chain names to IDs");
-      const originChainId = resolveChainNameToId(bridgeParams.originChain);
-      const destinationChainId = resolveChainNameToId(bridgeParams.destinationChain);
-      console.log("[RELAY BRIDGE] Origin chain ID:", originChainId, "Destination chain ID:", destinationChainId);
+        if (!bridgeParams) {
+          throw new Error("Failed to parse bridge parameters from request");
+        }
 
-      if (!originChainId) {
-        console.error("[RELAY BRIDGE] Invalid origin chain:", bridgeParams.originChain);
-        throw new Error(`Unsupported origin chain: ${bridgeParams.originChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`);
-      }
+        // Always derive user address from EVM_PRIVATE_KEY
+        const privateKey = runtime.getSetting("EVM_PRIVATE_KEY");
+        if (!privateKey) {
+          throw new Error("EVM_PRIVATE_KEY not set - required for bridge execution");
+        }
+        const normalizedPk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
+        const { privateKeyToAccount } = await import("viem/accounts");
+        const account = privateKeyToAccount(normalizedPk as `0x${string}`);
+        const userAddress = account.address;
 
-      if (!destinationChainId) {
-        console.error("[RELAY BRIDGE] Invalid destination chain:", bridgeParams.destinationChain);
-        throw new Error(`Unsupported destination chain: ${bridgeParams.destinationChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`);
-      }
+        // Resolve chain names to IDs
+        const originChainId = resolveChainNameToId(bridgeParams.originChain);
+        const destinationChainId = resolveChainNameToId(bridgeParams.destinationChain);
 
-      // Resolve token symbols to contract addresses on BOTH chains
-      console.log("[RELAY BRIDGE] Resolving token addresses on origin and destination chains");
-      const currencyAddress = await resolveTokenToAddress(bridgeParams.currency, bridgeParams.originChain);
-      // Same token symbol but resolved on destination chain (e.g., USDC on Base vs USDC on Optimism)
-      const toCurrencyAddress = await resolveTokenToAddress(bridgeParams.currency, bridgeParams.destinationChain);
+        if (!originChainId) {
+          throw new Error(`Unsupported origin chain: ${bridgeParams.originChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`);
+        }
 
-      if (!currencyAddress) {
-        console.error("[RELAY BRIDGE] Could not resolve currency:", bridgeParams.currency);
-        throw new Error(`Could not resolve currency: ${bridgeParams.currency} on ${bridgeParams.originChain}`);
-      }
+        if (!destinationChainId) {
+          throw new Error(`Unsupported destination chain: ${bridgeParams.destinationChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`);
+        }
 
-      if (!toCurrencyAddress) {
-        console.error("[RELAY BRIDGE] Could not resolve destination currency:", bridgeParams.currency);
-        throw new Error(`Could not resolve currency: ${bridgeParams.currency} on ${bridgeParams.destinationChain}`);
-      }
+        // Resolve token symbols to contract addresses on BOTH chains
+        const currencyAddress = await resolveTokenToAddress(bridgeParams.currency, bridgeParams.originChain);
+        const toCurrencyAddress = await resolveTokenToAddress(bridgeParams.currency, bridgeParams.destinationChain);
 
-      console.log("[RELAY BRIDGE] Resolved currency addresses:", { origin: currencyAddress, destination: toCurrencyAddress });
+        if (!currencyAddress) {
+          throw new Error(`Could not resolve currency: ${bridgeParams.currency} on ${bridgeParams.originChain}`);
+        }
 
-      // Get token decimals for proper amount conversion
-      const decimals = await getTokenDecimals(currencyAddress, bridgeParams.originChain);
-      console.log("[RELAY BRIDGE] Token decimals:", decimals);
+        if (!toCurrencyAddress) {
+          throw new Error(`Could not resolve currency: ${bridgeParams.currency} on ${bridgeParams.destinationChain}`);
+        }
 
-      // Parse amount to smallest unit
-      const [integer, fractional = ""] = bridgeParams.amount.split(".");
-      const paddedFractional = fractional.padEnd(decimals, "0").slice(0, decimals);
-      const amountInWei = BigInt(integer + paddedFractional);
-      console.log("[RELAY BRIDGE] Amount in smallest unit:", amountInWei.toString());
+        // Get token decimals for proper amount conversion
+        const decimals = await getTokenDecimals(currencyAddress, bridgeParams.originChain);
+
+        // Parse amount to smallest unit
+        const [integer, fractional = ""] = bridgeParams.amount.split(".");
+        const paddedFractional = fractional.padEnd(decimals, "0").slice(0, decimals);
+        const amountInWei = BigInt(integer + paddedFractional);
 
       // Create resolved bridge request with chain IDs and contract addresses
-      // Create resolved bridge request - both user and recipient default to userAddress
+      // Create resolved bridge request
       const resolvedRequest: ResolvedBridgeRequest = {
         user: userAddress,
         originChainId,
@@ -264,7 +245,6 @@ export const relayBridgeAction: Action = {
         useExternalLiquidity: bridgeParams.useExternalLiquidity,
         referrer: bridgeParams.referrer,
       };
-      console.log("[RELAY BRIDGE] Resolved request:", JSON.stringify(resolvedRequest, null, 2));
 
       // Execute bridge
       let currentStatus = `Initiating bridge from ${bridgeParams.originChain} to ${bridgeParams.destinationChain}...`;
@@ -287,22 +267,15 @@ export const relayBridgeAction: Action = {
         return obj;
       };
 
-      console.log("[RELAY BRIDGE] Executing bridge transaction");
       const requestId = await relayService.executeBridge(
         resolvedRequest,
         (data: ProgressData) => {
-          try {
-            console.log("[RELAY BRIDGE] Progress update:", JSON.stringify(serializeBigInt(data), null, 2));
-          } catch (err) {
-            console.log("[RELAY BRIDGE] Progress update: (unable to serialize)", err);
-          }
           currentStatus = `Bridge in progress...`;
           if (callback) {
             callback({ text: currentStatus });
           }
         }
       );
-      console.log("[RELAY BRIDGE] Bridge executed, request ID:", requestId);
 
       // Get final status
       const statuses = await relayService.getStatus({ requestId });
@@ -333,13 +306,10 @@ export const relayBridgeAction: Action = {
         });
       }
 
-      return response;
-    } catch (error: unknown) {
-      console.error("[RELAY BRIDGE] Error occurred:", error);
-      const errorMessage = (error as Error).message;
-      const errorStack = (error as Error).stack;
-      console.error("[RELAY BRIDGE] Error message:", errorMessage);
-      console.error("[RELAY BRIDGE] Error stack:", errorStack);
+        return response;
+      } catch (error: unknown) {
+        const errorMessage = (error as Error).message;
+        logger.error(`Relay bridge failed: ${errorMessage}`);
       
       const errorResponse: ActionResult = {
         text: `Failed to execute bridge: ${errorMessage}`,

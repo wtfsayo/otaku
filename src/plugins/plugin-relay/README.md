@@ -52,17 +52,27 @@ Add the following environment variables to your `.env` file:
 EVM_PRIVATE_KEY=your-wallet-private-key
 
 # Optional
-RELAY_API_KEY=your-relay-api-key  # For higher rate limits and priority support
-RELAY_ENABLE_TESTNET=false        # Set to 'true' to use testnet (default: false)
+RELAY_API_KEY=your-relay-api-key     # For higher rate limits and priority support
+RELAY_ENABLE_TESTNET=false           # Set to 'true' to use testnet (default: false)
+EVM_RPC_URL=your-rpc-url             # Custom RPC URL (optional)
+BASE_RPC_URL=https://mainnet.base.org # Fallback RPC URL (optional)
 ```
+
+**Note on Wallet Configuration:**
+- The plugin uses a multi-chain wallet that dynamically switches between chains
+- Wallet automatically derives from `EVM_PRIVATE_KEY`
+- No need to manually configure wallet for each chain
+- Chain-specific RPC URLs are provided by default for all supported chains
 
 **Production Requirements:**
 - ✅ `EVM_PRIVATE_KEY`: Required for executing transactions
 - ✅ Latest SDK: Using `@relayprotocol/relay-sdk` v2.4.6+
 - ✅ Error Handling: Comprehensive validation and error handling implemented
 - ✅ Type Safety: Full TypeScript support with proper typing
-- ✅ Multi-chain Support: 9+ EVM chains supported
+- ✅ Multi-chain Support: 9+ EVM chains with dynamic wallet switching
 - ✅ Progress Tracking: Real-time transaction progress callbacks
+- ✅ Token Resolution: Automatic token symbol to address resolution via CoinGecko
+- ✅ Smart Amount Parsing: Automatic decimal handling for all token types
 - ✅ Mainnet Ready: Production API endpoints by default
 
 ## Usage
@@ -112,11 +122,34 @@ Monitor transaction status:
 
 #### RelayService
 Main service handling Relay SDK integration:
-- Quote generation
-- Bridge execution
-- Transaction status tracking
-- Chain and currency information
-- Transaction indexing
+- **Quote generation**: Get accurate quotes for cross-chain transactions
+- **Bridge execution**: Execute cross-chain transfers with progress tracking
+- **Transaction status tracking**: Monitor transaction progress and completion
+- **Multi-chain wallet**: Dynamic wallet that switches chains automatically
+- **Token resolution**: Automatic token symbol to contract address resolution
+- **Chain validation**: Validates and resolves chain names to chain IDs
+
+### Key Features
+
+#### Multi-Chain Wallet Support
+The plugin includes a custom `MultiChainWallet` class that:
+- Dynamically creates wallet clients for each chain as needed
+- Automatically switches to the correct chain before transactions
+- Caches wallet clients for performance
+- Uses chain-specific RPC URLs for reliable connections
+
+#### Token Resolution
+Automatic token address resolution:
+- Resolves human-readable token symbols (e.g., "USDC", "ETH") to contract addresses
+- Fetches token metadata from CoinGecko API
+- Supports native tokens (ETH) with zero address
+- Retrieves accurate token decimals for amount parsing
+
+#### Smart Amount Parsing
+Handles token amounts intelligently:
+- Converts human-readable amounts (e.g., "1.5") to wei/smallest units
+- Automatically fetches and uses correct decimals for each token
+- Supports both 6-decimal (USDC, USDT) and 18-decimal (ETH, WETH) tokens
 
 ### Actions
 
@@ -124,11 +157,22 @@ Main service handling Relay SDK integration:
 - **Name**: `GET_RELAY_QUOTE`
 - **Purpose**: Get quotes for cross-chain transactions
 - **Triggers**: Keywords like "quote", "bridge", "estimate", "cost"
+- **Features**:
+  - LLM extracts chain names (not IDs) from natural language
+  - Resolves token symbols to contract addresses automatically
+  - Calculates accurate amounts with proper decimals
+  - Displays formatted quote with fees and exchange rate
 
 #### relayBridgeAction
 - **Name**: `EXECUTE_RELAY_BRIDGE`
 - **Purpose**: Execute cross-chain bridge transactions
 - **Triggers**: Keywords like "bridge", "transfer", "send" with chain names
+- **Features**:
+  - Validates chain names and resolves to chain IDs
+  - Resolves token addresses on both origin and destination chains
+  - Automatically switches wallet to correct chain
+  - Provides real-time progress updates
+  - Handles BigInt serialization for storage
 
 #### relayStatusAction
 - **Name**: `CHECK_RELAY_STATUS`
@@ -179,45 +223,96 @@ bun run lint
 
 ## Examples
 
-### Basic Bridge
+### Natural Language Commands
+
+The plugin is designed to work with natural language:
+
+```
+# Get a quote
+"Get me a quote to bridge 1.5 USDC from Optimism to Base"
+"How much would 0.1 ETH cost to bridge from Ethereum to Arbitrum?"
+
+# Execute a bridge
+"Bridge 1.5 USDC from Optimism to Base"
+"Send 0.05 ETH from Base to Optimism"
+
+# Check status
+"Check the status of my last bridge"
+"What's the status of request 0x..."
+```
+
+### Programmatic Usage
+
+#### Basic Bridge with Token Resolution
 
 ```typescript
 import { RelayService } from "@elizaos/plugin-relay";
 
 const relayService = runtime.getService<RelayService>(RelayService.serviceType);
 
+// The service automatically handles:
+// - Token symbol to address resolution
+// - Amount parsing with correct decimals
+// - Chain switching
 const requestId = await relayService.executeBridge({
   user: "0x742d35Cc6634C0532925a3b8d382F4d2d5d9a65e",
-  originChainId: 1,
-  destinationChainId: 8453,
-  currency: "eth",
-  amount: "100000000000000000", // 0.1 ETH in wei
+  originChainId: 10, // Optimism
+  destinationChainId: 8453, // Base
+  currency: "0x0b2c639c533813f4aa9d7837caf62653d097ff85", // USDC address on Optimism
+  toCurrency: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", // USDC address on Base
+  amount: "1500000", // 1.5 USDC (6 decimals)
 });
 ```
 
-### Get Quote
+#### Get Quote with Progress Tracking
 
 ```typescript
 const quote = await relayService.getQuote({
   user: "0x742d35Cc6634C0532925a3b8d382F4d2d5d9a65e",
-  originChainId: 1,
-  destinationChainId: 8453,
-  originCurrency: "eth",
-  amount: "100000000000000000",
+  chainId: 10, // Origin chain: Optimism
+  toChainId: 8453, // Destination chain: Base
+  currency: "0x0b2c639c533813f4aa9d7837caf62653d097ff85", // USDC on Optimism
+  toCurrency: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", // USDC on Base
+  amount: "1500000",
 });
 
 console.log(`Fee: ${quote.fees.gas} wei`);
-console.log(`Rate: ${quote.details.rate}`);
+console.log(`Exchange Rate: ${quote.details.rate}`);
+console.log(`Estimated Time: ${quote.details.timeEstimate}s`);
 ```
 
-### Check Status
+#### Execute with Progress Callbacks
+
+```typescript
+const requestId = await relayService.executeBridge(
+  {
+    user: "0x742d35Cc6634C0532925a3b8d382F4d2d5d9a65e",
+    originChainId: 10,
+    destinationChainId: 8453,
+    currency: "0x0b2c639c533813f4aa9d7837caf62653d097ff85",
+    toCurrency: "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+    amount: "1500000",
+  },
+  (progress) => {
+    console.log(`Progress: ${progress.currentStep.description}`);
+    console.log(`Status: ${progress.status}`);
+  }
+);
+```
+
+#### Check Status
 
 ```typescript
 const statuses = await relayService.getStatus({
   requestId: "0x1234...",
 });
 
-console.log(`Status: ${statuses[0].status}`);
+const status = statuses[0];
+console.log(`Status: ${status.status}`);
+console.log(`Current Step: ${status.currentStep?.description}`);
+if (status.txHashes) {
+  console.log(`TX Hashes:`, status.txHashes);
+}
 ```
 
 ## Production Checklist
@@ -226,11 +321,14 @@ Before deploying to production, ensure:
 
 - [ ] `EVM_PRIVATE_KEY` is securely stored (use environment variables, not hardcoded)
 - [ ] Tested on testnet first (`RELAY_ENABLE_TESTNET=true`)
-- [ ] Sufficient gas in wallet for all supported chains
+- [ ] Sufficient native token balance in wallet for gas on all supported chains
+- [ ] Sufficient token balances for bridging on origin chains
 - [ ] Error handling and monitoring in place
 - [ ] Rate limiting configured (use `RELAY_API_KEY` for higher limits)
 - [ ] Transaction status monitoring implemented
-- [ ] Proper logging for debugging
+- [ ] Logging configured for production environment
+- [ ] RPC URLs configured and tested for reliability
+- [ ] Understand token resolution may fail for unlisted tokens
 
 ## Security Best Practices
 
@@ -243,6 +341,16 @@ Before deploying to production, ensure:
 
 ## Changelog
 
+### v1.1.0 (Current)
+- ✅ **Multi-Chain Wallet**: Dynamic wallet switching between chains
+- ✅ **Token Resolution**: Automatic token symbol to address resolution via CoinGecko
+- ✅ **Smart Decimals**: Automatic decimal fetching and amount parsing
+- ✅ **BigInt Serialization**: Proper handling of BigInt values in responses
+- ✅ **Eliza Logger**: Migrated to Eliza's built-in logger
+- ✅ **Clean Logging**: Minimal, essential logs only
+- ✅ **Chain-Specific Resolution**: Resolves tokens on both origin and destination chains
+- ✅ **Improved Error Handling**: Better error messages and validation
+
 ### v1.0.0 (October 2025)
 - ✅ Updated to `@relayprotocol/relay-sdk` v2.4.6
 - ✅ Added comprehensive error handling and validation
@@ -251,10 +359,9 @@ Before deploying to production, ensure:
 - ✅ Production-ready with mainnet support
 - ✅ Added testnet support via configuration
 - ✅ Enhanced security with input validation
-- ✅ Improved logging and debugging
-- ✅ **Chain name resolution**: LLM extracts chain names (not IDs) which are resolved using viem chains
-- ✅ **Amount parsing**: Automatic conversion from human-readable amounts to wei
-- ✅ **Robust validation**: Chain names validated against supported chains before execution
+- ✅ Chain name resolution using viem chains
+- ✅ Amount parsing from human-readable format
+- ✅ Robust chain validation
 
 ## Resources
 

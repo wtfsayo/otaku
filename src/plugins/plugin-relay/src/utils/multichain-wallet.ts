@@ -78,7 +78,6 @@ export class MultiChainWallet {
       });
 
       this.walletClients.set(chainId, client);
-      console.log(`[MULTICHAIN WALLET] Created wallet client for chain ${chainId} (${chain.name}) using RPC: ${rpcUrl}`);
     }
 
     return this.walletClients.get(chainId)!;
@@ -95,9 +94,7 @@ export class MultiChainWallet {
    * Switch to a different chain
    */
   async switchChain(chainId: number): Promise<void> {
-    console.log(`[MULTICHAIN WALLET] Switching from chain ${this.currentChainId} to ${chainId}`);
     this.currentChainId = chainId;
-    // Pre-create the wallet client for this chain
     this.getWalletClient(chainId);
   }
 
