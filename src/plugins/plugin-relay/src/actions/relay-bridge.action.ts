@@ -285,7 +285,6 @@ export const relayBridgeAction: Action = {
 
           // Extract meaningful progress information
           const step = data.currentStep?.description || data.currentStep?.action || 'Processing';
-          // Use currentStepItem (not items[0]) - it's the SDK's dedicated property
           const state = data.currentStepItem?.progressState || 
                         data.currentStepItem?.checkStatus || 
                         data.currentStepItem?.status || 
@@ -295,16 +294,60 @@ export const relayBridgeAction: Action = {
           const newStatus = `Bridge ${state}: ${step}`;
           if (newStatus !== currentStatus) {
             currentStatus = newStatus;
-            if (callback) {
-              callback({ text: currentStatus });
-            }
+            callback?.({ text: currentStatus });
           }
         }
       );
 
-      // Get final status
-      const statuses = await relayService.getStatus({ requestId });
-      const status = statuses[0];
+      // Helper to fetch status (tries requestId, falls back to txHash)
+      const fetchStatus = async (): Promise<RelayStatus | undefined> => {
+        if (requestId && requestId !== 'pending') {
+          try {
+            return (await relayService.getStatus({ requestId }))[0];
+          } catch (error) {
+            logger.debug(`Could not fetch with requestId: ${error}`);
+          }
+        }
+        
+        if (collectedTxHashes.length > 0) {
+          try {
+            return (await relayService.getStatus({ txHash: collectedTxHashes[0].txHash }))[0];
+          } catch (error) {
+            logger.debug(`Could not fetch with tx hash: ${error}`);
+          }
+        }
+        
+        return undefined;
+      };
+
+      // Poll for final status until complete
+      const maxAttempts = 60; // 2 minutes max (2 second intervals)
+      const pollInterval = 2000;
+      let status = await fetchStatus();
+      
+      for (let attempt = 0; attempt < maxAttempts && status?.status !== 'success'; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        
+        const newStatus = await fetchStatus();
+        if (newStatus && newStatus.status !== status?.status) {
+          status = newStatus;
+          logger.info(`Bridge status: ${status.status}`);
+          callback?.({ text: `Bridge status: ${status.status}` });
+          
+          if (status.status === 'success') {
+            logger.info('Bridge completed successfully');
+            callback?.({ text: 'Bridge completed successfully!' });
+            break;
+          }
+        } else if (newStatus) {
+          status = newStatus;
+        }
+      }
+
+      if (status?.status !== 'success') {
+        logger.warn('Bridge polling timed out, but transaction may still be processing');
+        callback?.({ text: 'Bridge is still processing. Check status later with the request ID.' });
+      }
 
       // Format response (using serializeBigInt helper defined above)
       const response: ActionResult = {
@@ -326,7 +369,7 @@ export const relayBridgeAction: Action = {
       if (callback) {
         callback({
           text: response.text,
-          actions: ["EXECUTE_RELAY_BRIDGE", "CHECK_RELAY_STATUS"],
+          actions: ["EXECUTE_RELAY_BRIDGE"],
           source: message.content.source,
           data: response.data,
         });

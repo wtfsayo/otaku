@@ -66,6 +66,18 @@ export const relayStatusAction: Action = {
   ],
 
   validate: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
+    // Check if message has bridge data (auto-triggered after bridge)
+    const data = message.content?.data as any;
+    const hasBridgeData = data?.requestId || 
+                          data?.txHashes ||
+                          (message.content as any)?.actions?.includes("CHECK_RELAY_STATUS");
+
+    // If there's bridge data, always validate (automated call)
+    if (hasBridgeData) {
+      return true;
+    }
+
+    // Otherwise, check for user intent
     const keywords = [
       "status",
       "check",
@@ -77,11 +89,11 @@ export const relayStatusAction: Action = {
       "tx",
     ];
 
-    const text = message.content.text?.toLowerCase();
-    const hasKeyword = keywords.some(keyword => text?.includes(keyword));
-    const hasIdentifier = /0x[a-fA-F0-9]{64}/.test(text || "") || /request|id|pending/i.test(text || "");
+    const text = message.content.text?.toLowerCase() || "";
+    const hasKeyword = keywords.some(keyword => text.includes(keyword));
+    const hasIdentifier = /0x[a-fA-F0-9]{64}/.test(text) || /request|id|pending/i.test(text);
 
-    // Also validate if this is being called as a follow-up action after a bridge
+    // Check if this is being called as a follow-up action after a bridge
     const recentBridgeAction = state?.recentActions?.includes("EXECUTE_RELAY_BRIDGE");
 
     return (hasKeyword && hasIdentifier) || recentBridgeAction;
