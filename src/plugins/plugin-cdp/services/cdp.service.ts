@@ -141,18 +141,37 @@ export class CdpService extends Service {
     logger.debug(`CDP account address: ${account.address}`);
     logger.info(`Executing swap: ${options.fromAmount.toString()} tokens on ${options.network}`);
     
-    // Permit2 contract address (same on all networks)
     const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3" as `0x${string}`;
     
-    // Step 1: Approve token for Permit2 contract (skip if it's native token)
-    if (options.fromToken.toLowerCase() !== "0x0000000000000000000000000000000000000000") {
-      logger.info("Approving token for Permit2 contract...");
-      
-      try {
-        // Get viem wallet client for this account
-        const { walletClient } = await this.getViemClientsForAccount({
+    try {
+      // Try swap first - CDP SDK will check approvals
+      logger.info("Attempting swap...");
+      const result = await account.swap({
+        network: options.network,
+        fromToken: options.fromToken,
+        toToken: options.toToken,
+        fromAmount: options.fromAmount,
+        slippageBps: options.slippageBps ?? 100,
+      });
+
+      logger.info(`Swap executed successfully - transaction hash: ${result.transactionHash}`);
+
+      if (!result.transactionHash) {
+        throw new Error("Swap execution did not return a transaction hash");
+      }
+
+      return { transactionHash: result.transactionHash };
+    } catch (error) {
+      // Check if error is about token approval
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes("allowance") && errorMessage.includes("Permit2")) {
+        logger.info("Token approval needed for Permit2, approving now...");
+        
+        // Use Viem (wrapped CDP account) for approval transaction
+        // This uses the same CDP account but through Viem's client
+        const { walletClient, publicClient } = await this.getViemClientsForAccount({
           accountName: options.accountName,
-          network: options.network,
+          network: options.network === "base" ? "base" : "base-sepolia",
         });
         
         // ERC20 approve ABI
@@ -167,46 +186,57 @@ export class CdpService extends Service {
           outputs: [{ type: "bool" }]
         }] as const;
         
-        // Send approval transaction using viem
+        // Approve max uint256 for Permit2
+        logger.info("Sending Permit2 approval transaction...");
         const approvalHash = await walletClient.writeContract({
           address: options.fromToken,
           abi: approveAbi,
           functionName: "approve",
           args: [
             PERMIT2_ADDRESS,
-            // Approve max uint256 for convenience (standard practice)
             BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
           ],
           chain: walletClient.chain,
         } as any);
         
-        logger.info(`Token approval sent: ${approvalHash}`);
+        logger.info(`Permit2 approval sent: ${approvalHash}`);
         
-        // Wait for approval to be mined
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      } catch (approvalError) {
-        logger.warn("Approval may have failed or was already granted:", approvalError);
-        // Continue anyway - approval might already exist
+        // Wait for approval confirmation on-chain
+        logger.info("Waiting for approval confirmation...");
+        const receipt = await publicClient.waitForTransactionReceipt({ 
+          hash: approvalHash,
+          timeout: 60_000,
+        });
+        logger.info(`Approval confirmed in block ${receipt.blockNumber}`);
+        
+        // CRITICAL: Wait for CDP SDK's internal nonce tracker to sync with on-chain state
+        // CDP SDK caches nonces, and our Viem transaction incremented the on-chain nonce.
+        // We need to give CDP SDK time to refresh its cache before retrying the swap.
+        logger.info("Waiting 8 seconds for CDP SDK nonce cache to sync...");
+        await new Promise(resolve => setTimeout(resolve, 8000));
+        
+        // Retry swap after approval - CDP SDK should now have fresh nonce
+        logger.info("Retrying swap after approval...");
+        const result = await account.swap({
+          network: options.network,
+          fromToken: options.fromToken,
+          toToken: options.toToken,
+          fromAmount: options.fromAmount,
+          slippageBps: options.slippageBps ?? 100,
+        });
+
+        logger.info(`Swap executed successfully - transaction hash: ${result.transactionHash}`);
+
+        if (!result.transactionHash) {
+          throw new Error("Swap execution did not return a transaction hash");
+        }
+
+        return { transactionHash: result.transactionHash };
       }
+      
+      // Re-throw if not an approval error
+      throw error;
     }
-    
-    // Step 2: Execute the swap
-    logger.info("Executing swap transaction...");
-    const result = await account.swap({
-      network: options.network,
-      fromToken: options.fromToken,
-      toToken: options.toToken,
-      fromAmount: options.fromAmount,
-      slippageBps: options.slippageBps ?? 100,
-    });
-
-    logger.info(`Swap executed successfully - transaction hash: ${result.transactionHash}`);
-
-    if (!result.transactionHash) {
-      throw new Error("Swap execution did not return a transaction hash");
-    }
-
-    return { transactionHash: result.transactionHash };
   }
 
   /**
