@@ -287,8 +287,7 @@ export const relayBridgeAction: Action = {
           const step = data.currentStep?.description || data.currentStep?.action || 'Processing';
           const state = data.currentStepItem?.progressState || 
                         data.currentStepItem?.checkStatus || 
-                        data.currentStepItem?.status || 
-                        'in_progress';
+                        data.currentStepItem?.status
           
           // Only send callback if there's an actual status change
           const newStatus = `Bridge ${state}: ${step}`;
