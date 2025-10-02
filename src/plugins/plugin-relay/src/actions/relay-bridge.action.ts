@@ -24,17 +24,17 @@ import {
 import { RelayService } from "../services/relay.service"; 
 import { type BridgeRequest, type ResolvedBridgeRequest, type RelayStatus } from "../types";
 import type { ProgressData } from "@relayprotocol/relay-sdk";
+import { resolveTokenToAddress, getTokenDecimals } from "../utils/token-resolver";
 
 const parseBridgeParams = (text: string): BridgeRequest | null => {
   const parsed = parseKeyValueXml(text);
   
-  if (!parsed?.user || !parsed?.originChain || !parsed?.destinationChain || !parsed?.currency || !parsed?.amount) {
+  if (!parsed?.originChain || !parsed?.destinationChain || !parsed?.currency || !parsed?.amount) {
     console.warn(`Missing required bridge parameters: ${JSON.stringify({ parsed })}`);
     return null;
   }
 
   return {
-    user: parsed.user.trim(),
     originChain: parsed.originChain.toLowerCase().trim(),
     destinationChain: parsed.destinationChain.toLowerCase().trim(),
     currency: parsed.currency.toLowerCase().trim(),
@@ -73,12 +73,10 @@ Extract the bridge details from the user's request.
 
 Respond with the bridge parameters in this exact format:
 <bridgeParams>
-<user>0x742d35Cc6634C0532925a3b8d382F4d2d5d9a65e</user>
 <originChain>ethereum</originChain>
 <destinationChain>base</destinationChain>
 <currency>eth</currency>
 <amount>0.5</amount>
-<recipient></recipient>
 <useExactInput>true</useExactInput>
 <useExternalLiquidity>false</useExternalLiquidity>
 </bridgeParams>`;
@@ -164,15 +162,22 @@ export const relayBridgeAction: Action = {
     options?: { [key: string]: unknown },
     callback?: HandlerCallback
   ): Promise<ActionResult> => {
+    console.log("[RELAY BRIDGE] Action handler started");
+    console.log("[RELAY BRIDGE] Message text:", message.content.text);
+    
     try {
       // Get Relay service
+      console.log("[RELAY BRIDGE] Attempting to get Relay service with type:", RelayService.serviceType);
       const relayService = runtime.getService<RelayService>(RelayService.serviceType);
 
       if (!relayService) {
+        console.error("[RELAY BRIDGE] Relay service not found in runtime");
         throw new Error("Relay service not initialized");
       }
+      console.log("[RELAY BRIDGE] Relay service retrieved successfully");
 
       // Compose state and get bridge parameters from LLM
+      console.log("[RELAY BRIDGE] Composing state for LLM extraction");
       const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
       const context = composePromptFromState({
         state: composedState,
@@ -180,43 +185,91 @@ export const relayBridgeAction: Action = {
       });
 
       // Extract bridge parameters using LLM (gets chain names, not IDs)
+      console.log("[RELAY BRIDGE] Calling LLM to extract parameters");
       const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
         prompt: context,
       });
+      console.log("[RELAY BRIDGE] LLM response:", xmlResponse);
       
       const bridgeParams = parseBridgeParams(xmlResponse);
+      console.log("[RELAY BRIDGE] Parsed parameters:", JSON.stringify(bridgeParams, null, 2));
       
-      if (!bridgeParams) {
-        throw new Error("Failed to parse bridge parameters from request");
-      }
+            if (!bridgeParams) {
+              console.error("[RELAY BRIDGE] Failed to parse parameters from LLM response");
+              throw new Error("Failed to parse bridge parameters from request");
+            }
+
+            // Always derive user address from EVM_PRIVATE_KEY
+            console.log("[RELAY BRIDGE] Deriving user address from EVM_PRIVATE_KEY");
+            const privateKey = runtime.getSetting("EVM_PRIVATE_KEY");
+            if (!privateKey) {
+              throw new Error("EVM_PRIVATE_KEY not set - required for bridge execution");
+            }
+            const normalizedPk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
+            const { privateKeyToAccount } = await import("viem/accounts");
+            const account = privateKeyToAccount(normalizedPk as `0x${string}`);
+            const userAddress = account.address;
+            console.log("[RELAY BRIDGE] Using wallet address:", userAddress);
 
       // Resolve chain names to IDs (similar to token resolution in CDP swap)
+      console.log("[RELAY BRIDGE] Resolving chain names to IDs");
       const originChainId = resolveChainNameToId(bridgeParams.originChain);
       const destinationChainId = resolveChainNameToId(bridgeParams.destinationChain);
+      console.log("[RELAY BRIDGE] Origin chain ID:", originChainId, "Destination chain ID:", destinationChainId);
 
       if (!originChainId) {
+        console.error("[RELAY BRIDGE] Invalid origin chain:", bridgeParams.originChain);
         throw new Error(`Unsupported origin chain: ${bridgeParams.originChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`);
       }
 
       if (!destinationChainId) {
+        console.error("[RELAY BRIDGE] Invalid destination chain:", bridgeParams.destinationChain);
         throw new Error(`Unsupported destination chain: ${bridgeParams.destinationChain}. Supported chains: ${Object.keys(SUPPORTED_CHAINS).join(", ")}`);
       }
 
-      // Parse amount to wei
-      const amountInWei = parseAmountToWei(bridgeParams.amount, bridgeParams.currency);
+      // Resolve token symbols to contract addresses on BOTH chains
+      console.log("[RELAY BRIDGE] Resolving token addresses on origin and destination chains");
+      const currencyAddress = await resolveTokenToAddress(bridgeParams.currency, bridgeParams.originChain);
+      // Same token symbol but resolved on destination chain (e.g., USDC on Base vs USDC on Optimism)
+      const toCurrencyAddress = await resolveTokenToAddress(bridgeParams.currency, bridgeParams.destinationChain);
 
-      // Create resolved bridge request with chain IDs
+      if (!currencyAddress) {
+        console.error("[RELAY BRIDGE] Could not resolve currency:", bridgeParams.currency);
+        throw new Error(`Could not resolve currency: ${bridgeParams.currency} on ${bridgeParams.originChain}`);
+      }
+
+      if (!toCurrencyAddress) {
+        console.error("[RELAY BRIDGE] Could not resolve destination currency:", bridgeParams.currency);
+        throw new Error(`Could not resolve currency: ${bridgeParams.currency} on ${bridgeParams.destinationChain}`);
+      }
+
+      console.log("[RELAY BRIDGE] Resolved currency addresses:", { origin: currencyAddress, destination: toCurrencyAddress });
+
+      // Get token decimals for proper amount conversion
+      const decimals = await getTokenDecimals(currencyAddress, bridgeParams.originChain);
+      console.log("[RELAY BRIDGE] Token decimals:", decimals);
+
+      // Parse amount to smallest unit
+      const [integer, fractional = ""] = bridgeParams.amount.split(".");
+      const paddedFractional = fractional.padEnd(decimals, "0").slice(0, decimals);
+      const amountInWei = BigInt(integer + paddedFractional);
+      console.log("[RELAY BRIDGE] Amount in smallest unit:", amountInWei.toString());
+
+      // Create resolved bridge request with chain IDs and contract addresses
+      // Create resolved bridge request - both user and recipient default to userAddress
       const resolvedRequest: ResolvedBridgeRequest = {
-        user: bridgeParams.user,
+        user: userAddress,
         originChainId,
         destinationChainId,
-        currency: bridgeParams.currency,
-        amount: amountInWei,
-        recipient: bridgeParams.recipient,
+        currency: currencyAddress,
+        toCurrency: toCurrencyAddress,
+        amount: amountInWei.toString(),
+        recipient: bridgeParams.recipient || userAddress,
         useExactInput: bridgeParams.useExactInput,
         useExternalLiquidity: bridgeParams.useExternalLiquidity,
         referrer: bridgeParams.referrer,
       };
+      console.log("[RELAY BRIDGE] Resolved request:", JSON.stringify(resolvedRequest, null, 2));
 
       // Execute bridge
       let currentStatus = `Initiating bridge from ${bridgeParams.originChain} to ${bridgeParams.destinationChain}...`;
@@ -224,15 +277,18 @@ export const relayBridgeAction: Action = {
         callback({ text: currentStatus });
       }
 
+      console.log("[RELAY BRIDGE] Executing bridge transaction");
       const requestId = await relayService.executeBridge(
         resolvedRequest,
-        (_data: ProgressData) => {
+        (data: ProgressData) => {
+          console.log("[RELAY BRIDGE] Progress update:", JSON.stringify(data, null, 2));
           currentStatus = `Bridge in progress...`;
           if (callback) {
             callback({ text: currentStatus });
           }
         }
       );
+      console.log("[RELAY BRIDGE] Bridge executed, request ID:", requestId);
 
       // Get final status
       const statuses = await relayService.getStatus({ requestId });
@@ -265,7 +321,12 @@ export const relayBridgeAction: Action = {
 
       return response;
     } catch (error: unknown) {
+      console.error("[RELAY BRIDGE] Error occurred:", error);
       const errorMessage = (error as Error).message;
+      const errorStack = (error as Error).stack;
+      console.error("[RELAY BRIDGE] Error message:", errorMessage);
+      console.error("[RELAY BRIDGE] Error stack:", errorStack);
+      
       const errorResponse: ActionResult = {
         text: `Failed to execute bridge: ${errorMessage}`,
         success: false,

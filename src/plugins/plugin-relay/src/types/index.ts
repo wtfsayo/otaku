@@ -59,13 +59,13 @@ export type QuoteRequest = z.infer<typeof QuoteRequestSchema>;
 // Note: Using SDK's Execute type as the quote response instead of custom RelayQuote
 
 // Bridge request schema - LLM provides chain names, not IDs
+// Note: user address is derived from EVM_PRIVATE_KEY, not from LLM
 export const BridgeRequestSchema = z.object({
-  user: z.string().describe("User wallet address"),
   originChain: z.string().describe("Origin chain name (e.g., 'ethereum', 'base', 'arbitrum')"),
   destinationChain: z.string().describe("Destination chain name (e.g., 'ethereum', 'base', 'arbitrum')"),
   currency: z.string().describe("Currency to bridge (symbol like 'eth', 'usdc')"),
   amount: z.string().describe("Amount in human-readable format (e.g., '0.5' for 0.5 ETH)"),
-  recipient: z.string().optional().describe("Recipient address"),
+  recipient: z.string().optional().describe("Recipient address (defaults to user's wallet)"),
   useExactInput: z.boolean().optional().default(true),
   useExternalLiquidity: z.boolean().optional().default(false),
   referrer: z.string().optional().describe("Referrer address"),
@@ -78,7 +78,8 @@ export interface ResolvedBridgeRequest {
   user: string;
   originChainId: number;
   destinationChainId: number;
-  currency: string;
+  currency: string;  // Contract address on origin chain
+  toCurrency?: string;  // Contract address on destination chain
   amount: string; // in wei
   recipient?: string;
   useExactInput?: boolean;
