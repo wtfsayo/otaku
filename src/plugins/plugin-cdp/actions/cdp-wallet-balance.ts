@@ -22,10 +22,25 @@ export const cdpWalletBalance: Action = {
   description:
     "List token balances for the user's CDP EVM account using Coinbase CDP",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
-    const text = message.content.text?.toLowerCase() || "";
-    return ["balance", "balances", "tokens", "assets", "cdp", "coinbase"].some(
-      (k) => text.includes(k),
-    );
+    try {
+      // Check if services are available
+      const cdpService = _runtime.getService(
+        CdpService.serviceType,
+      ) as CdpService;
+
+      if (!cdpService) {
+        logger.warn("Required services not available for token deployment");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
+    }
   },
   handler: async (
     runtime: IAgentRuntime,

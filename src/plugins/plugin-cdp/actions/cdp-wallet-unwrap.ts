@@ -97,14 +97,25 @@ export const cdpWalletUnwrap: Action = {
   ],
   description: "Unwrap WETH to native ETH on EVM Based Chains",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
-    const text = message.content.text?.toLowerCase() || "";
-    const hasUnwrapKeywords = ["unwrap", "convert weth"].some(
-      (k) => text.includes(k)
-    );
-    const hasWethKeyword = text.includes("weth");
-    
-    // Return true if unwrap keywords are present with WETH mention
-    return hasUnwrapKeywords && hasWethKeyword;
+    try {
+      // Check if services are available
+      const cdpService = _runtime.getService(
+        CdpService.serviceType,
+      ) as CdpService;
+
+      if (!cdpService) {
+        logger.warn("Required services not available for token deployment");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
+    }
   },
   handler: async (
     runtime: IAgentRuntime,

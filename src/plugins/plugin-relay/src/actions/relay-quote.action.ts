@@ -83,20 +83,6 @@ const resolveChainNameToId = (chainName: string): number | null => {
   return chain.id;
 };
 
-/**
- * Parse amount to wei based on token decimals
- */
-const parseAmountToWei = (amount: string, currency: string): string => {
-  const decimals = currency.toLowerCase().includes("usdc") || 
-                   currency.toLowerCase().includes("usdt") ? 6 : 18;
-  
-  const [integer, fractional = ""] = amount.split(".");
-  const paddedFractional = fractional.padEnd(decimals, "0").slice(0, decimals);
-  const amountInWei = BigInt(integer + paddedFractional);
-  
-  return amountInWei.toString();
-};
-
 const quoteTemplate = `# Cross-Chain Quote Request
 
 ## User Request
@@ -144,23 +130,25 @@ export const relayQuoteAction: Action = {
   ],
 
   validate: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
-    const keywords = [
-      "quote",
-      "bridge",
-      "cross-chain",
-      "relay",
-      "transfer",
-      "swap",
-      "estimate",
-      "cost",
-      "fee",
-    ];
+    try {
+      // Check if services are available
+      const relayService = runtime.getService(
+        RelayService.serviceType,
+      ) as RelayService;
 
-    const text = (message.content.text || "").toLowerCase();
-    const hasKeyword = keywords.some(keyword => text.includes(keyword));
-    const hasChains = /(?:ethereum|base|arbitrum|polygon|optimism|zora|blast|scroll|linea)/i.test(text);
-    
-    return hasKeyword && hasChains;
+      if (!relayService) {
+        logger.warn("Required services not available for token deployment");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
+    }
   },
 
     handler: async (

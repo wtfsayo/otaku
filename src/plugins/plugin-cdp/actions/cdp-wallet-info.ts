@@ -5,6 +5,7 @@ import {
   type State,
   type HandlerCallback,
   type ActionResult,
+  logger
 } from "@elizaos/core";
 import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
@@ -14,10 +15,25 @@ export const cdpWalletInfo: Action = {
   similes: ["CDP_WALLET_DETAILS", "CDP_ADDRESS", "COINBASE_WALLET_INFO"],
   description: "Show saved Coinbase CDP wallet info for the current user",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
-    const text = message.content.text?.toLowerCase() || "";
-    return ["wallet", "info", "address", "cdp", "coinbase"].some((k) =>
-      text.includes(k),
-    );
+    try {
+      // Check if services are available
+      const cdpService = _runtime.getService(
+        CdpService.serviceType,
+      ) as CdpService;
+
+      if (!cdpService) {
+        logger.warn("Required services not available for token deployment");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
+    }
   },
   handler: async (
     runtime: IAgentRuntime,

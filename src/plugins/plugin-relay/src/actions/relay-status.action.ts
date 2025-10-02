@@ -66,37 +66,25 @@ export const relayStatusAction: Action = {
   ],
 
   validate: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
-    // Check if message has bridge data (auto-triggered after bridge)
-    const data = message.content?.data as any;
-    const hasBridgeData = data?.requestId || 
-                          data?.txHashes ||
-                          (message.content as any)?.actions?.includes("CHECK_RELAY_STATUS");
+    try {
+      // Check if services are available
+      const relayService = runtime.getService(
+        RelayService.serviceType,
+      ) as RelayService;
 
-    // If there's bridge data, always validate (automated call)
-    if (hasBridgeData) {
+      if (!relayService) {
+        logger.warn("Required services not available for token deployment");
+        return false;
+      }
+
       return true;
+    } catch (error) {
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
     }
-
-    // Otherwise, check for user intent
-    const keywords = [
-      "status",
-      "check",
-      "transaction",
-      "bridge",
-      "relay",
-      "request",
-      "hash",
-      "tx",
-    ];
-
-    const text = message.content.text?.toLowerCase() || "";
-    const hasKeyword = keywords.some(keyword => text.includes(keyword));
-    const hasIdentifier = /0x[a-fA-F0-9]{64}/.test(text) || /request|id|pending/i.test(text);
-
-    // Check if this is being called as a follow-up action after a bridge
-    const recentBridgeAction = state?.recentActions?.includes("EXECUTE_RELAY_BRIDGE");
-
-    return (hasKeyword && hasIdentifier) || recentBridgeAction;
   },
 
   handler: async (

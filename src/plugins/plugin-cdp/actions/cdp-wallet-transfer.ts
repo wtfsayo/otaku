@@ -100,14 +100,25 @@ export const cdpWalletTransfer: Action = {
   ],
   description: "Transfer tokens to another address using Coinbase CDP",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
-    const text = message.content.text?.toLowerCase() || "";
-    const hasTransferKeywords = ["send", "transfer", "pay"].some(
-      (k) => text.includes(k)
-    );
-    const hasAddressPattern = /0x[a-fA-F0-9]{40}/.test(text);
-    
-    // Return true if transfer keywords are present
-    return hasTransferKeywords || hasAddressPattern;
+    try {
+      // Check if services are available
+      const cdpService = _runtime.getService(
+        CdpService.serviceType,
+      ) as CdpService;
+
+      if (!cdpService) {
+        logger.warn("Required services not available for token deployment");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
+    }
   },
   handler: async (
     runtime: IAgentRuntime,

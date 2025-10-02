@@ -109,22 +109,7 @@ export const tokenDeployAction: Action = {
         return false;
       }
 
-      // Extract text content
-      const text = message.content.text?.toLowerCase() || "";
-
-      // Check for deployment keywords
-      const deploymentKeywords = [
-        "deploy",
-        "create",
-        "launch",
-        "mint",
-        "token",
-      ];
-      const hasDeploymentIntent = deploymentKeywords.some((keyword) =>
-        text.includes(keyword),
-      );
-
-      return hasDeploymentIntent;
+      return true;
     } catch (error) {
       logger.error(
         "Error validating token deployment action:",

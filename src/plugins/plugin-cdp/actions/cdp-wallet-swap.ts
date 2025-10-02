@@ -188,14 +188,25 @@ export const cdpWalletSwap: Action = {
   ],
   description: "Swap tokens from one to another on EVM; e.g. USDC -> BNKR or USDC -> ETH or ETH -> USDC",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
-    const text = message.content.text?.toLowerCase() || "";
-    const hasSwapKeywords = ["swap", "exchange", "trade", "convert", "sell", "buy"].some(
-      (k) => text.includes(k)
-    );
-    const hasCdpKeywords = ["cdp", "coinbase"].some((k) => text.includes(k));
-    
-    // Return true if swap keywords are present, optionally with CDP keywords
-    return hasSwapKeywords;
+    try {
+      // Check if services are available
+      const cdpService = _runtime.getService(
+        CdpService.serviceType,
+      ) as CdpService;
+
+      if (!cdpService) {
+        logger.warn("Required services not available for token deployment");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
+    }
   },
   handler: async (
     runtime: IAgentRuntime,
