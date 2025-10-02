@@ -25,6 +25,8 @@ import {
 } from "viem/chains";
 import { RelayService } from "../services/relay.service";
 import { getTokenDecimals, resolveTokenToAddress } from "../utils/token-resolver";
+import { CdpService } from "../../../plugin-cdp/services/cdp.service";
+import { CdpNetwork } from "../../../plugin-cdp/types";
 
 // Supported chains mapping
 const SUPPORTED_CHAINS: Record<string, Chain> = {
@@ -185,14 +187,18 @@ export const relayQuoteAction: Action = {
         }
 
         // Always derive user address from EVM_PRIVATE_KEY
-        const privateKey = runtime.getSetting("EVM_PRIVATE_KEY");
-        if (!privateKey) {
-          throw new Error("EVM_PRIVATE_KEY not set - required for quote generation");
+        const cdp = runtime.getService?.("CDP_SERVICE") as CdpService;
+        if (!cdp || typeof cdp.getViemClientsForAccount !== "function") {
+          throw new Error("CDP not available");
         }
-        const normalizedPk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
-        const { privateKeyToAccount } = await import("viem/accounts");
-        const account = privateKeyToAccount(normalizedPk as `0x${string}`);
-        const userAddress = account.address;
+        // Use originChain to determine network only after resolving it
+        // Temporarily set base; we actually send the proper wallet in the service per chain
+        const accountName = message.entityId
+        const viemClient = await cdp.getViemClientsForAccount({
+          accountName,
+          network: quoteParams.originChain as CdpNetwork,
+        });
+        const userAddress = viemClient.address;
 
         // Resolve chain names to IDs
         const originChainId = resolveChainNameToId(quoteParams.originChain);

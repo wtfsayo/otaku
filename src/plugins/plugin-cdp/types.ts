@@ -2,6 +2,7 @@ import {
   arbitrum,
   base,
   mainnet,
+  baseSepolia,
   polygon,
 } from "viem/chains";
 
@@ -16,7 +17,8 @@ export type CdpNetwork =
   | "ethereum"
   | "base"
   | "arbitrum"
-  | "polygon";
+  | "polygon"
+  | "base-sepolia";
 
 
 export const DEFAULT_RPC_URLS: Record<number, string> = {
@@ -24,5 +26,6 @@ export const DEFAULT_RPC_URLS: Record<number, string> = {
   [base.id]: "https://mainnet.base.org",
   [arbitrum.id]: "https://arb1.arbitrum.io/rpc",
   [polygon.id]: "https://polygon-rpc.com",
+  [baseSepolia.id]: "https://sepolia.base.org",
 };
 

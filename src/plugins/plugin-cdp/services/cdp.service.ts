@@ -10,6 +10,7 @@ import {
 import { toAccount } from "viem/accounts";
 import {
   base,
+  baseSepolia,
   mainnet,
   arbitrum,
   polygon,
@@ -229,6 +230,7 @@ export class CdpService extends Service {
     const network = options.network ?? "base";
     const NETWORK_CONFIG: Record<CdpNetwork, { chain: Chain; envVar: string }> = {
       base: { chain: base, envVar: "BASE_RPC_URL" },
+      "base-sepolia": { chain: baseSepolia, envVar: "BASE_SEPOLIA_RPC_URL" },
       ethereum: { chain: mainnet, envVar: "ETHEREUM_RPC_URL" },
       arbitrum: { chain: arbitrum, envVar: "ARBITRUM_RPC_URL" },
       polygon: { chain: polygon, envVar: "POLYGON_RPC_URL" },
