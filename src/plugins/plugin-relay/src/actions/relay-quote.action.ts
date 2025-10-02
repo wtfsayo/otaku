@@ -280,6 +280,21 @@ export const relayQuoteAction: Action = {
       const quote = await relayService.getQuote(quoteRequest);
       console.log("[RELAY QUOTE] Quote received successfully");
 
+      // Serialize BigInt values to strings for storage
+      const serializeBigInt = (obj: any): any => {
+        if (obj === null || obj === undefined) return obj;
+        if (typeof obj === 'bigint') return obj.toString();
+        if (Array.isArray(obj)) return obj.map(serializeBigInt);
+        if (typeof obj === 'object') {
+          const serialized: any = {};
+          for (const key in obj) {
+            serialized[key] = serializeBigInt(obj[key]);
+          }
+          return serialized;
+        }
+        return obj;
+      };
+
       // Format response
       const response: ActionResult = {
         text: formatQuoteResponse(
@@ -290,15 +305,15 @@ export const relayQuoteAction: Action = {
           quoteParams.currency
         ),
         success: true,
-        data: {
+        data: serializeBigInt({
           quote,
           request: {
             ...quoteParams,
             resolvedOriginChainId: originChainId,
             resolvedDestinationChainId: destinationChainId,
-            amountInWei,
+            amountInWei: amountInWei.toString(),
           },
-        },
+        }),
       };
 
       if (callback) {
@@ -387,19 +402,20 @@ function formatQuoteResponse(
   const feesInEth = Number(totalFees) / 1e18;
 
   // Extract details with fallbacks
-  const amountIn = ((quote as any).details?.amountIn ?? "0") as string;
-  const amountOut = ((quote as any).details?.amountOut ?? "0") as string;
-  const currencyIn = ((quote as any).details?.currencyIn ?? currency) as string;
-  const currencyOut = ((quote as any).details?.currencyOut ?? currency) as string;
+  const amountIn = ((quote as any).details?.currencyIn?.amount ?? (quote as any).details?.amountIn ?? "0") as string;
+  const amountOut = ((quote as any).details?.currencyOut?.amount ?? (quote as any).details?.amountOut ?? "0") as string;
+  // Extract currency symbol from the currency object structure
+  const currencyInSymbol = ((quote as any).details?.currencyIn?.currency?.symbol ?? currency) as string;
+  const currencyOutSymbol = ((quote as any).details?.currencyOut?.currency?.symbol ?? currency) as string;
   const rate = ((quote as any).details?.rate ?? "?") as string;
-  const totalImpact = ((quote as any).details?.totalImpact ?? "?") as string;
+  const totalImpact = ((quote as any).details?.totalImpact?.percent ?? (quote as any).details?.totalImpact ?? "?") as string;
 
   return `
 🔄 **Cross-Chain Quote**
 
 **Route:** ${getChainName(originChainId)} → ${getChainName(destinationChainId)}
-**Amount In:** ${formatAmount(amountIn, currencyIn)}
-**Amount Out:** ${formatAmount(amountOut, currencyOut)}
+**Amount In:** ${formatAmount(amountIn, currencyInSymbol)}
+**Amount Out:** ${formatAmount(amountOut, currencyOutSymbol)}
 **Exchange Rate:** ${rate}
 
 **Fees:**

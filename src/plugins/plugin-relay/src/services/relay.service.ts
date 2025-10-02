@@ -1,6 +1,7 @@
-import { IAgentRuntime, Service } from "@elizaos/core";
+import { IAgentRuntime, logger, Service } from "@elizaos/core";
 import type { ProgressData } from "@relayprotocol/relay-sdk";
 import {
+  adaptViemWallet,
   convertViemChainToRelayChain,
   createClient,
   getClient,
@@ -30,6 +31,7 @@ import type {
   ResolvedBridgeRequest,
   StatusRequest
 } from "../types";
+import { createMultiChainWallet, type MultiChainWallet } from "../utils/multichain-wallet";
 
 export class RelayService extends Service {
   static serviceType = "cross_chain_bridge" as const;
@@ -37,6 +39,7 @@ export class RelayService extends Service {
   private apiUrl: string = "";
   private apiKey?: string;
   private walletClient: WalletClient | null = null;
+  private multiChainWallet: MultiChainWallet | null = null;
   private isTestnet: boolean = false;
 
   constructor(runtime: IAgentRuntime) {
@@ -105,32 +108,32 @@ export class RelayService extends Service {
     const privateKey = runtime.getSetting("EVM_PRIVATE_KEY");
     console.log("[RELAY SERVICE] EVM_PRIVATE_KEY present:", !!privateKey);
     
-    try {
-      if (privateKey) {
-        console.log("[RELAY SERVICE] Creating wallet client from private key");
-        const normalizedPk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
-        const account = privateKeyToAccount(normalizedPk as `0x${string}`);
-        
-        // Get RPC URL from environment or use a default
-        const rpcUrl = runtime.getSetting("EVM_RPC_URL") || 
-                       runtime.getSetting("BASE_RPC_URL") || 
-                       "https://mainnet.base.org";
-        console.log("[RELAY SERVICE] Using RPC URL:", rpcUrl);
-        
-        this.walletClient = createWalletClient({
-          account,
-          chain: base, // Default to Base chain
-          transport: http(rpcUrl),
-        });
-        console.log("[RELAY SERVICE] Wallet client created, address:", account.address);
-      } else {
-        console.warn("[RELAY SERVICE] No EVM_PRIVATE_KEY provided - bridge execution will not be available");
+      try {
+        if (privateKey) {
+          console.log("[RELAY SERVICE] Creating multi-chain wallet from private key");
+          const normalizedPk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
+          const account = privateKeyToAccount(normalizedPk as `0x${string}`);
+          
+          // Get RPC URL from environment
+          const rpcUrl = runtime.getSetting("EVM_RPC_URL") || 
+                         runtime.getSetting("BASE_RPC_URL");
+          
+          // Create multi-chain wallet that can dynamically switch between chains
+          this.multiChainWallet = createMultiChainWallet(account, rpcUrl);
+          
+          // Get the current wallet client and adapt it for Relay SDK
+          this.walletClient = this.multiChainWallet.getCurrentWalletClient();
+          
+          console.log("[RELAY SERVICE] Multi-chain wallet created, address:", account.address);
+        } else {
+          console.warn("[RELAY SERVICE] No EVM_PRIVATE_KEY provided - bridge execution will not be available");
+        }
+      } catch (error) {
+        console.error("[RELAY SERVICE] Error creating wallet:", error);
+        console.warn("[RELAY SERVICE] Continuing without wallet - only quotes will be available");
+        this.walletClient = null;
+        this.multiChainWallet = null;
       }
-    } catch (error) {
-      console.error("[RELAY SERVICE] Error creating wallet client:", error);
-      console.warn("[RELAY SERVICE] Continuing without wallet client - only quotes will be available");
-      this.walletClient = null;
-    }
     
     console.log("[RELAY SERVICE] Initialization complete");
   }
@@ -247,6 +250,14 @@ export class RelayService extends Service {
         referrer: request.referrer,
       });
       console.log("[RELAY SERVICE] Quote obtained, executing bridge");
+
+      // Ensure wallet is on the correct origin chain before execution
+      if (this.multiChainWallet) {
+        console.log("[RELAY SERVICE] Switching wallet to origin chain:", request.originChainId);
+        await this.multiChainWallet.switchChain(request.originChainId);
+        // Update the wallet client reference
+        this.walletClient = this.multiChainWallet.getCurrentWalletClient();
+      }
 
       // Execute with the quote
       const result = await client.actions.execute({

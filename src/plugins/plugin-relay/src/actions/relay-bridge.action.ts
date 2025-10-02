@@ -277,11 +277,30 @@ export const relayBridgeAction: Action = {
         callback({ text: currentStatus });
       }
 
+      // Helper to serialize BigInt for logging
+      const serializeBigInt = (obj: any): any => {
+        if (obj === null || obj === undefined) return obj;
+        if (typeof obj === 'bigint') return obj.toString();
+        if (Array.isArray(obj)) return obj.map(serializeBigInt);
+        if (typeof obj === 'object') {
+          const serialized: any = {};
+          for (const key in obj) {
+            serialized[key] = serializeBigInt(obj[key]);
+          }
+          return serialized;
+        }
+        return obj;
+      };
+
       console.log("[RELAY BRIDGE] Executing bridge transaction");
       const requestId = await relayService.executeBridge(
         resolvedRequest,
         (data: ProgressData) => {
-          console.log("[RELAY BRIDGE] Progress update:", JSON.stringify(data, null, 2));
+          try {
+            console.log("[RELAY BRIDGE] Progress update:", JSON.stringify(serializeBigInt(data), null, 2));
+          } catch (err) {
+            console.log("[RELAY BRIDGE] Progress update: (unable to serialize)", err);
+          }
           currentStatus = `Bridge in progress...`;
           if (callback) {
             callback({ text: currentStatus });
@@ -294,20 +313,20 @@ export const relayBridgeAction: Action = {
       const statuses = await relayService.getStatus({ requestId });
       const status = statuses[0];
 
-      // Format response
+      // Format response (using serializeBigInt helper defined above)
       const response: ActionResult = {
         text: formatBridgeResponse(status, resolvedRequest, requestId),
         success: true,
-        data: {
+        data: serializeBigInt({
           requestId,
           status,
           request: {
             ...bridgeParams,
             resolvedOriginChainId: originChainId,
             resolvedDestinationChainId: destinationChainId,
-            amountInWei,
+            amountInWei: amountInWei.toString(),
           },
-        },
+        }),
       };
 
       if (callback) {
