@@ -13,7 +13,7 @@ import {
 import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
 import { getTokenDecimals } from "../utils/coingecko";
-import { type CdpSwapNetwork } from "../types";
+import { type CdpNetwork } from "../types";
 
 const unwrapTemplate = `# CDP WETH Unwrap Request
 
@@ -44,7 +44,7 @@ Respond with the unwrap parameters in this exact format:
 </unwrapParams>`;
 
 interface UnwrapParams {
-  network: CdpSwapNetwork;
+  network: CdpNetwork;
   amount: string;
 }
 
@@ -276,7 +276,7 @@ export const cdpWalletUnwrap: Action = {
       // Get viem clients for the account
       const { walletClient, publicClient } = await cdpService.getViemClientsForAccount({
         accountName: message.entityId,
-        network: unwrapParams.network === "base" ? "base" : "base-sepolia",
+        network: unwrapParams.network,
       });
       
       // WETH withdraw ABI

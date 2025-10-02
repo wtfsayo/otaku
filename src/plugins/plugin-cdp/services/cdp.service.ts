@@ -8,9 +8,15 @@ import {
   type WalletClient,
 } from "viem";
 import { toAccount } from "viem/accounts";
-import { base, baseSepolia } from "viem/chains";
+import {
+  base,
+  mainnet,
+  arbitrum,
+  polygon,
+  type Chain,
+} from "viem/chains";
 import { z } from "zod";
-import { type CdpSwapNetwork } from "../types";
+import { type CdpNetwork, DEFAULT_RPC_URLS } from "../types";
 
 const cdpConfigSchema = z.object({
   apiKeyId: z.string().min(1, "COINBASE_API_KEY_NAME must be a non-empty string"),
@@ -110,16 +116,16 @@ export class CdpService extends Service {
   }
 
   /**
-   * Execute a swap using CDP SDK with automatic approval handling.
-   * 
-   * CDP SDK checks for Permit2 approval but doesn't automatically approve.
-   * If approval is needed, we handle it manually then retry the swap.
+   * Execute a swap with automatic token approval handling.
+   * Steps:
+   * 1. Approve token for Permit2 contract (if needed)
+   * 2. Execute the swap using account.swap()
    * 
    * Reference: https://docs.cdp.coinbase.com/trade-api/quickstart#3-execute-a-swap
    */
   async swap(options: {
     accountName: string;
-    network: CdpSwapNetwork;
+    network: CdpNetwork;
     fromToken: `0x${string}`;
     toToken: `0x${string}`;
     fromAmount: bigint;
@@ -134,37 +140,18 @@ export class CdpService extends Service {
     logger.debug(`CDP account address: ${account.address}`);
     logger.info(`Executing swap: ${options.fromAmount.toString()} tokens on ${options.network}`);
     
+    // Permit2 contract address (same on all networks)
     const PERMIT2_ADDRESS = "0x000000000022D473030F116dDEE9F6B43aC78BA3" as `0x${string}`;
     
-    try {
-      // Try swap first - CDP SDK will check approvals
-      logger.info("Attempting swap...");
-      const result = await account.swap({
-        network: options.network,
-        fromToken: options.fromToken,
-        toToken: options.toToken,
-        fromAmount: options.fromAmount,
-        slippageBps: options.slippageBps ?? 100,
-      });
-
-      logger.info(`Swap executed successfully - transaction hash: ${result.transactionHash}`);
-
-      if (!result.transactionHash) {
-        throw new Error("Swap execution did not return a transaction hash");
-      }
-
-      return { transactionHash: result.transactionHash };
-    } catch (error) {
-      // Check if error is about token approval
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes("allowance") && errorMessage.includes("Permit2")) {
-        logger.info("Token approval needed for Permit2, approving now...");
-        
-        // Use Viem (wrapped CDP account) for approval transaction
-        // This uses the same CDP account but through Viem's client
-        const { walletClient, publicClient } = await this.getViemClientsForAccount({
+    // Step 1: Approve token for Permit2 contract (skip if it's native token)
+    if (options.fromToken.toLowerCase() !== "0x0000000000000000000000000000000000000000") {
+      logger.info("Approving token for Permit2 contract...");
+      
+      try {
+        // Get viem wallet client for this account
+        const { walletClient } = await this.getViemClientsForAccount({
           accountName: options.accountName,
-          network: options.network === "base" ? "base" : "base-sepolia",
+          network: options.network,
         });
         
         // ERC20 approve ABI
@@ -179,57 +166,46 @@ export class CdpService extends Service {
           outputs: [{ type: "bool" }]
         }] as const;
         
-        // Approve max uint256 for Permit2
-        logger.info("Sending Permit2 approval transaction...");
+        // Send approval transaction using viem
         const approvalHash = await walletClient.writeContract({
           address: options.fromToken,
           abi: approveAbi,
           functionName: "approve",
           args: [
             PERMIT2_ADDRESS,
+            // Approve max uint256 for convenience (standard practice)
             BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
           ],
           chain: walletClient.chain,
         } as any);
         
-        logger.info(`Permit2 approval sent: ${approvalHash}`);
+        logger.info(`Token approval sent: ${approvalHash}`);
         
-        // Wait for approval confirmation on-chain
-        logger.info("Waiting for approval confirmation...");
-        const receipt = await publicClient.waitForTransactionReceipt({ 
-          hash: approvalHash,
-          timeout: 60_000,
-        });
-        logger.info(`Approval confirmed in block ${receipt.blockNumber}`);
-        
-        // CRITICAL: Wait for CDP SDK's internal nonce tracker to sync with on-chain state
-        // CDP SDK caches nonces, and our Viem transaction incremented the on-chain nonce.
-        // We need to give CDP SDK time to refresh its cache before retrying the swap.
-        logger.info("Waiting 8 seconds for CDP SDK nonce cache to sync...");
-        await new Promise(resolve => setTimeout(resolve, 8000));
-        
-        // Retry swap after approval - CDP SDK should now have fresh nonce
-        logger.info("Retrying swap after approval...");
-        const result = await account.swap({
-          network: options.network,
-          fromToken: options.fromToken,
-          toToken: options.toToken,
-          fromAmount: options.fromAmount,
-          slippageBps: options.slippageBps ?? 100,
-        });
-
-        logger.info(`Swap executed successfully - transaction hash: ${result.transactionHash}`);
-
-        if (!result.transactionHash) {
-          throw new Error("Swap execution did not return a transaction hash");
-        }
-
-        return { transactionHash: result.transactionHash };
+        // Wait for approval to be mined
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      } catch (approvalError) {
+        logger.warn("Approval may have failed or was already granted:", approvalError);
+        // Continue anyway - approval might already exist
       }
-      
-      // Re-throw if not an approval error
-      throw error;
     }
+    
+    // Step 2: Execute the swap
+    logger.info("Executing swap transaction...");
+    const result = await account.swap({
+      network: options.network,
+      fromToken: options.fromToken,
+      toToken: options.toToken,
+      fromAmount: options.fromAmount,
+      slippageBps: options.slippageBps ?? 100,
+    });
+
+    logger.info(`Swap executed successfully - transaction hash: ${result.transactionHash}`);
+
+    if (!result.transactionHash) {
+      throw new Error("Swap execution did not return a transaction hash");
+    }
+
+    return { transactionHash: result.transactionHash };
   }
 
   /**
@@ -239,7 +215,7 @@ export class CdpService extends Service {
    */
   async getViemClientsForAccount(options: {
     accountName: string;
-    network?: "base" | "base-sepolia";
+    network?: CdpNetwork;
     rpcUrl?: string;
   }): Promise<{
     address: `0x${string}`;
@@ -251,26 +227,33 @@ export class CdpService extends Service {
     }
 
     const network = options.network ?? "base";
-    const chain = network === "base" ? base : baseSepolia;
-    const rpcUrl = options.rpcUrl || process.env.BASE_RPC_URL || "https://mainnet.base.org";
+    const NETWORK_CONFIG: Record<CdpNetwork, { chain: Chain; envVar: string }> = {
+      base: { chain: base, envVar: "BASE_RPC_URL" },
+      ethereum: { chain: mainnet, envVar: "ETHEREUM_RPC_URL" },
+      arbitrum: { chain: arbitrum, envVar: "ARBITRUM_RPC_URL" },
+      polygon: { chain: polygon, envVar: "POLYGON_RPC_URL" },
+    };
+
+    const cfg = NETWORK_CONFIG[network] ?? NETWORK_CONFIG.base;
+    const defaultRpcFromMap = DEFAULT_RPC_URLS[cfg.chain.id];
+    const rpcUrl = options.rpcUrl || process.env[cfg.envVar] || defaultRpcFromMap;
+    const chain = cfg.chain;
 
     const account = await this.getOrCreateAccount({ name: options.accountName });
     const address = account.address as `0x${string}`;
 
     // Wrap CDP EvmServerAccount with viem's toAccount() as shown in CDP docs
-    const publicClient = createPublicClient({ 
-      chain, 
-      transport: http(rpcUrl) 
+    const publicClient = createPublicClient({
+      chain,
+      transport: http(rpcUrl),
     }) as PublicClient;
     
-    const walletClient = createWalletClient({ 
-      account: toAccount(account), 
-      chain, 
-      transport: http(rpcUrl) 
+    const walletClient = createWalletClient({
+      account: toAccount(account),
+      chain,
+      transport: http(rpcUrl),
     });
 
     return { address, walletClient, publicClient };
   }
 }
-
-

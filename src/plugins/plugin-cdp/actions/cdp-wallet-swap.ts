@@ -13,7 +13,7 @@ import {
 import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
 import { getTokenMetadata, getTokenDecimals, resolveTokenSymbol } from "../utils/coingecko";
-import { type CdpSwapNetwork } from "../types";
+import { type CdpNetwork } from "../types";
 
 const swapTemplate = `# CDP Token Swap Request
 
@@ -52,7 +52,7 @@ Respond with the swap parameters in this exact format:
 </swapParams>`;
 
 interface SwapParams {
-  network: CdpSwapNetwork;
+  network: CdpNetwork;
   fromToken: string; // Can be symbol or address, gets resolved later
   toToken: string; // Can be symbol or address, gets resolved later
   amount: string;

@@ -14,7 +14,7 @@ import { parseUnits } from "viem";
 import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
 import { getTokenMetadata, getTokenDecimals, resolveTokenToAddress } from "../utils/coingecko";
-import { type CdpTransferNetwork } from "../types";
+import { type CdpNetwork } from "../types";
 
 const transferTemplate = `# CDP Token Transfer Request
 
@@ -58,7 +58,7 @@ Respond with the transfer parameters in this exact format:
 </transferParams>`;
 
 interface TransferParams {
-  network: CdpTransferNetwork;
+  network: CdpNetwork;
   to: `0x${string}`;
   token: string;
   amount: string;
@@ -79,7 +79,7 @@ const parseTransferParams = (text: string): TransferParams | null => {
   }
 
   return {
-    network: parsed.network as CdpTransferNetwork,
+    network: parsed.network as CdpNetwork,
     to: to as `0x${string}`,
     token: parsed.token.toLowerCase(),
     amount: parsed.amount,

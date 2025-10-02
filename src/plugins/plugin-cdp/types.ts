@@ -1,39 +1,28 @@
+import {
+  arbitrum,
+  base,
+  mainnet,
+  polygon,
+} from "viem/chains";
+
 /**
  * CDP Plugin Type Definitions
  */
 
 /**
- * Mainnet networks supported by CDP for swaps
- * These are the networks that support the swap functionality
+ * Networks supported by CDP corresponding to DEFAULT_RPC_URLS
  */
-export type CdpSwapNetwork = "base" | "ethereum" | "arbitrum" | "optimism";
-
-/**
- * All networks supported by CDP
- * Includes both mainnet and testnet networks across various chains
- */
-export type CdpNetwork = 
-  | CdpSwapNetwork
-  | "base-sepolia"
-  | "ethereum-sepolia"
-  | "ethereum-hoodi"
-  | "polygon"
-  | "polygon-mumbai"
-  | "arbitrum-sepolia"
-  | "optimism-sepolia";
-
-/**
- * Networks supported for token transfers
- * Includes mainnet and testnet networks
- */
-export type CdpTransferNetwork = 
-  | "base"
-  | "base-sepolia"
+export type CdpNetwork =
   | "ethereum"
-  | "ethereum-sepolia"
+  | "base"
   | "arbitrum"
-  | "arbitrum-sepolia"
-  | "optimism"
-  | "optimism-sepolia"
   | "polygon";
+
+
+export const DEFAULT_RPC_URLS: Record<number, string> = {
+  [mainnet.id]: "https://ethereum.publicnode.com",
+  [base.id]: "https://mainnet.base.org",
+  [arbitrum.id]: "https://arb1.arbitrum.io/rpc",
+  [polygon.id]: "https://polygon-rpc.com",
+};
 
