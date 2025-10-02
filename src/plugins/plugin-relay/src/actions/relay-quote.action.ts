@@ -222,7 +222,7 @@ export const relayQuoteAction: Action = {
         toCurrency: quoteParams.toCurrency || quoteParams.currency,
         amount: amountInWei,
         recipient: quoteParams.recipient,
-        tradeType: quoteParams.tradeType,
+        tradeType: quoteParams.tradeType ?? "EXACT_INPUT",
       });
 
       // Format response
