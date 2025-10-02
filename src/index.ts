@@ -8,7 +8,9 @@ import { character } from "./character.ts";
 import clankerPlugin from "./plugins//plugin-clanker/src/plugin.ts";
 import cdpPlugin from "./plugins/plugin-cdp/index.ts";
 import morphoPlugin from "./plugins/plugin-morpho/src/plugin.ts";
+import bootstrapPlugin from "./plugins/plugin-bootstrap/src/index.ts";
 import relayPlugin from "./plugins/plugin-relay/src/index.ts";
+
 
 const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
   logger.info("Initializing character");
@@ -19,6 +21,7 @@ export const projectAgent: ProjectAgent = {
   character,
   init: async (runtime: IAgentRuntime) => await initCharacter({ runtime }),
   plugins: [
+    bootstrapPlugin,
     cdpPlugin,
     // evmPlugin,
     clankerPlugin,
