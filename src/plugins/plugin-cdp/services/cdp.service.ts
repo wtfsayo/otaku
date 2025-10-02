@@ -160,7 +160,8 @@ export class CdpService extends Service {
       if (errorMessage.includes("allowance") && errorMessage.includes("Permit2")) {
         logger.info("Token approval needed for Permit2, approving now...");
         
-        // Get viem clients for manual approval
+        // Use Viem (wrapped CDP account) for approval transaction
+        // This uses the same CDP account but through Viem's client
         const { walletClient, publicClient } = await this.getViemClientsForAccount({
           accountName: options.accountName,
           network: options.network === "base" ? "base" : "base-sepolia",
@@ -179,6 +180,7 @@ export class CdpService extends Service {
         }] as const;
         
         // Approve max uint256 for Permit2
+        logger.info("Sending Permit2 approval transaction...");
         const approvalHash = await walletClient.writeContract({
           address: options.fromToken,
           abi: approveAbi,
@@ -192,7 +194,7 @@ export class CdpService extends Service {
         
         logger.info(`Permit2 approval sent: ${approvalHash}`);
         
-        // Wait for approval confirmation
+        // Wait for approval confirmation on-chain
         logger.info("Waiting for approval confirmation...");
         const receipt = await publicClient.waitForTransactionReceipt({ 
           hash: approvalHash,
@@ -200,7 +202,13 @@ export class CdpService extends Service {
         });
         logger.info(`Approval confirmed in block ${receipt.blockNumber}`);
         
-        // Retry swap after approval
+        // CRITICAL: Wait for CDP SDK's internal nonce tracker to sync with on-chain state
+        // CDP SDK caches nonces, and our Viem transaction incremented the on-chain nonce.
+        // We need to give CDP SDK time to refresh its cache before retrying the swap.
+        logger.info("Waiting 8 seconds for CDP SDK nonce cache to sync...");
+        await new Promise(resolve => setTimeout(resolve, 8000));
+        
+        // Retry swap after approval - CDP SDK should now have fresh nonce
         logger.info("Retrying swap after approval...");
         const result = await account.swap({
           network: options.network,
