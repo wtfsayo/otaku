@@ -34,19 +34,18 @@ Extract the swap details from the user's request. If any detail is missing, use 
 **Important Notes:**
 - **Default network is "base"** - only specify another network if explicitly mentioned by the user
 - You can use EITHER token symbols (USDC, BNKR, DAI) OR contract addresses (0x...)
-- If the user provides a symbol, just return the symbol as-is - the system will resolve it automatically
-- For native tokens, use the symbol: ETH (converts to WETH), MATIC (converts to WMATIC), etc.
-- **ETH is automatically converted to WETH** for CDP swaps (CDP doesn't support native ETH)
-- Only use contract addresses if explicitly provided by the user or if it's a well-known token
-- Common tokens on Base: USDC, WETH, DAI, BNKR, ETH (as WETH)
-- Common tokens on Ethereum: USDC, WETH, DAI, ETH (as WETH)
+- **For native gas tokens, always use ETH or MATIC** (preferred for swapping native tokens)
+- If user says "ETH" or "WETH", use "ETH" (system handles both as different tokens)
+- If user says "MATIC" or "WMATIC", use "MATIC" (system handles both as different tokens)
+- Common tokens on Base: USDC, ETH, DAI, BNKR
+- Common tokens on Ethereum: USDC, ETH, DAI
 - **For "all", "max", "full balance", or "entire balance" requests, use "MAX" as the amount**
 
 Respond with the swap parameters in this exact format:
 <swapParams>
 <network>base</network>
 <fromToken>USDC</fromToken>
-<toToken>WETH</toToken>
+<toToken>ETH</toToken>
 <amount>100</amount>
 <slippageBps>100</slippageBps>
 </swapParams>`;
@@ -70,19 +69,10 @@ const parseSwapParams = (text: string): SwapParams | null => {
     return null;
   }
 
-  // Validate and format token addresses
-  const formatTokenAddress = (token: string): string => {
-    const cleaned = token.trim();
-    
-    // Don't convert to zero address - just return as-is
-    // resolveTokenToAddress will handle native token conversion to WETH
-    return cleaned;
-  };
-
   const swapParams = {
     network: (parsed.network || "base") as SwapParams["network"],
-    fromToken: formatTokenAddress(parsed.fromToken),
-    toToken: formatTokenAddress(parsed.toToken),
+    fromToken: parsed.fromToken.trim(),
+    toToken: parsed.toToken.trim(),
     amount: parsed.amount,
     slippageBps: parsed.slippageBps ? parseInt(parsed.slippageBps) : 100,
   };
@@ -92,28 +82,49 @@ const parseSwapParams = (text: string): SwapParams | null => {
 };
 
 /**
- * WETH addresses for CDP swaps
- * CDP doesn't support native ETH in swaps - must use WETH instead
- * See: https://docs.cdp.coinbase.com/sdks/cdp-sdks-v2/typescript/evm/Actions
+ * Native token placeholder address for CDP swaps
+ * CDP SDK uses this special address to represent native gas tokens (ETH, MATIC, etc.)
+ * The SDK internally handles the native token → no need to convert to wrapped versions
+ * 
+ * Reference: https://docs.cdp.coinbase.com/server-wallets/v2/evm-features/swaps
+ */
+const NATIVE_TOKEN_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+
+/**
+ * Wrapped token addresses for when users explicitly want wrapped tokens
+ * (as opposed to native gas tokens)
+ * 
+ * Addresses verified from CoinGecko and official block explorers:
+ * - WETH on Ethereum: Standard WETH9 contract
+ * - WETH on Base/Optimism: 0x4200...0006 (OP Stack standard)
+ * - WETH on Arbitrum: Native WETH on Arbitrum One
+ * - WETH on Polygon: Bridged from Ethereum via PoS Bridge
+ * - WMATIC on Polygon: Wrapped MATIC
  */
 const WETH_ADDRESSES: Record<string, string> = {
   "base": "0x4200000000000000000000000000000000000006",
   "base-sepolia": "0x4200000000000000000000000000000000000006",
   "ethereum": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-  "ethereum-sepolia": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
   "arbitrum": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
   "optimism": "0x4200000000000000000000000000000000000006",
-  "polygon": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619", // Note: Polygon uses different WETH
+  "polygon": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
 };
+
+const WMATIC_ADDRESS = "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270";
 
 /**
  * Resolve token to address using CoinGecko
  * Handles both symbols and addresses
  * 
- * IMPORTANT: CDP doesn't support native ETH in swaps - converts ETH to WETH automatically.
+ * IMPORTANT: CDP SDK supports native gas tokens using a special placeholder address.
+ * - Native tokens (ETH, MATIC): Use 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE
+ * - Wrapped tokens (WETH, WMATIC): Use actual contract addresses
+ * 
  * Always validates addresses with CoinGecko to prevent fake/invalid addresses.
- * The LLM may generate addresses that look valid but don't exist (e.g., 0xB1a2C3d4E5f678901234567890aBcDeFAbCdEf12).
+ * The LLM may generate addresses that look valid but don't exist.
  * This function ensures only real, verified tokens are used in swaps.
+ * 
+ * Reference: https://docs.cdp.coinbase.com/server-wallets/v2/evm-features/swaps
  */
 const resolveTokenToAddress = async (
   token: string,
@@ -122,21 +133,32 @@ const resolveTokenToAddress = async (
   logger.debug(`Resolving token: ${token} on network: ${network}`);
   const trimmedToken = token.trim();
   
-  // For native ETH - CDP uses WETH addresses in swaps
+  // For native ETH - CDP uses special native token address
   if (trimmedToken.toLowerCase() === "eth") {
+    logger.info(`Using native token address for ETH: ${NATIVE_TOKEN_ADDRESS}`);
+    return NATIVE_TOKEN_ADDRESS as `0x${string}`;
+  }
+  
+  // For explicit WETH - use actual WETH contract address
+  if (trimmedToken.toLowerCase() === "weth") {
     const wethAddress = WETH_ADDRESSES[network];
     if (wethAddress) {
-      logger.info(`Converting ETH to WETH address for ${network}: ${wethAddress}`);
+      logger.info(`Using WETH contract address for ${network}: ${wethAddress}`);
       return wethAddress as `0x${string}`;
     }
     logger.warn(`No WETH address configured for network ${network}`);
   }
   
-  // For native MATIC on Polygon - use WMATIC
+  // For native MATIC on Polygon - use native token address
   if (trimmedToken.toLowerCase() === "matic" && network === "polygon") {
-    const wmaticAddress = "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270";
-    logger.info(`Converting MATIC to WMATIC address for Polygon: ${wmaticAddress}`);
-    return wmaticAddress as `0x${string}`;
+    logger.info(`Using native token address for MATIC: ${NATIVE_TOKEN_ADDRESS}`);
+    return NATIVE_TOKEN_ADDRESS as `0x${string}`;
+  }
+  
+  // For explicit WMATIC on Polygon - use actual WMATIC contract address
+  if (trimmedToken.toLowerCase() === "wmatic" && network === "polygon") {
+    logger.info(`Using WMATIC contract address for Polygon: ${WMATIC_ADDRESS}`);
+    return WMATIC_ADDRESS as `0x${string}`;
   }
   
   // If it looks like an address, validate it with CoinGecko to prevent fake addresses
@@ -480,12 +502,12 @@ export const cdpWalletSwap: Action = {
     [
       {
         name: "{{user}}",
-        content: { text: "swap 100 USDC to WETH on base" },
+        content: { text: "swap 100 USDC to ETH on base" },
       },
       {
         name: "{{agent}}",
         content: {
-          text: "I'll swap 100 USDC to WETH on Base network for you.",
+          text: "I'll swap 100 USDC to ETH on Base network for you.",
           action: "CDP_WALLET_SWAP",
         },
       },

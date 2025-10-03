@@ -15,6 +15,7 @@ import {
   arbitrum,
   polygon,
   type Chain,
+  optimism,
 } from "viem/chains";
 import { z } from "zod";
 import { type CdpNetwork, DEFAULT_RPC_URLS } from "../types";
@@ -171,7 +172,7 @@ export class CdpService extends Service {
         // This uses the same CDP account but through Viem's client
         const { walletClient, publicClient } = await this.getViemClientsForAccount({
           accountName: options.accountName,
-          network: options.network === "base" ? "base" : "base-sepolia",
+            network: options.network === "base" ? "base" : "base-sepolia",
         });
         
         // ERC20 approve ABI
@@ -287,13 +288,14 @@ export class CdpService extends Service {
     walletClient: WalletClient;
     publicClient: PublicClient;
   }> {
-    if (!this.client) {
+    if (!this.client) { 
       throw new Error("CDP is not authenticated");
     }
 
     const network = options.network ?? "base";
     const NETWORK_CONFIG: Record<CdpNetwork, { chain: Chain; envVar: string }> = {
       base: { chain: base, envVar: "BASE_RPC_URL" },
+      optimism: { chain: optimism, envVar: "OPTIMISM_RPC_URL" },
       "base-sepolia": { chain: baseSepolia, envVar: "BASE_SEPOLIA_RPC_URL" },
       ethereum: { chain: mainnet, envVar: "ETHEREUM_RPC_URL" },
       arbitrum: { chain: arbitrum, envVar: "ARBITRUM_RPC_URL" },
