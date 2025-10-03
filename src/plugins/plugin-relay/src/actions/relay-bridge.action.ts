@@ -23,9 +23,11 @@ import {
   type Chain
   } from "viem/chains";
 import { RelayService } from "../services/relay.service"; 
+import { CdpService } from "../../../plugin-cdp/services/cdp.service";
 import { type BridgeRequest, type ResolvedBridgeRequest, type RelayStatus } from "../types";
 import type { ProgressData } from "@relayprotocol/relay-sdk";
 import { resolveTokenToAddress, getTokenDecimals } from "../utils/token-resolver";
+import { CdpNetwork } from "../../../plugin-cdp/types";
 
 const parseBridgeParams = (text: string): BridgeRequest | null => {
   const parsed = parseKeyValueXml(text);
@@ -111,21 +113,6 @@ const resolveChainNameToId = (chainName: string): number | null => {
   return chain.id;
 };
 
-/**
- * Parse amount to wei based on token decimals
- * Most tokens use 18 decimals (ETH, WETH), stablecoins use 6 (USDC, USDT)
- */
-const parseAmountToWei = (amount: string, currency: string): string => {
-  const decimals = currency.toLowerCase().includes("usdc") || 
-                   currency.toLowerCase().includes("usdt") ? 6 : 18;
-  
-  const [integer, fractional = ""] = amount.split(".");
-  const paddedFractional = fractional.padEnd(decimals, "0").slice(0, decimals);
-  const amountInWei = BigInt(integer + paddedFractional);
-  
-  return amountInWei.toString();
-};
-
 export const relayBridgeAction: Action = {
   name: "EXECUTE_RELAY_BRIDGE",
   description: "Execute a cross-chain bridge transaction using Relay Link",
@@ -138,22 +125,25 @@ export const relayBridgeAction: Action = {
   ],
 
   validate: async (runtime: IAgentRuntime, message: Memory, state?: State) => {
-    const keywords = [
-      "bridge",
-      "cross-chain",
-      "relay",
-      "transfer",
-      "send",
-      "move",
-      "from",
-      "to",
-    ];
+    try {
+      // Check if services are available
+      const relayService = runtime.getService(
+        RelayService.serviceType,
+      ) as RelayService;
 
-    const text = (message.content.text || "").toLowerCase();
-    const hasKeyword = keywords.some(keyword => text.includes(keyword));
-    const hasChains = /(?:ethereum|base|arbitrum|polygon|optimism|zora|blast|scroll|linea)/i.test(text);
+      if (!relayService) {
+        logger.warn("Required services not available for token deployment");
+        return false;
+      }
 
-    return hasKeyword && hasChains;
+      return true;
+    } catch (error) {
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
+    }
   },
 
   handler: async (
@@ -189,16 +179,20 @@ export const relayBridgeAction: Action = {
           throw new Error("Failed to parse bridge parameters from request");
         }
 
-        // Always derive user address from EVM_PRIVATE_KEY
-        const privateKey = runtime.getSetting("EVM_PRIVATE_KEY");
-        if (!privateKey) {
-          throw new Error("EVM_PRIVATE_KEY not set - required for bridge execution");
+        const cdp = runtime.getService?.("CDP_SERVICE") as CdpService;
+        if (!cdp || typeof cdp.getViemClientsForAccount !== "function") {
+          throw new Error("CDP not available");
         }
-        const normalizedPk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
-        const { privateKeyToAccount } = await import("viem/accounts");
-        const account = privateKeyToAccount(normalizedPk as `0x${string}`);
-        const userAddress = account.address;
-
+        // Use originChain to determine network only after resolving it
+        // Temporarily set base; we actually send the proper wallet in the service per chain
+        const accountName = message.entityId
+        const viemClient = await cdp.getViemClientsForAccount({
+          accountName,
+          network: bridgeParams.originChain as CdpNetwork,
+        });
+        const walletClient = viemClient.walletClient as any;
+        const userAddress = viemClient.address;
+        
         // Resolve chain names to IDs
         const originChainId = resolveChainNameToId(bridgeParams.originChain);
         const destinationChainId = resolveChainNameToId(bridgeParams.destinationChain);
@@ -272,6 +266,7 @@ export const relayBridgeAction: Action = {
 
       const requestId = await relayService.executeBridge(
         resolvedRequest,
+        { walletClient },
         (data: ProgressData) => {
           // Collect transaction hashes from progress updates
           if (data.txHashes && data.txHashes.length > 0) {
@@ -295,7 +290,7 @@ export const relayBridgeAction: Action = {
             currentStatus = newStatus;
             callback?.({ text: currentStatus });
           }
-        }
+        },
       );
 
       // Helper to fetch status (tries requestId, falls back to txHash)

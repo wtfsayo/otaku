@@ -37,8 +37,6 @@ export class RelayService extends Service {
 
   private apiUrl: string = "";
   private apiKey?: string;
-  private walletClient: WalletClient | null = null;
-  private multiChainWallet: MultiChainWallet | null = null;
   private isTestnet: boolean = false;
 
   constructor(runtime: IAgentRuntime) {
@@ -58,7 +56,6 @@ export class RelayService extends Service {
 
   async stop(): Promise<void> {
     // Cleanup if needed
-    this.walletClient = null;
   }
 
   async initialize(runtime: IAgentRuntime): Promise<void> {
@@ -91,31 +88,6 @@ export class RelayService extends Service {
       // Client may already be initialized; avoid breaking startup
       const err = error as Error;
       logger.debug(`Relay client already initialized: ${err.message}`);
-    }
-
-    const privateKey = runtime.getSetting("EVM_PRIVATE_KEY");
-    
-    try {
-      if (privateKey) {
-        const normalizedPk = privateKey.startsWith("0x") ? privateKey : `0x${privateKey}`;
-        const account = privateKeyToAccount(normalizedPk as `0x${string}`);
-        
-        // Get RPC URL from environment
-        const rpcUrl = runtime.getSetting("EVM_RPC_URL") || 
-                       runtime.getSetting("BASE_RPC_URL");
-        
-        // Create multi-chain wallet that can dynamically switch between chains
-        this.multiChainWallet = createMultiChainWallet(account, rpcUrl);
-        this.walletClient = this.multiChainWallet.getCurrentWalletClient();
-        
-        logger.info(`Relay service initialized with wallet: ${account.address}`);
-      } else {
-        logger.warn("No EVM_PRIVATE_KEY provided - bridge execution will not be available");
-      }
-    } catch (error) {
-      logger.error("Error creating wallet:", error);
-      this.walletClient = null;
-      this.multiChainWallet = null;
     }
   }
 
@@ -170,16 +142,13 @@ export class RelayService extends Service {
    */
   async executeBridge(
     request: ResolvedBridgeRequest,
+    options: { walletClient: WalletClient },
     onProgress?: (data: ProgressData) => void
   ): Promise<string> {
     try {
       const client = getClient();
       if (!client) {
         throw new Error("Relay client not initialized");
-      }
-
-      if (!this.walletClient) {
-        throw new Error("Wallet not initialized. Please set EVM_PRIVATE_KEY environment variable.");
       }
 
       // Validate request
@@ -204,16 +173,11 @@ export class RelayService extends Service {
         referrer: request.referrer,
       });
 
-      // Ensure wallet is on the correct origin chain before execution
-      if (this.multiChainWallet) {
-        await this.multiChainWallet.switchChain(request.originChainId);
-        this.walletClient = this.multiChainWallet.getCurrentWalletClient();
-      }
-
+      const wallet = options?.walletClient
       // Execute with the quote
       const result = await client.actions.execute({
         quote,
-        wallet: this.walletClient,
+        wallet,
         onProgress,
       });
 
@@ -240,16 +204,13 @@ export class RelayService extends Service {
    */
   async executeCall(
     request: ExecuteCallRequest,
+    options: { walletClient: WalletClient },
     onProgress?: (data: ProgressData) => void
   ): Promise<string> {
     try {
       const client = getClient();
       if (!client) {
         throw new Error("Relay client not initialized. Please call initialize() first.");
-      }
-
-      if (!this.walletClient) {
-        throw new Error("Wallet not initialized. Please set EVM_PRIVATE_KEY environment variable.");
       }
 
       // Validate request
@@ -272,10 +233,12 @@ export class RelayService extends Service {
         tradeType: "EXACT_INPUT",
       });
 
+      const wallet = options?.walletClient
+
       // Execute the call with SDK
       const result = await client.actions.execute({
         quote,
-        wallet: this.walletClient,
+        wallet,
         onProgress: (data: ProgressData) => {
           if (onProgress) {
             onProgress(data);

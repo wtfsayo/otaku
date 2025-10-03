@@ -14,7 +14,7 @@ import { parseUnits } from "viem";
 import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
 import { getTokenMetadata, getTokenDecimals, resolveTokenToAddress } from "../utils/coingecko";
-import { type CdpTransferNetwork } from "../types";
+import { type CdpNetwork } from "../types";
 
 const transferTemplate = `# CDP Token Transfer Request
 
@@ -58,7 +58,7 @@ Respond with the transfer parameters in this exact format:
 </transferParams>`;
 
 interface TransferParams {
-  network: CdpTransferNetwork;
+  network: CdpNetwork;
   to: `0x${string}`;
   token: string;
   amount: string;
@@ -79,7 +79,7 @@ const parseTransferParams = (text: string): TransferParams | null => {
   }
 
   return {
-    network: parsed.network as CdpTransferNetwork,
+    network: parsed.network as CdpNetwork,
     to: to as `0x${string}`,
     token: parsed.token.toLowerCase(),
     amount: parsed.amount,
@@ -100,14 +100,25 @@ export const cdpWalletTransfer: Action = {
   ],
   description: "Transfer tokens to another address using Coinbase CDP",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
-    const text = message.content.text?.toLowerCase() || "";
-    const hasTransferKeywords = ["send", "transfer", "pay"].some(
-      (k) => text.includes(k)
-    );
-    const hasAddressPattern = /0x[a-fA-F0-9]{40}/.test(text);
-    
-    // Return true if transfer keywords are present
-    return hasTransferKeywords || hasAddressPattern;
+    try {
+      // Check if services are available
+      const cdpService = _runtime.getService(
+        CdpService.serviceType,
+      ) as CdpService;
+
+      if (!cdpService) {
+        logger.warn("Required services not available for token deployment");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
+    }
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -184,16 +195,13 @@ export const cdpWalletTransfer: Action = {
 
       logger.info(`Executing CDP transfer: network=${transferParams.network}, to=${transferParams.to}, token=${token}, amount=${transferParams.amount}`);
 
-      // Get the account and execute transfer
-      const account = await cdpService.getOrCreateAccount({ name: message.entityId });
-      
-      // Use the network-scoped account for type safety
-      const networkAccount = await account.useNetwork(transferParams.network);
-      
-      const result = await networkAccount.transfer({
+      // Execute transfer via service method (centralizes nonce/rpc handling)
+      const result = await cdpService.transfer({
+        accountName: message.entityId,
+        network: transferParams.network,
         to: transferParams.to,
-        amount,
         token,
+        amount,
       });
 
       const successText = `✅ Successfully transferred ${transferParams.amount} ${transferParams.token.toUpperCase()} on ${transferParams.network}\n` +

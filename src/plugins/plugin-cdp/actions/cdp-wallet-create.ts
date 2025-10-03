@@ -16,10 +16,25 @@ export const cdpCreateWallet: Action = {
   description:
     "Create an EVM account via Coinbase CDP",
   validate: async (runtime: IAgentRuntime, message: Memory) => {
-    const text = message.content.text?.toLowerCase() || "";
-    return ["create", "wallet", "cdp", "coinbase"].some((k) =>
-      text.includes(k),
-    );
+    try {
+      // Check if services are available
+      const cdpService = runtime.getService(
+        CdpService.serviceType,
+      ) as CdpService;
+
+      if (!cdpService) {
+        logger.warn("Required services not available for token deployment");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
+    }
   },
   handler: async (
     runtime: IAgentRuntime,

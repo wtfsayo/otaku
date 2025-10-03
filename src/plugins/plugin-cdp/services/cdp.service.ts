@@ -8,9 +8,17 @@ import {
   type WalletClient,
 } from "viem";
 import { toAccount } from "viem/accounts";
-import { base, baseSepolia } from "viem/chains";
+import {
+  base,
+  baseSepolia,
+  mainnet,
+  arbitrum,
+  polygon,
+  type Chain,
+  optimism,
+} from "viem/chains";
 import { z } from "zod";
-import { type CdpSwapNetwork } from "../types";
+import { type CdpNetwork, DEFAULT_RPC_URLS } from "../types";
 
 const cdpConfigSchema = z.object({
   apiKeyId: z.string().min(1, "COINBASE_API_KEY_NAME must be a non-empty string"),
@@ -110,16 +118,16 @@ export class CdpService extends Service {
   }
 
   /**
-   * Execute a swap using CDP SDK with automatic approval handling.
-   * 
-   * CDP SDK checks for Permit2 approval but doesn't automatically approve.
-   * If approval is needed, we handle it manually then retry the swap.
+   * Execute a swap with automatic token approval handling.
+   * Steps:
+   * 1. Approve token for Permit2 contract (if needed)
+   * 2. Execute the swap using account.swap()
    * 
    * Reference: https://docs.cdp.coinbase.com/trade-api/quickstart#3-execute-a-swap
    */
   async swap(options: {
     accountName: string;
-    network: CdpSwapNetwork;
+    network: CdpNetwork;
     fromToken: `0x${string}`;
     toToken: `0x${string}`;
     fromAmount: bigint;
@@ -164,7 +172,7 @@ export class CdpService extends Service {
         // This uses the same CDP account but through Viem's client
         const { walletClient, publicClient } = await this.getViemClientsForAccount({
           accountName: options.accountName,
-          network: options.network === "base" ? "base" : "base-sepolia",
+            network: options.network === "base" ? "base" : "base-sepolia",
         });
         
         // ERC20 approve ABI
@@ -233,44 +241,87 @@ export class CdpService extends Service {
   }
 
   /**
+   * Execute a token transfer via CDP account on a specified network
+   */
+  async transfer(options: {
+    accountName: string;
+    network: CdpNetwork;
+    to: `0x${string}`;
+    token: `0x${string}` | "usdc" | "eth";
+    amount: bigint;
+  }): Promise<{ transactionHash: string }> {
+    if (!this.client) {
+      throw new Error("CDP is not authenticated");
+    }
+
+    const account = await this.getOrCreateAccount({ name: options.accountName });
+    const networkAccount = await account.useNetwork(options.network);
+
+    logger.info(
+      `Executing transfer on ${options.network}: to=${options.to}, token=${options.token}, amount=${options.amount.toString()}`,
+    );
+
+    const result = await networkAccount.transfer({
+      to: options.to,
+      amount: options.amount,
+      token: options.token,
+    });
+
+    if (!result.transactionHash) {
+      throw new Error("Transfer execution did not return a transaction hash");
+    }
+
+    return { transactionHash: result.transactionHash };
+  }
+
+  /**
    * Returns viem wallet/public clients backed by a CDP EVM account.
    * Uses viem's toAccount() wrapper as per CDP SDK documentation.
    * @see https://github.com/coinbase/cdp-sdk/blob/main/typescript/README.md#sending-transactions
    */
   async getViemClientsForAccount(options: {
     accountName: string;
-    network?: "base" | "base-sepolia";
+    network?: CdpNetwork;
     rpcUrl?: string;
   }): Promise<{
     address: `0x${string}`;
     walletClient: WalletClient;
     publicClient: PublicClient;
   }> {
-    if (!this.client) {
+    if (!this.client) { 
       throw new Error("CDP is not authenticated");
     }
 
     const network = options.network ?? "base";
-    const chain = network === "base" ? base : baseSepolia;
-    const rpcUrl = options.rpcUrl || process.env.BASE_RPC_URL || "https://mainnet.base.org";
+    const NETWORK_CONFIG: Record<CdpNetwork, { chain: Chain; envVar: string }> = {
+      base: { chain: base, envVar: "BASE_RPC_URL" },
+      optimism: { chain: optimism, envVar: "OPTIMISM_RPC_URL" },
+      "base-sepolia": { chain: baseSepolia, envVar: "BASE_SEPOLIA_RPC_URL" },
+      ethereum: { chain: mainnet, envVar: "ETHEREUM_RPC_URL" },
+      arbitrum: { chain: arbitrum, envVar: "ARBITRUM_RPC_URL" },
+      polygon: { chain: polygon, envVar: "POLYGON_RPC_URL" },
+    };
+
+    const cfg = NETWORK_CONFIG[network] ?? NETWORK_CONFIG.base;
+    const defaultRpcFromMap = DEFAULT_RPC_URLS[cfg.chain.id];
+    const rpcUrl = options.rpcUrl || process.env[cfg.envVar] || defaultRpcFromMap;
+    const chain = cfg.chain;
 
     const account = await this.getOrCreateAccount({ name: options.accountName });
     const address = account.address as `0x${string}`;
 
     // Wrap CDP EvmServerAccount with viem's toAccount() as shown in CDP docs
-    const publicClient = createPublicClient({ 
-      chain, 
-      transport: http(rpcUrl) 
+    const publicClient = createPublicClient({
+      chain,
+      transport: http(rpcUrl),
     }) as PublicClient;
     
-    const walletClient = createWalletClient({ 
-      account: toAccount(account), 
-      chain, 
-      transport: http(rpcUrl) 
+    const walletClient = createWalletClient({
+      account: toAccount(account),
+      chain,
+      transport: http(rpcUrl),
     });
 
     return { address, walletClient, publicClient };
   }
 }
-
-

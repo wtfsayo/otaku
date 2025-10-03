@@ -13,7 +13,7 @@ import {
 import { getEntityWallet } from "../../../utils/entity";
 import { CdpService } from "../services/cdp.service";
 import { getTokenDecimals } from "../utils/coingecko";
-import { type CdpSwapNetwork } from "../types";
+import { type CdpNetwork } from "../types";
 
 const unwrapTemplate = `# CDP WETH Unwrap Request
 
@@ -44,7 +44,7 @@ Respond with the unwrap parameters in this exact format:
 </unwrapParams>`;
 
 interface UnwrapParams {
-  network: CdpSwapNetwork;
+  network: CdpNetwork;
   amount: string;
 }
 
@@ -97,14 +97,25 @@ export const cdpWalletUnwrap: Action = {
   ],
   description: "Unwrap WETH to native ETH on EVM Based Chains",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
-    const text = message.content.text?.toLowerCase() || "";
-    const hasUnwrapKeywords = ["unwrap", "convert weth"].some(
-      (k) => text.includes(k)
-    );
-    const hasWethKeyword = text.includes("weth");
-    
-    // Return true if unwrap keywords are present with WETH mention
-    return hasUnwrapKeywords && hasWethKeyword;
+    try {
+      // Check if services are available
+      const cdpService = _runtime.getService(
+        CdpService.serviceType,
+      ) as CdpService;
+
+      if (!cdpService) {
+        logger.warn("Required services not available for token deployment");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
+    }
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -265,7 +276,7 @@ export const cdpWalletUnwrap: Action = {
       // Get viem clients for the account
       const { walletClient, publicClient } = await cdpService.getViemClientsForAccount({
         accountName: message.entityId,
-        network: unwrapParams.network === "base" ? "base" : "base-sepolia",
+        network: unwrapParams.network,
       });
       
       // WETH withdraw ABI

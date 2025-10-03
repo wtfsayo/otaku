@@ -12,7 +12,7 @@ import { cdpWalletTransfer } from "./actions/cdp-wallet-transfer";
 import { cdpWalletUnwrap } from "./actions/cdp-wallet-unwrap";
 
 // Types
-export type { CdpNetwork, CdpSwapNetwork, CdpTransferNetwork } from "./types";
+export type { CdpNetwork } from "./types";
 
 export const cdpPlugin: Plugin = {
   name: "cdp",

@@ -22,10 +22,25 @@ export const cdpWalletBalance: Action = {
   description:
     "List token balances for the user's CDP EVM account using Coinbase CDP",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
-    const text = message.content.text?.toLowerCase() || "";
-    return ["balance", "balances", "tokens", "assets", "cdp", "coinbase"].some(
-      (k) => text.includes(k),
-    );
+    try {
+      // Check if services are available
+      const cdpService = _runtime.getService(
+        CdpService.serviceType,
+      ) as CdpService;
+
+      if (!cdpService) {
+        logger.warn("Required services not available for token deployment");
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      logger.error(
+        "Error validating token deployment action:",
+        error instanceof Error ? error.message : String(error),
+      );
+      return false;
+    }
   },
   handler: async (
     runtime: IAgentRuntime,
@@ -51,20 +66,44 @@ export const cdpWalletBalance: Action = {
       // Retrieve account by stable name (entityId) to ensure consistency
       const account = await cdpService.getOrCreateAccount({ name: message.entityId });
 
-      // Determine network; default to entity's chain or sensible default
-      const defaultNetwork = walletResult.chain || "base"; // CDP commonly uses base/base-sepolia
-      const network = (message.content?.metadata as any)?.network || defaultNetwork;
+      // Define all supported mainnet networks for CDP listTokenBalances API
+      // Note: Currently CDP only supports base and ethereum for token balance queries
+      const mainnetNetworks = ["ethereum", "base"] as const;
 
-      const balancesResponse = await account.listTokenBalances({ network });
+      // Collect balances from all mainnets
+      type NetworkBalances = {
+        network: typeof mainnetNetworks[number];
+        balances: Array<any>;
+      };
+      
+      const balancePromises = mainnetNetworks.map(async (network) => {
+        try {
+          const balancesResponse = await account.listTokenBalances({ network });
+          const balances = balancesResponse?.balances || [];
+          
+          if (balances.length > 0) {
+            return { network, balances };
+          }
+          return null;
+        } catch (error) {
+          logger.warn(`Failed to fetch balances for ${network}:`, error);
+          return null;
+        }
+      });
+      
+      const results = await Promise.all(balancePromises);
+      
+      const allNetworkBalances: NetworkBalances[] = results.filter(
+        (result): result is NetworkBalances => result !== null
+      );
 
-      const rows = balancesResponse?.balances || [];
-      if (!rows.length) {
-        const noBalText = `📭 No token balances found on ${network} for your CDP wallet.`;
-        callback?.({ text: noBalText, content: { balances: [], network } });
+      if (allNetworkBalances.length === 0) {
+        const noBalText = `📭 No token balances found across any mainnets for your CDP wallet.`;
+        callback?.({ text: noBalText, content: { balances: [], networks: mainnetNetworks } });
         return {
           text: noBalText,
           success: true,
-          data: { balances: [], network },
+          data: { balances: [], networks: mainnetNetworks },
           values: { hasBalances: false },
         };
       }
@@ -81,8 +120,6 @@ export const cdpWalletBalance: Action = {
         }
         return value;
       };
-
-      const safeBalances = sanitizeForJson(rows);
 
       // Format human-readable amounts using token decimals
       const toIntegerString = (v: unknown): string => {
@@ -110,25 +147,44 @@ export const cdpWalletBalance: Action = {
         return (negative ? "-" : "") + head + "." + tail;
       };
 
-      const formatted = rows.map((b: any) => {
-        const symbol = b?.token?.symbol ?? b?.token?.name ?? "UNKNOWN";
-        const raw = toIntegerString(b?.amount?.amount ?? b?.amount ?? "0");
-        const decimals = (b?.amount?.decimals ?? b?.token?.decimals ?? 18) as number;
-        const value = formatUnits(raw, decimals);
-        return { symbol, value, raw, decimals };
+      const formatBalancesForNetwork = (balances: Array<any>) => {
+        return balances.map((b: any) => {
+          const symbol = b?.token?.symbol ?? b?.token?.name ?? "UNKNOWN";
+          const raw = toIntegerString(b?.amount?.amount ?? b?.amount ?? "0");
+          const decimals = (b?.amount?.decimals ?? b?.token?.decimals ?? 18) as number;
+          const value = formatUnits(raw, decimals);
+          return { symbol, value, raw, decimals };
+        });
+      };
+
+      // Format balances for all networks
+      const formattedByNetwork = allNetworkBalances.map(({ network, balances }) => {
+        const formatted = formatBalancesForNetwork(balances);
+        const lines = formatted.map((f) => `  - ${f.symbol}: ${f.value}`);
+        return {
+          network,
+          text: `\n💰 ${network.toUpperCase()}\n${lines.join("\n")}`,
+          formatted,
+          balances: sanitizeForJson(balances),
+        };
       });
 
-      const lines = formatted.map((f) => `- ${f.symbol}: ${f.value}`);
+      const header = `💰 CDP Wallet Balances Across All Mainnets`;
+      const networkSections = formattedByNetwork.map((n) => n.text).join("\n");
+      const text = `${header}\n${networkSections}`;
 
-      const header = `💰 CDP Wallet Balances (${network})`;
-      const text = `${header}\n\n${lines.join("\n")}`;
+      const allFormattedBalances = formattedByNetwork.flatMap((n) => 
+        n.formatted.map((f) => ({ ...f, network: n.network }))
+      );
+      const allSafeBalances = formattedByNetwork.flatMap((n) => n.balances);
 
       callback?.({
         text,
         content: {
-          balances: safeBalances,
-          formattedBalances: formatted,
-          network,
+          balancesByNetwork: formattedByNetwork,
+          balances: allSafeBalances,
+          formattedBalances: allFormattedBalances,
+          networks: allNetworkBalances.map((n) => n.network),
           address: walletResult.walletAddress,
         },
       });
@@ -136,9 +192,10 @@ export const cdpWalletBalance: Action = {
         text,
         success: true,
         data: {
-          balances: safeBalances,
-          formattedBalances: formatted,
-          network,
+          balancesByNetwork: formattedByNetwork,
+          balances: allSafeBalances,
+          formattedBalances: allFormattedBalances,
+          networks: allNetworkBalances.map((n) => n.network),
           address: walletResult.walletAddress,
         },
         values: { hasBalances: true },
