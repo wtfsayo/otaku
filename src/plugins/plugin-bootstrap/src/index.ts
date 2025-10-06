@@ -13,7 +13,6 @@ import {
   EventType,
   type IAgentRuntime,
   imageDescriptionTemplate,
-  type InvokePayload,
   logger,
   type Media,
   type Memory,
@@ -23,18 +22,14 @@ import {
   parseKeyValueXml,
   type Plugin,
   PluginEvents,
-  postCreationTemplate,
   parseBooleanFromText,
   Role,
   type Room,
   type RunEventPayload,
-  shouldRespondTemplate,
   truncateToCompleteSentence,
   type UUID,
   type WorldPayload,
   getLocalServerUrl,
-  multiStepDecisionTemplate,
-  multiStepSummaryTemplate,
   type State,
   Action,
   HandlerCallback,
@@ -42,7 +37,7 @@ import {
 } from '@elizaos/core';
 import { v4 } from 'uuid';
 
-import * as actions from './actions/index.ts';
+// import * as actions from './actions/index.ts';
 import * as evaluators from './evaluators/index.ts';
 import * as providers from './providers/index.ts';
 
@@ -52,6 +47,139 @@ import { EmbeddingGenerationService } from './services/embedding.ts';
 export * from './actions/index.ts';
 export * from './evaluators/index.ts';
 export * from './providers/index.ts';
+
+export const walletCreationTemplate = `<task>
+The user does not have a Coinbase CDP wallet configured.
+Your job is to guide them to create one or, if they explicitly express intent, set isCreateWallet to true for this step.
+</task>
+
+{{recentMessages}}
+
+# Wallet State
+{{walletState}}
+
+# What is a CDP wallet?
+A CDP wallet is an EVM-compatible account created via Coinbase Developer Platform that the agent uses to perform on-chain actions (transfers, swaps, balance checks). It's required before any blockchain operations.
+
+# How to create it
+Say: "Create wallet" to proceed. If the user expresses intent to create, set \`isCreateWallet\` to true in this step. If the user does not express intent, set \`isCreateWallet\` to false and prompt them to create the wallet.
+
+---
+
+# Capabilities overview (internal)
+Use the lists below only to understand capabilities for later steps and to craft a concise introduction. Do not include these lists verbatim in the user-facing message. In this step, you only set \`isCreateWallet\` appropriately and provide the \`response\` text.
+
+{{actionsWithDescriptions}}
+
+{{providersWithDescriptions}}
+
+<keys>
+"thought" Explain whether the user has shown intent and your next step.
+"isCreateWallet" Set to true only if the user explicitly shows intent to create a wallet now. Otherwise set to false.
+"text" A brief, user-facing message. If intent is absent, introduce CDP and capabilities at a high level and ask the user to say "Create wallet" to proceed. Keep it concise.
+</keys>
+
+<output>
+<response>
+  <thought>Your thought here</thought>
+  <isCreateWallet>true | false</isCreateWallet>
+  <text>Politely prompt to create a wallet if no intent; otherwise acknowledge creation intent.</text>
+</response>
+</output>`;
+
+export const multiStepDecisionTemplate = `<task>
+Determine the next step the assistant should take in this conversation to help the user reach their goal.
+</task>
+
+{{recentMessages}}
+
+# Multi-Step Workflow
+
+In each step, decide:
+
+1. **Which providers (if any)** should be called to gather necessary data.
+2. **Which action (if any)** should be executed after providers return.
+3. Decide whether the task is complete. If so, set \`isFinish: true\`. Do not select the \`REPLY\` action; replies are handled separately after task completion.
+
+You can select **multiple providers** and at most **one action** per step.
+
+If the task is fully resolved and no further steps are needed, mark the step as \`isFinish: true\`.
+
+---
+
+{{actionsWithDescriptions}}
+
+{{providersWithDescriptions}}
+
+These are the actions or data provider calls that have already been used in this run. Use this to avoid redundancy and guide your next move.
+
+{{actionResults}}
+
+<keys>
+"thought" Clearly explain your reasoning for the selected providers and/or action, and how this step contributes to resolving the user's request.
+"action"  Name of the action to execute after providers return (can be null if no action is needed).
+"providers" List of provider names to call in this step (can be empty if none are needed).
+"isFinish" Set to true only if the task is fully complete.
+</keys>
+
+⚠️ IMPORTANT: Do **not** mark the task as \`isFinish: true\` immediately after calling an action. Wait for the action to complete before deciding the task is finished.
+
+<output>
+<response>
+  <thought>Your thought here</thought>
+  <action>ACTION</action>
+  <providers>PROVIDER1,PROVIDER2</providers>
+  <isFinish>true | false</isFinish>
+</response>
+</output>`;
+
+export const multiStepSummaryTemplate = `<task>
+Summarize what the assistant has done so far and provide a final response to the user based on the completed steps.
+</task>
+
+# Context Information
+{{bio}}
+
+---
+
+{{system}}
+
+---
+
+{{messageDirections}}
+
+# Conversation Summary
+Below is the user’s original request and conversation so far:
+{{recentMessages}}
+
+# Execution Trace
+Here are the actions taken by the assistant to fulfill the request:
+{{actionResults}}
+
+# Capabilities to consider (internal)
+Do not copy the raw lists below into user-facing messages. Use them only to inform your reasoning and, if helpful, briefly mention capability categories (e.g., "I can check balances, transfer, or swap") rather than enumerating everything.
+
+{{actionsWithDescriptions}}
+
+{{providersWithDescriptions}}
+
+# Assistant’s Last Reasoning Step
+{{recentMessage}}
+
+# Instructions
+
+- Generate a concise, helpful message that acknowledges the agent's capabilities and next best steps.
+
+- Your final output MUST be in this XML format:
+<output>
+<response>
+  <thought>Your thought here</thought>
+  <text>Your final message to the user</text>
+</response>
+</output>
+`;
+
+
 
 /**
  * Represents media data containing a buffer of data and the media type.
@@ -526,64 +654,7 @@ const messageReceivedHandler = async ({
           true
         );
 
-        // Skip shouldRespond check for DM and VOICE_DM channels
-        const room = await runtime.getRoom(message.roomId);
-        const shouldSkipShouldRespond = shouldBypassShouldRespond(
-          runtime,
-          room ?? undefined,
-          message.content.source
-        );
-
-        if (message.content.attachments && message.content.attachments.length > 0) {
-          message.content.attachments = await processAttachments(
-            message.content.attachments,
-            runtime
-          );
-          if (message.id) {
-            await runtime.updateMemory({ id: message.id, content: message.content });
-          }
-        }
-
         let shouldRespond = true;
-
-        // Handle shouldRespond
-        if (!shouldSkipShouldRespond) {
-          const shouldRespondPrompt = composePromptFromState({
-            state,
-            template: runtime.character.templates?.shouldRespondTemplate || shouldRespondTemplate,
-          });
-
-          runtime.logger.debug(
-            `[Bootstrap] Evaluating response for ${runtime.character.name}\nPrompt: ${shouldRespondPrompt}`
-          );
-
-          const response = await runtime.useModel(ModelType.TEXT_SMALL, {
-            prompt: shouldRespondPrompt,
-          });
-
-          runtime.logger.debug(
-            `[Bootstrap] Response evaluation for ${runtime.character.name}:\n${response}`
-          );
-          runtime.logger.debug(`[Bootstrap] Response type: ${typeof response}`);
-
-          // Try to preprocess response by removing code blocks markers if present
-          // let processedResponse = response.replace('```json', '').replaceAll('```', '').trim(); // No longer needed for XML
-
-          const responseObject = parseKeyValueXml(response);
-          runtime.logger.debug({ responseObject }, '[Bootstrap] Parsed response:');
-
-          // If an action is provided, the agent intends to respond in some way
-          // Only exclude explicit non-response actions
-          const nonResponseActions = ['IGNORE', 'NONE'];
-          shouldRespond =
-            responseObject?.action &&
-            !nonResponseActions.includes(responseObject.action.toUpperCase());
-        } else {
-          runtime.logger.debug(
-            `[Bootstrap] Skipping shouldRespond check for ${runtime.character.name} because ${room?.type} ${room?.source}`
-          );
-          shouldRespond = true;
-        }
 
         // I don't think we need these right now
         //runtime.logger.debug('shouldRespond is', shouldRespond);
@@ -973,12 +1044,131 @@ async function runMultiStepCore({ runtime, message, state, callback }: { runtime
   let accumulatedState: State = state;
   const maxIterations = parseInt(runtime.getSetting('MAX_MULTISTEP_ITERATIONS') || '6');
   let iterationCount = 0;
+  // Compose initial state including wallet data
+  accumulatedState = await runtime.composeState(message, [
+    'RECENT_MESSAGES',
+    'ACTION_STATE',
+    'ACTIONS',
+    'PROVIDERS',
+    'WALLET_STATE',
+  ]);
+  accumulatedState.data.actionResults = traceActionResult;
 
+  // Short-circuit wallet flow outside the loop
+  const hasWallet: boolean = !!accumulatedState?.data?.providers?.WALLET_STATE?.data?.hasWallet;
+  if (!hasWallet) {
+    const wcPrompt = composePromptFromState({
+      state: accumulatedState,
+      template: runtime.character.templates?.walletCreationTemplate || walletCreationTemplate,
+    });
+    const wcRaw = await runtime.useModel(ModelType.TEXT_LARGE, { prompt: wcPrompt });
+    const wc = parseKeyValueXml(wcRaw) || {};
+    const { isCreateWallet, thought, text } = wc as any;
+
+    if (isCreateWallet === 'true' || isCreateWallet === true) {
+      const actionContent = {
+        text: `🔎 Executing action: CDP_CREATE_WALLET`,
+        actions: ['CDP_CREATE_WALLET'],
+        thought: thought ?? '',
+      };
+      await runtime.processActions(
+        message,
+        [
+          {
+            id: v4() as UUID,
+            entityId: runtime.agentId,
+            roomId: message.roomId,
+            createdAt: Date.now(),
+            content: actionContent,
+          },
+        ],
+        accumulatedState,
+        async () => {
+          return [];
+        }
+      );
+
+      const cachedState = (runtime as any).stateCache.get(`${message.id}_action_results`);
+      const actionResults = cachedState?.values?.actionResults || [];
+      const result = actionResults.length > 0 ? actionResults[0] : null;
+      const success = result?.success ?? false;
+
+      traceActionResult.push({
+        data: { actionName: 'CDP_CREATE_WALLET' },
+        success,
+        text: result?.text,
+        values: result?.values,
+        error: success ? undefined : result?.text,
+      });
+
+      // After creation, go straight to summary
+      const summaryPromptAfterWallet = composePromptFromState({
+        state: await runtime.composeState(message, [
+          'RECENT_MESSAGES',
+          'ACTION_STATE',
+          'ACTIONS',
+          'PROVIDERS',
+          'WALLET_STATE',
+        ]),
+        template: runtime.character.templates?.multiStepSummaryTemplate || multiStepSummaryTemplate,
+      });
+      const finalOutputAfterWallet = await runtime.useModel(ModelType.TEXT_LARGE, { prompt: summaryPromptAfterWallet });
+      const summaryAfterWallet = parseKeyValueXml(finalOutputAfterWallet);
+
+      if (summaryAfterWallet?.text) {
+        const responseContent: Content = {
+          actions: ['MULTI_STEP_SUMMARY'],
+          text: summaryAfterWallet.text,
+          thought: summaryAfterWallet.thought || 'Final user-facing message after wallet creation.',
+          simple: true,
+        };
+        const responseMessages: Memory[] = [
+          {
+            id: asUUID(v4()),
+            entityId: runtime.agentId,
+            agentId: runtime.agentId,
+            content: responseContent,
+            roomId: message.roomId,
+            createdAt: Date.now(),
+          },
+        ];
+        return { responseContent, responseMessages, state: accumulatedState, mode: 'simple' };
+      }
+
+      return { responseContent: null, responseMessages: [], state: accumulatedState, mode: 'none' };
+    }
+
+    // No intent: immediate reply
+    const replyText = typeof text === 'string' ? text : '';
+    const replyContent: Content = {
+      actions: ['MULTI_STEP_SUMMARY'],
+      text: replyText,
+      thought: thought || 'Prompting user to create a wallet before proceeding.',
+      simple: true,
+    };
+    const responseMessages: Memory[] = [
+      {
+        id: asUUID(v4()),
+        entityId: runtime.agentId,
+        agentId: runtime.agentId,
+        content: replyContent,
+        roomId: message.roomId,
+        createdAt: Date.now(),
+      },
+    ];
+    return { responseContent: replyContent, responseMessages, state: accumulatedState, mode: 'simple' };
+  }
+
+  // Standard multi-step loop (wallet already exists)
   while (iterationCount < maxIterations) {
     iterationCount++;
     runtime.logger.debug(`[MultiStep] Starting iteration ${iterationCount}/${maxIterations}`);
 
-    accumulatedState = await runtime.composeState(message, ['RECENT_MESSAGES', 'ACTION_STATE']);
+    accumulatedState = await runtime.composeState(message, [
+      'RECENT_MESSAGES',
+      'ACTION_STATE',
+      'WALLET_STATE',
+    ]);
     accumulatedState.data.actionResults = traceActionResult;
 
     const prompt = composePromptFromState({
@@ -1719,8 +1909,8 @@ export const bootstrapPlugin: Plugin = {
   name: 'bootstrap',
   description: 'Agent bootstrap with basic actions and evaluators',
   actions: [
-    actions.replyAction,
-    actions.ignoreAction,
+    // actions.replyAction,
+    // actions.ignoreAction,
   ],
   events: events,
   evaluators: [evaluators.reflectionEvaluator],
