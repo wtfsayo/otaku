@@ -8,6 +8,7 @@ import {
   ActionResult,
   ModelType,
   parseKeyValueXml,
+  composePromptFromState,
 } from "@elizaos/core";
 import { MorphoService } from "../services";
 import {
@@ -24,12 +25,11 @@ import type { MorphoVaultData } from "../types";
 /* =========================
  * Prompt helper (vault)
  * ========================= */
-function getVaultXmlPrompt(userMessage: string): string {
-  return `<task>Extract an optional Morpho vault identifier from the user's message.</task>
+function getVaultXmlTemplate(): string {
+  return `<task>Determine and extract an optional Morpho vault identifier from the conversation context.</task>
   
-  <message>
-  ${userMessage}
-  </message>
+  ## Conversation Context
+  {{recentMessages}}
   
   <instructions>
   Return ONLY the following XML structure. Do not add extra text or explanations:
@@ -58,7 +58,7 @@ export const vaultInfoAction: Action = {
     "YIELD_VAULTS",
   ],
   description:
-    "Get current data for Morpho vaults (no positions): totals and APYs. Supports an optional vault filter by name or address.",
+    "Use this action when you need current Morpho vault data (totals and APYs).",
   validate: async (runtime: IAgentRuntime) => {
     const morphoService = runtime.getService(
       MorphoService.serviceType,
@@ -79,10 +79,10 @@ export const vaultInfoAction: Action = {
     logger.info("Starting Morpho vault info action");
 
     try {
-      const userText = message.content.text || "";
-      const prompt = getVaultXmlPrompt(userText);
+      const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
+      const context = composePromptFromState({ state: composedState, template: getVaultXmlTemplate() });
       const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt,
+        prompt: context,
       });
       const parsed = parseKeyValueXml(xmlResponse);
       const params = { vault: parsed?.vault || undefined };

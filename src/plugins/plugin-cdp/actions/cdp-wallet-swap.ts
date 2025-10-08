@@ -17,7 +17,7 @@ import { type CdpNetwork } from "../types";
 
 const swapTemplate = `# CDP Token Swap Request
 
-## User Request
+## Conversation Context
 {{recentMessages}}
 
 ## Available Networks
@@ -29,7 +29,7 @@ const swapTemplate = `# CDP Token Swap Request
 - polygon
 
 ## Instructions
-Extract the swap details from the user's request. If any detail is missing, use reasonable defaults.
+Determine and extract the user's swap details from the conversation context. If any detail is missing, use reasonable defaults.
 
 **Important Notes:**
 - **Default network is "base"** - only specify another network if explicitly mentioned by the user
@@ -42,13 +42,13 @@ Extract the swap details from the user's request. If any detail is missing, use 
 - **For "all", "max", "full balance", or "entire balance" requests, use "MAX" as the amount**
 
 Respond with the swap parameters in this exact format:
-<swapParams>
+<response>
 <network>base</network>
 <fromToken>USDC</fromToken>
 <toToken>ETH</toToken>
 <amount>100</amount>
 <slippageBps>100</slippageBps>
-</swapParams>`;
+</response>`;
 
 interface SwapParams {
   network: CdpNetwork;
@@ -208,7 +208,7 @@ export const cdpWalletSwap: Action = {
     "TRADE_TOKENS_CDP",
     "EXCHANGE_TOKENS_CDP",
   ],
-  description: "Swap tokens from one to another on EVM; e.g. USDC -> BNKR or USDC -> ETH or ETH -> USDC",
+  description: "Use this action when you need to swap tokens.",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
     try {
       // Check if services are available

@@ -51,7 +51,7 @@ const parseBridgeParams = (text: string): BridgeRequest | null => {
 
 const bridgeTemplate = `# Cross-Chain Bridge Request
 
-## User Request
+## Conversation Context
 {{recentMessages}}
 
 ## Available Networks
@@ -66,7 +66,7 @@ const bridgeTemplate = `# Cross-Chain Bridge Request
 - linea (Linea)
 
 ## Instructions
-Extract the bridge details from the user's request.
+Determine and extract the user's bridge details from the conversation context.
 
 **Important Notes:**
 - Use lowercase chain names ONLY (e.g., "ethereum", "base", "arbitrum")
@@ -115,7 +115,7 @@ const resolveChainNameToId = (chainName: string): number | null => {
 
 export const relayBridgeAction: Action = {
   name: "EXECUTE_RELAY_BRIDGE",
-  description: "Execute a cross-chain bridge transaction using Relay Link",
+  description: "Use this action when you need to execute a cross-chain bridge.",
   similes: [
     "BRIDGE_TOKENS",
     "CROSS_CHAIN_TRANSFER",

@@ -8,6 +8,7 @@ import {
   State,
   logger,
   parseKeyValueXml,
+  composePromptFromState,
 } from "@elizaos/core";
 import { ClankerService } from "../services/clanker.service";
 import { formatTokenInfo } from "../utils/format";
@@ -22,7 +23,7 @@ export const tokenInfoAction: Action = {
   name: "TOKEN_INFO",
   similes: ["GET_TOKEN_INFO", "CHECK_TOKEN", "TOKEN_DETAILS", "TOKEN_STATS"],
   description:
-    "Get TOKEN MARKET DATA and statistics including price, liquidity, market cap, trading volume, and holder information. This action is for TOKEN-SPECIFIC queries (not wallet balance/holdings). Use when users ask about token prices, market data, or trading statistics. Supports multiple tokens and token addresses.",
+    "Use this action when you need token-specific market data (price, liquidity, market cap, volume, holders).",
 
   validate: async (
     runtime: IAgentRuntime,
@@ -41,7 +42,10 @@ export const tokenInfoAction: Action = {
 
       return true;
     } catch (error) {
-      logger.error("Error validating token info action:", error);
+      logger.error(
+        "Error validating token info action:",
+        error instanceof Error ? error.message : String(error),
+      );
       return false;
     }
   },
@@ -76,10 +80,10 @@ export const tokenInfoAction: Action = {
         throw new Error("Clanker service not available");
       }
 
-      const text = message.content.text || "";
-      const prompt = getTokenInfoXmlPrompt(text);
+      const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
+      const context = composePromptFromState({ state: composedState, template: getTokenInfoXmlTemplate() });
       const rawResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt,
+        prompt: context,
       });
       const parsed = parseKeyValueXml(rawResponse);
       const tokensRaw: string = parsed?.tokens || "";
@@ -115,7 +119,10 @@ export const tokenInfoAction: Action = {
             responseText += `\nView on BaseScan: https://basescan.org/\n\n`;
           }
         } catch (err) {
-          logger.warn(`Failed to fetch info for token: ${tokenInput}`, err);
+          logger.warn(
+            `Failed to fetch info for token: ${tokenInput}`,
+            err instanceof Error ? err.message : String(err),
+          );
           responseText += `❌ Could not retrieve info for ${tokenInput}\n\n`;
         }
       }
@@ -135,7 +142,10 @@ export const tokenInfoAction: Action = {
         data: { actionName: "TOKEN_INFO", tokens },
       };
     } catch (error) {
-      logger.error("Error in TOKEN_INFO action:", error);
+      logger.error(
+        "Error in TOKEN_INFO action:",
+        error instanceof Error ? error.message : String(error),
+      );
       const errorResponse = handleError(error);
 
       if (callback) {
@@ -210,14 +220,13 @@ export const tokenInfoAction: Action = {
   ],
 };
 
-function getTokenInfoXmlPrompt(userMessage: string): string {
+function getTokenInfoXmlTemplate(): string {
   return `<task>
-Extract the tokens the user wants information about from their message.
+Determine and extract the tokens the user wants information about from the conversation context.
 </task>
 
-<message>
-${userMessage}
-</message>
+## Conversation Context
+{{recentMessages}}
 
 <instructions>
 Return only this XML structure:
@@ -226,7 +235,7 @@ Return only this XML structure:
   <tokens>ETH, USDC</tokens>
 </info>
 
-Use comma-separated token names, symbols, or addresses mentioned explicitly in the message.
+Use comma-separated token names, symbols, or addresses mentioned explicitly.
 Do NOT include any explanations, only the XML format above.
 </instructions>`;
 }

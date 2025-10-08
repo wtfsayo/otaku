@@ -44,7 +44,7 @@ export const providersProvider: Provider = {
         : addHeader(headerText, 'No dynamic providers are currently available.');
 
     const providersWithDescriptions = addHeader(
-      '# Available Providers',
+      '# Available Providers (External data providers or sources that supply market info)',
       allDescriptions.join('\n')
     );
 

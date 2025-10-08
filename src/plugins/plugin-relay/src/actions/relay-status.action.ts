@@ -37,11 +37,11 @@ const parseStatusParams = (text: string): StatusParams | null => {
 
 const statusTemplate = `# Transaction Status Request
 
-## User Request
+## Conversation Context
 {{recentMessages}}
 
 ## Instructions
-Extract the transaction status request details from the user's message.
+Determine and extract the transaction status details from the conversation context.
 
 **You need at least ONE of these:**
 - Request ID (transaction/request ID from Relay)
@@ -56,7 +56,7 @@ Respond with the status parameters in this exact format:
 
 export const relayStatusAction: Action = {
   name: "CHECK_RELAY_STATUS",
-  description: "Check the status of a Relay Link cross-chain transaction",
+  description: "Use this action when you need to check the status of a Relay transaction.",
   similes: [
     "GET_RELAY_STATUS",
     "CHECK_BRIDGE_STATUS",

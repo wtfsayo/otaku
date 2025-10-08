@@ -8,16 +8,16 @@ import {
   ActionResult,
   ModelType,
   parseKeyValueXml,
+  composePromptFromState,
 } from "@elizaos/core";
 import { MorphoService } from "../services";
 import { CdpService } from "../../../plugin-cdp/services/cdp.service";
 
-function getTransferXmlPrompt(userMessage: string): string {
+function getTransferXmlTemplate(): string {
   return `<task>Extract an intent (deposit or withdraw), vault, and amount for a Morpho vault transfer.</task>
 
-<message>
-${userMessage}
-</message>
+## Conversation Context
+{{recentMessages}}
 
 <instructions>
 Return ONLY the following XML. Do not add any extra text.
@@ -60,7 +60,7 @@ export const vaultTransferAction: Action = {
     "WITHDRAW_FROM_VAULT",
   ],
   description:
-    "Deposit to or withdraw from a Morpho ERC-4626 vault by name or address.",
+    "Use this action when you need to deposit to or withdraw from a Morpho ERC-4626 vault.",
   validate: async (runtime: IAgentRuntime) => {
     const svc = runtime.getService(MorphoService.serviceType) as MorphoService;
     if (!svc) {
@@ -110,9 +110,9 @@ export const vaultTransferAction: Action = {
 
       // Require CDP viem clients
 
-      const userText = message.content.text || "";
-      const prompt = getTransferXmlPrompt(userText);
-      const xml = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+      const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
+      const context = composePromptFromState({ state: composedState, template: getTransferXmlTemplate() });
+      const xml = await runtime.useModel(ModelType.TEXT_LARGE, { prompt: context });
       const parsed = parseKeyValueXml(xml) || {};
 
       const rawIntent = parsed.intent?.toString().trim().toLowerCase();

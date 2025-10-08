@@ -13,7 +13,7 @@ import { CdpService } from "../services/cdp.service";
 export const cdpWalletInfo: Action = {
   name: "CDP_WALLET_INFO",
   similes: ["CDP_WALLET_DETAILS", "CDP_ADDRESS", "COINBASE_WALLET_INFO"],
-  description: "Show saved Coinbase CDP wallet info for the current user",
+  description: "Use this action when you need to show the saved Coinbase CDP wallet info for the current user.",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
     try {
       // Check if services are available

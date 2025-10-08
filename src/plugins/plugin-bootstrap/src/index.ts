@@ -55,7 +55,8 @@ Your job is to guide them to create one or, if they explicitly express intent, s
 
 {{recentMessages}}
 
-# Wallet State
+# Wallet Context (CDP)
+This indicates whether the user has a configured Coinbase CDP wallet and includes basic details (address, provider, chain). If no wallet is present, on-chain actions (transfers, swaps, bridging) are unavailable until a wallet is created.
 {{walletState}}
 
 # What is a CDP wallet?
@@ -91,6 +92,14 @@ export const multiStepDecisionTemplate = `<task>
 Determine the next step the assistant should take in this conversation to help the user reach their goal.
 </task>
 
+{{system}}
+
+---
+
+# Wallet Context (CDP)
+This indicates whether the user has a configured Coinbase CDP wallet and includes basic details (address, provider, chain). If no wallet is present, on-chain actions (transfers, swaps, bridging) are unavailable until a wallet is created.
+{{walletState}}
+
 {{recentMessages}}
 
 # Multi-Step Workflow
@@ -117,8 +126,8 @@ These are the actions or data provider calls that have already been used in this
 
 <keys>
 "thought" Clearly explain your reasoning for the selected providers and/or action, and how this step contributes to resolving the user's request.
-"action"  Name of the action to execute after providers return (can be null if no action is needed).
-"providers" List of provider names to call in this step (can be empty if none are needed).
+"action"  Name of the action to execute after providers return (must be selected from the list of **Available Actions** shown above; can be empty if no action is needed).
+"providers"  List of provider names to call in this step (must be selected from the list of **Available Providers** shown above; can be empty if none are needed).
 "isFinish" Set to true only if the task is fully complete.
 </keys>
 
@@ -148,6 +157,11 @@ Summarize what the assistant has done so far and provide a final response to the
 
 {{messageDirections}}
 
+---
+# Wallet Context (CDP)
+This indicates whether the user has a configured Coinbase CDP wallet and includes basic details (address, provider, chain). If no wallet is present, on-chain actions (transfers, swaps, bridging) are unavailable until a wallet is created.
+{{walletState}}
+
 # Conversation Summary
 Below is the user’s original request and conversation so far:
 {{recentMessages}}
@@ -155,9 +169,6 @@ Below is the user’s original request and conversation so far:
 # Execution Trace
 Here are the actions taken by the assistant to fulfill the request:
 {{actionResults}}
-
-# Capabilities to consider (internal)
-Do not copy the raw lists below into user-facing messages. Use them only to inform your reasoning and, if helpful, briefly mention capability categories (e.g., "I can check balances, transfer, or swap") rather than enumerating everything.
 
 {{actionsWithDescriptions}}
 
@@ -1916,7 +1927,7 @@ export const bootstrapPlugin: Plugin = {
   evaluators: [evaluators.reflectionEvaluator],
   providers: [
     providers.evaluatorsProvider,
-    providers.timeProvider,
+    // providers.timeProvider,
     providers.providersProvider,
     providers.actionsProvider,
     providers.actionStateProvider,

@@ -10,6 +10,8 @@ import cdpPlugin from "./plugins/plugin-cdp/index.ts";
 import morphoPlugin from "./plugins/plugin-morpho/src/plugin.ts";
 import bootstrapPlugin from "./plugins/plugin-bootstrap/src/index.ts";
 import relayPlugin from "./plugins/plugin-relay/src/index.ts";
+import webSearchPlugin from "./plugins/plugin-web-search/src/index.ts";
+import defiLlamaPlugin from "./plugins/plugin-defillama/src/index.ts";
 
 
 const initCharacter = ({ runtime }: { runtime: IAgentRuntime }) => {
@@ -27,8 +29,10 @@ export const projectAgent: ProjectAgent = {
     clankerPlugin,
     morphoPlugin,
     relayPlugin,
+    webSearchPlugin,
     // ethWalletPlugin,
     // eigenAIPlugin,
+    defiLlamaPlugin,
   ],
 };
 const project: Project = {

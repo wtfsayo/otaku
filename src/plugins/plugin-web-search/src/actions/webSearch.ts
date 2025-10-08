@@ -70,7 +70,7 @@ export const webSearch: Action = {
     ],
     suppressInitialMessage: true,
     description:
-        "Perform a web search to find information related to the message.",
+        "Use this action when other actions/providers can’t provide accurate or current info, or when facts must be confirmed via the web.",
     validate: async (
         runtime: IAgentRuntime,
         _message: Memory,

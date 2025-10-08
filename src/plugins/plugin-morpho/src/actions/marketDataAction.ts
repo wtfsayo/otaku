@@ -8,6 +8,7 @@ import {
   ActionResult,
   ModelType,
   parseKeyValueXml,
+  composePromptFromState,
 } from "@elizaos/core";
 import { MorphoService } from "../services";
 import { CdpService } from "../../../plugin-cdp/services/cdp.service";
@@ -23,12 +24,11 @@ import {
 /* =========================
  * Prompt helper
  * ========================= */
-function getMarketXmlPrompt(userMessage: string): string {
-  return `<task>Extract Morpho market identifier from the user's message.</task>
+function getMarketXmlTemplate(): string {
+  return `<task>Determine and extract the user's Morpho market identifier from the conversation context.</task>
 
-<message>
-${userMessage}
-</message>
+  ## Conversation Context
+{{recentMessages}}
 
 <instructions>
 Return ONLY the following XML structure. Do not add extra text or explanations:
@@ -57,7 +57,7 @@ export const marketInfoAction: Action = {
     "CHECK_RATES",
   ],
   description:
-    "Get current market data, rates, and stats for Morpho markets (no positions)",
+    "Use this action when you need current Morpho market data, rates, and stats (no positions).",
   validate: async (runtime: IAgentRuntime) => {
     const morphoService = runtime.getService(
       MorphoService.serviceType,
@@ -78,10 +78,10 @@ export const marketInfoAction: Action = {
     logger.info("Starting Morpho market info action");
 
     try {
-      const userText = message.content.text || "";
-      const prompt = getMarketXmlPrompt(userText);
+      const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
+      const context = composePromptFromState({ state: composedState, template: getMarketXmlTemplate() });
       const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt,
+        prompt: context,
       });
       const parsed = parseKeyValueXml(xmlResponse);
       const params = { market: parsed?.market || undefined };
