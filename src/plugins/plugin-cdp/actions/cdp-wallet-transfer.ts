@@ -51,10 +51,10 @@ Determine and extract the user's transfer details from the conversation context.
 
 Respond with the transfer parameters in this exact format:
 <response>
-<network>base</network>
-<to>0x1234567890123456789012345678901234567890</to>
-<token>usdc</token>
-<amount>10.5</amount>
+  <network>base</network>
+  <to>0x1234567890123456789012345678901234567890</to>
+  <token>usdc</token>
+  <amount>10.5</amount>
 </response>`;
 
 interface TransferParams {

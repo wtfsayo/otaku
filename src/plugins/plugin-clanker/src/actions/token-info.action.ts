@@ -231,9 +231,9 @@ Determine and extract the tokens the user wants information about from the conve
 <instructions>
 Return only this XML structure:
 
-<info>
+<response>
   <tokens>ETH, USDC</tokens>
-</info>
+</response>
 
 Use comma-separated token names, symbols, or addresses mentioned explicitly.
 Do NOT include any explanations, only the XML format above.

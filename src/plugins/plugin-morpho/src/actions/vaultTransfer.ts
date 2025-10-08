@@ -22,11 +22,11 @@ function getTransferXmlTemplate(): string {
 <instructions>
 Return ONLY the following XML. Do not add any extra text.
 
-<request>
+<response>
   <intent>deposit</intent>
   <vault>Spark USDC Vault</vault>
   <assets>1</assets>
-</request>
+</response>
 
 Rules:
 - <intent> must be either "deposit" or "withdraw".

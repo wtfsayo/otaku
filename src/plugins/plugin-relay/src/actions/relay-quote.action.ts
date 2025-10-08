@@ -111,14 +111,14 @@ Determine and extract the user's quote details from the conversation context.
 - Use token symbols (eth, usdc, usdt, weth, etc.)
 
 Respond with the quote parameters in this exact format:
-<quoteParams>
-<originChain>ethereum</originChain>
-<destinationChain>base</destinationChain>
-<currency>eth</currency>
-<toCurrency>eth</toCurrency>
-<amount>0.1</amount>
-<tradeType>EXACT_INPUT</tradeType>
-</quoteParams>`;
+<response>
+  <originChain>ethereum</originChain>
+  <destinationChain>base</destinationChain>
+  <currency>eth</currency>
+  <toCurrency>eth</toCurrency>
+  <amount>0.1</amount>
+  <tradeType>EXACT_INPUT</tradeType>
+</response>`;
 
 export const relayQuoteAction: Action = {
   name: "GET_RELAY_QUOTE",

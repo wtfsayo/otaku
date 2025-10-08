@@ -43,11 +43,11 @@ Determine and extract the user's swap details from the conversation context. If 
 
 Respond with the swap parameters in this exact format:
 <response>
-<network>base</network>
-<fromToken>USDC</fromToken>
-<toToken>ETH</toToken>
-<amount>100</amount>
-<slippageBps>100</slippageBps>
+  <network>base</network>
+  <fromToken>USDC</fromToken>
+  <toToken>ETH</toToken>
+  <amount>100</amount>
+  <slippageBps>100</slippageBps>
 </response>`;
 
 interface SwapParams {

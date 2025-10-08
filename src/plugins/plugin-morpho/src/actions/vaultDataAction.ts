@@ -34,9 +34,9 @@ function getVaultXmlTemplate(): string {
   <instructions>
   Return ONLY the following XML structure. Do not add extra text or explanations:
   
-  <request>
+  <response>
       <vault>Spark USDC Vault</vault>
-  </request>
+  </response>
   
   Rules:
   - Leave out <vault> if no specific vault is mentioned.

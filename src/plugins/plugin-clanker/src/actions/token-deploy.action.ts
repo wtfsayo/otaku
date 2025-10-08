@@ -65,7 +65,7 @@ Only include fields that are present or clearly implied. All fields are optional
 
 Respond with:
 
-<deploy>
+<response>
   <name>Token name (required, max 50 chars)</name>
   <symbol>Token symbol (required, all uppercase, 2–10 chars)</symbol>
   <vanity>true|false (optional)</vanity>
@@ -76,7 +76,7 @@ Respond with:
     ...
   </socialMediaUrls>
   <devBuy>0.05</devBuy>
-</deploy>
+</response>
 
 IMPORTANT:
 - Use <vanity>true</vanity> only if the conversation clearly asks for a vanity/custom address.

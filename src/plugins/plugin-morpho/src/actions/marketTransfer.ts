@@ -22,12 +22,12 @@ function getMarketTransferXmlTemplate(): string {
 <instructions>
 Return ONLY the following XML structure. Do not add extra text or explanations:
 
-<request>
+<response>
   <intent>supply</intent>
   <market>WETH/USDC</market>
   <assets>1</assets>
   <fullRepayment>false</fullRepayment>
-</request>
+</response>
 
 Rules:
 - <intent> must be one of: "supply", "supplyCollateral", "borrow", "repay", "withdraw", "withdrawCollateral"

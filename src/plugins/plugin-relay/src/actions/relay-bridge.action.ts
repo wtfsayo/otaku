@@ -75,14 +75,14 @@ Determine and extract the user's bridge details from the conversation context.
 - Use token symbols (eth, usdc, usdt, weth, etc.)
 
 Respond with the bridge parameters in this exact format:
-<bridgeParams>
-<originChain>ethereum</originChain>
-<destinationChain>base</destinationChain>
-<currency>eth</currency>
-<amount>0.5</amount>
-<useExactInput>true</useExactInput>
-<useExternalLiquidity>false</useExternalLiquidity>
-</bridgeParams>`;
+<response>
+  <originChain>ethereum</originChain>
+  <destinationChain>base</destinationChain>
+  <currency>eth</currency>
+  <amount>0.5</amount>
+  <useExactInput>true</useExactInput>
+  <useExternalLiquidity>false</useExternalLiquidity>
+</response>`;
 
 // Supported chains mapping
 const SUPPORTED_CHAINS: Record<string, Chain> = {

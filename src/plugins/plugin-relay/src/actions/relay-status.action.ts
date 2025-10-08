@@ -49,10 +49,10 @@ Determine and extract the transaction status details from the conversation conte
 - User address (wallet address)
 
 Respond with the status parameters in this exact format:
-<statusParams>
-<requestId></requestId>
-<txHash></txHash>
-</statusParams>`;
+<response>
+  <requestId></requestId>
+  <txHash></txHash>
+</response>`;
 
 export const relayStatusAction: Action = {
   name: "CHECK_RELAY_STATUS",

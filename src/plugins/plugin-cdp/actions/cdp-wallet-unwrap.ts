@@ -39,8 +39,8 @@ Determine and extract the user's unwrap details from the conversation context. I
 
 Respond with the unwrap parameters in this exact format:
 <response>
-<network>base</network>
-<amount>10.5</amount>
+  <network>base</network>
+  <amount>10.5</amount>
 </response>`;
 
 interface UnwrapParams {

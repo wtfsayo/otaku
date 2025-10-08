@@ -28,9 +28,9 @@ function getPositionXmlTemplate(): string {
 <instructions>
 Return ONLY the following XML structure. Do not add extra text or explanations:
 
-<request>
+<response>
     <market>wstETH/WETH</market>
-</request>
+</response>
 
 Rules:
 - Leave out <market> if no specific market is mentioned.
