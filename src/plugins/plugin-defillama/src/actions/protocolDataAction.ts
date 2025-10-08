@@ -26,6 +26,7 @@ import {
   Memory,
   ModelType,
   State,
+  parseKeyValueXml,
 } from "@elizaos/core";
 import { DefiLlamaService } from "../services/defiLlamaService";
 
@@ -63,19 +64,17 @@ The user might express protocol requests in various ways:
 - "Protocol analysis for MakerDAO and Compound" → protocols: ["MakerDAO", "Compound"]
 - "TVL comparison of top 5 protocols" → analysis: "top_ranking", count: 5
 
-Extract and return ONLY a JSON object following DeFiLlama API format:
-{
-  "protocols": ["Protocol names if specifically mentioned"],
-  "categories": ["Category names if mentioned: Dexs/Lending/Liquid Staking/Derivatives/Yield/CDP/Bridge"],
-  "chains": ["Chain names as per /v2/chains endpoint: Ethereum/Polygon/Arbitrum/Optimism/BSC/Avalanche"],
-  "analysisType": "specific/comparison/ranking/category_analysis/overview",
-  "metrics": ["tvl/ranking/volume/fees/apy if specifically requested"],
-  "count": number (if user wants top N protocols),
-  "timeframe": "24h/7d/30d if mentioned for changes",
-  "includeDetails": true/false (if user wants detailed breakdown)
-}
-
-Return only the JSON object, no other text.`;
+Respond with parameters in this exact format:
+<response>
+  <protocols>Protocol1,Protocol2</protocols>
+  <categories>Dexs,Lending,Liquid Staking</categories>
+  <chains>Ethereum,Polygon,Arbitrum</chains>
+  <analysisType>specific/comparison/ranking/category_analysis/overview</analysisType>
+  <metrics>tvl,ranking,volume,fees,apy</metrics>
+  <count>10</count>
+  <timeframe>24h/7d/30d</timeframe>
+  <includeDetails>true/false</includeDetails>
+</response>`;
 
 export const protocolDataAction: Action = {
   name: "PROTOCOL_DATA",
@@ -145,22 +144,21 @@ export const protocolDataAction: Action = {
 
         if (response) {
           try {
-            // Strip markdown code blocks if present
-            const cleanedResponse = response
-              .replace(/^```(?:json)?\n?/, "")
-              .replace(/\n?```$/, "")
-              .trim();
-            const parsed = JSON.parse(cleanedResponse);
+            const parsed = parseKeyValueXml(response);
+
+            if (!parsed) {
+              throw new Error("Failed to parse XML response");
+            }
 
             extractedParams = {
-              protocols: parsed.protocols || [],
-              categories: parsed.categories || [],
-              chains: parsed.chains || [],
+              protocols: parsed.protocols ? parsed.protocols.split(',').map((s: string) => s.trim()) : [],
+              categories: parsed.categories ? parsed.categories.split(',').map((s: string) => s.trim()) : [],
+              chains: parsed.chains ? parsed.chains.split(',').map((s: string) => s.trim()) : [],
               analysisType: parsed.analysisType || "overview",
-              metrics: parsed.metrics || [],
-              count: parsed.count || 10,
+              metrics: parsed.metrics ? parsed.metrics.split(',').map((s: string) => s.trim()) : [],
+              count: parsed.count ? parseInt(parsed.count) : 10,
               timeframe: parsed.timeframe || "24h",
-              includeDetails: parsed.includeDetails || false,
+              includeDetails: parsed.includeDetails === 'true',
             };
 
             logger.info(

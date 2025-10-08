@@ -25,6 +25,7 @@ import {
   logger,
   Memory,
   ModelType,
+  parseKeyValueXml,
 } from "@elizaos/core";
 import { DefiLlamaService } from "../services/defiLlamaService";
 
@@ -118,21 +119,19 @@ The user might express risk analysis requests in various ways:
 - "Security audit status of top protocols" → riskCategories: ["smart_contract"], analysisScope: "market", focus: "audits"
 - "Risk assessment for yield farming" → category: "Yield", riskCategories: ["smart_contract", "market"]
 
-Extract and return ONLY a JSON object following DeFiLlama API format:
-{
-  "protocols": ["Protocol names if mentioned: Aave/Uniswap/Compound/Curve"],
-  "riskCategories": ["smart_contract/liquidity/market/governance/regulatory/operational/technical"],
-  "analysisScope": "specific/category/market/general (scope of analysis)",
-  "analysisType": "assessment/comparison/overview/audit_review",
-  "category": "Dexs/Lending/Liquid Staking/Derivatives if mentioned",
-  "chains": ["Chain names if specified: Ethereum/Polygon/Arbitrum/Optimism/BSC/Avalanche"],
-  "riskTolerance": "conservative/moderate/aggressive (user's risk preference)",
-  "focus": "audits/tvl/governance/technical if specific focus mentioned",
-  "timeframe": "current/historical if mentioned",
-  "severity": "low/medium/high/all (level of risks to focus on)"
-}
-
-Return only the JSON object, no other text.`;
+Respond with parameters in this exact format:
+<response>
+  <protocols>Aave,Uniswap,Compound,Curve</protocols>
+  <riskCategories>smart_contract,liquidity,market,governance,regulatory,operational,technical</riskCategories>
+  <analysisScope>specific/category/market/general</analysisScope>
+  <analysisType>assessment/comparison/overview/audit_review</analysisType>
+  <category>Dexs/Lending/Liquid Staking/Derivatives</category>
+  <chains>Ethereum,Polygon,Arbitrum,Optimism,BSC,Avalanche</chains>
+  <riskTolerance>conservative/moderate/aggressive</riskTolerance>
+  <focus>audits/tvl/governance/technical</focus>
+  <timeframe>current/historical</timeframe>
+  <severity>low/medium/high/all</severity>
+</response>`;
 
 export const riskAnalysisAction: Action = {
   name: "RISK_ANALYSIS",
@@ -187,16 +186,15 @@ export const riskAnalysisAction: Action = {
 
         if (response) {
           try {
-            // Strip markdown code blocks if present
-            const cleanedResponse = response
-              .replace(/^```(?:json)?\n?/, "")
-              .replace(/\n?```$/, "")
-              .trim();
-            const parsed = JSON.parse(cleanedResponse);
+            const parsed = parseKeyValueXml(response);
+
+            if (!parsed) {
+              throw new Error("Failed to parse XML response");
+            }
 
             extractedParams = {
-              protocols: parsed.protocols || [],
-              riskCategories: parsed.riskCategories || [
+              protocols: parsed.protocols ? parsed.protocols.split(',').map((s: string) => s.trim()) : [],
+              riskCategories: parsed.riskCategories ? parsed.riskCategories.split(',').map((s: string) => s.trim()) : [
                 "smart_contract",
                 "liquidity",
                 "market",
@@ -204,7 +202,7 @@ export const riskAnalysisAction: Action = {
               analysisScope: parsed.analysisScope || "specific",
               analysisType: parsed.analysisType || "assessment",
               category: parsed.category || undefined,
-              chains: parsed.chains || [],
+              chains: parsed.chains ? parsed.chains.split(',').map((s: string) => s.trim()) : [],
               riskTolerance: parsed.riskTolerance || "moderate",
               focus: parsed.focus || undefined,
               timeframe: parsed.timeframe || "current",

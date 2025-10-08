@@ -31,15 +31,51 @@ export const protocolSlugsProvider: Provider = {
         };
       }
 
-      // Get all protocols and create lookup mappings
-      const protocols = await defiLlamaService.getProtocols();
+      // Parse message first to extract potential protocol keywords
+      const messageText = message.content.text?.toLowerCase() || "";
+      const messageWords = messageText
+        .split(/\s+/)
+        .filter((word) => word.length > 2); // Filter out very short words
 
-      // Create name to slug mappings
+      // Get all protocols
+      const allProtocols = await defiLlamaService.getProtocols();
+
+      // Get top protocols for context (always include these)
+      const topProtocols = (allProtocols as any[])
+        .sort((a, b) => (b.tvl || 0) - (a.tvl || 0))
+        .slice(0, 10); // Top 10 most relevant by TVL
+
+      // Filter to relevant protocols: those mentioned in message or top protocols
+      const relevantProtocols = (allProtocols as any[]).filter((protocol) => {
+        const name = protocol.name.toLowerCase();
+        const slug = protocol.slug.toLowerCase();
+        
+        // Always include top protocols
+        if (topProtocols.includes(protocol)) {
+          return true;
+        }
+        
+        // Include if any message word matches protocol name or slug
+        return messageWords.some((word) => {
+          return (
+            name.includes(word) ||
+            slug.includes(word) ||
+            word.includes(name) ||
+            word.includes(slug)
+          );
+        });
+      });
+
+      logger.info(
+        `[PROTOCOL_SLUGS_PROVIDER] Filtered ${relevantProtocols.length} relevant protocols from ${allProtocols.length} total`,
+      );
+
+      // Create name to slug mappings only for relevant protocols
       const nameToSlug: Record<string, string> = {};
       const slugToName: Record<string, string> = {};
       const aliasToSlug: Record<string, string> = {};
 
-      for (const protocol of protocols as any[]) {
+      for (const protocol of relevantProtocols) {
         const slug = protocol.slug;
         const name = protocol.name.toLowerCase();
 
@@ -69,14 +105,11 @@ export const protocolSlugsProvider: Provider = {
         }
       }
 
-      // Get top protocols for context
-      const topProtocols = (protocols as any[])
-        .sort((a, b) => (b.tvl || 0) - (a.tvl || 0))
-        .slice(0, 20)
+      // Format top protocols for display
+      const topProtocolsList = topProtocols
         .map((p) => `${p.name} (${p.slug})`);
 
-      // Parse message to find potential protocol references
-      const messageText = message.content.text?.toLowerCase() || "";
+      // Find protocol matches in message
       const foundProtocols: Array<{
         name: string;
         slug: string;
@@ -109,28 +142,29 @@ export const protocolSlugsProvider: Provider = {
 
       const contextText =
         uniqueProtocols.length > 0
-          ? `Protocol Matches Found:
+          ? `Protocol Matches Found (${uniqueProtocols.length}):
 ${uniqueProtocols.map((p) => `- ${p.name} → ${p.slug} (${p.confidence} match)`).join("\n")}
 
-Use these exact slugs for API calls.`
-          : `No specific protocols detected in message.
+Use these exact slugs for API calls.
 
-Top 20 Available Protocols:
-${topProtocols.slice(0, 10).join(", ")}
-${topProtocols.slice(10).join(", ")}
+Top 10 Protocols by TVL available:
+${topProtocolsList.join(", ")}`
+          : `No specific protocols mentioned in message.
 
-Total available protocols: ${protocols.length}
+Top 10 Protocols by TVL available:
+${topProtocolsList.join(", ")}
 
-For protocol lookups, use exact protocol slugs. Common rebrands:
-- MakerDAO → Sky Lending (slug varies - check current data)`;
+Use exact protocol slugs for lookups. Common rebrands:
+- MakerDAO → Sky Lending (check current data for exact slug)`;
 
       return {
         text: contextText,
         values: {
-          availableProtocols: protocols.length,
+          availableProtocols: allProtocols.length,
+          relevantProtocols: relevantProtocols.length,
           foundProtocols: uniqueProtocols,
-          topProtocols: topProtocols.slice(0, 10),
-          nameToSlug: Object.keys(nameToSlug).slice(0, 50), // Limit for performance
+          topProtocols: topProtocolsList,
+          nameToSlug: Object.keys(nameToSlug),
           hasMatches: uniqueProtocols.length > 0,
         },
         data: {
@@ -138,8 +172,8 @@ For protocol lookups, use exact protocol slugs. Common rebrands:
           slugToName,
           aliasToSlug,
           foundProtocols: uniqueProtocols,
-          topProtocols,
-          allProtocols: protocols,
+          topProtocols: topProtocolsList,
+          relevantProtocols,
         },
       };
     } catch (error) {

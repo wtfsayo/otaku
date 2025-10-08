@@ -26,6 +26,7 @@ import {
   Memory,
   ModelType,
   State,
+  parseKeyValueXml,
 } from "@elizaos/core";
 import { DefiLlamaService } from "../services/defiLlamaService";
 import type { ProtocolDetails, Chain, ProtocolFees, DexVolume } from "../types";
@@ -91,20 +92,18 @@ The user might express market trends requests in various ways:
 - "DeFi market overview" → focus: "all", analysisType: "overview"
 - "Volume leaders this month" → sortBy: "volume", timeframe: "30d"
 
-Extract and return ONLY a JSON object following DeFiLlama API format:
-{
-  "focus": "protocols/chains/categories/all (what to analyze)",
-  "timeframe": "1d/7d/30d (time period for analysis)",
-  "direction": "winners/losers/all (performance filter)",
-  "category": "Dexs/Lending/Liquid Staking/Derivatives if mentioned",
-  "sortBy": "tvl/volume/change (how to rank results)",
-  "analysisType": "performance/overview/ranking/comparison",
-  "limit": number (how many results, default 10),
-  "includeMetrics": ["tvl/volume/fees/change if specifically requested"],
-  "marketScope": "overall/sector/chain if specified"
-}
-
-Return only the JSON object, no other text.`;
+Respond with parameters in this exact format:
+<response>
+  <focus>protocols/chains/categories/all</focus>
+  <timeframe>1d/7d/30d</timeframe>
+  <direction>winners/losers/all</direction>
+  <category>Dexs/Lending/Liquid Staking/Derivatives</category>
+  <sortBy>tvl/volume/change</sortBy>
+  <analysisType>performance/overview/ranking/comparison</analysisType>
+  <limit>10</limit>
+  <includeMetrics>tvl,volume,fees,change</includeMetrics>
+  <marketScope>overall/sector/chain</marketScope>
+</response>`;
 
 export const marketTrendsAction: Action = {
   name: "MARKET_TRENDS",
@@ -172,12 +171,11 @@ export const marketTrendsAction: Action = {
 
         if (response) {
           try {
-            // Strip markdown code blocks if present
-            const cleanedResponse = response
-              .replace(/^```(?:json)?\n?/, "")
-              .replace(/\n?```$/, "")
-              .trim();
-            const parsed = JSON.parse(cleanedResponse);
+            const parsed = parseKeyValueXml(response);
+
+            if (!parsed) {
+              throw new Error("Failed to parse XML response");
+            }
 
             extractedParams = {
               focus: parsed.focus || "protocols",
@@ -186,8 +184,8 @@ export const marketTrendsAction: Action = {
               category: parsed.category || undefined,
               sortBy: parsed.sortBy || "tvl",
               analysisType: parsed.analysisType || "performance",
-              limit: parsed.limit || 10,
-              includeMetrics: parsed.includeMetrics || [],
+              limit: parsed.limit ? parseInt(parsed.limit) : 10,
+              includeMetrics: parsed.includeMetrics ? parsed.includeMetrics.split(',').map((s: string) => s.trim()) : [],
               marketScope: parsed.marketScope || "overall",
             };
 

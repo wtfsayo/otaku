@@ -26,6 +26,7 @@ import {
   Memory,
   ModelType,
   State,
+  parseKeyValueXml,
 } from "@elizaos/core";
 import { DefiLlamaService } from "../services/defiLlamaService";
 
@@ -63,22 +64,20 @@ The user might express yield requests in various ways:
 - "Ethereum lending yields under 10%" → chains: ["Ethereum"], maxApy: 10, categories: ["lending"]
 - "Auto-compounding WETH farms" → assets: ["WETH"], features: ["auto-compound"]
 
-Extract and return ONLY a JSON object following DeFiLlama API format:
-{
-  "assets": ["Asset symbols if mentioned: USDC/ETH/WBTC/DAI/stablecoins"],
-  "protocols": ["Protocol names if mentioned: Aave/Compound/Uniswap/Curve"],
-  "chains": ["Chain names as per /pools endpoint: Ethereum/Polygon/Arbitrum/Optimism/BSC/Avalanche"],
-  "minApy": number (minimum APY if specified),
-  "maxApy": number (maximum APY if specified),
-  "minTvl": number (minimum TVL in USD if specified),
-  "riskTolerance": "low/medium/high/any (based on user preference)",
-  "categories": ["lending/dex/staking/farming if mentioned"],
-  "features": ["auto-compound/rewards/stable if mentioned"],
-  "sortBy": "apy/tvl/project (how to sort results)",
-  "limit": number (how many results, default 15)
-}
-
-Return only the JSON object, no other text.`;
+Respond with parameters in this exact format:
+<response>
+  <assets>USDC,ETH,WBTC,DAI,stablecoins</assets>
+  <protocols>Aave,Compound,Uniswap,Curve</protocols>
+  <chains>Ethereum,Polygon,Arbitrum,Optimism,BSC,Avalanche</chains>
+  <minApy>0</minApy>
+  <maxApy>1000</maxApy>
+  <minTvl>0</minTvl>
+  <riskTolerance>low/medium/high/any</riskTolerance>
+  <categories>lending,dex,staking,farming</categories>
+  <features>auto-compound,rewards,stable</features>
+  <sortBy>apy/tvl/project</sortBy>
+  <limit>15</limit>
+</response>`;
 
 export const yieldSearchAction: Action = {
   name: "YIELD_SEARCH",
@@ -146,25 +145,24 @@ export const yieldSearchAction: Action = {
 
         if (response) {
           try {
-            // Strip markdown code blocks if present
-            const cleanedResponse = response
-              .replace(/^```(?:json)?\n?/, "")
-              .replace(/\n?```$/, "")
-              .trim();
-            const parsed = JSON.parse(cleanedResponse);
+            const parsed = parseKeyValueXml(response);
+
+            if (!parsed) {
+              throw new Error("Failed to parse XML response");
+            }
 
             yieldCriteria = {
-              assets: parsed.assets || [],
-              protocols: parsed.protocols || [],
-              chains: parsed.chains || [],
-              minApy: parsed.minApy || 0,
-              maxApy: parsed.maxApy || 1000,
-              minTvl: parsed.minTvl || 0,
+              assets: parsed.assets ? parsed.assets.split(',').map((s: string) => s.trim()) : [],
+              protocols: parsed.protocols ? parsed.protocols.split(',').map((s: string) => s.trim()) : [],
+              chains: parsed.chains ? parsed.chains.split(',').map((s: string) => s.trim()) : [],
+              minApy: parsed.minApy ? parseFloat(parsed.minApy) : 0,
+              maxApy: parsed.maxApy ? parseFloat(parsed.maxApy) : 1000,
+              minTvl: parsed.minTvl ? parseFloat(parsed.minTvl) : 0,
               riskTolerance: parsed.riskTolerance || "any",
-              categories: parsed.categories || [],
-              features: parsed.features || [],
+              categories: parsed.categories ? parsed.categories.split(',').map((s: string) => s.trim()) : [],
+              features: parsed.features ? parsed.features.split(',').map((s: string) => s.trim()) : [],
               sortBy: parsed.sortBy || "apy",
-              limit: parsed.limit || 15,
+              limit: parsed.limit ? parseInt(parsed.limit) : 15,
             };
 
             logger.info(
