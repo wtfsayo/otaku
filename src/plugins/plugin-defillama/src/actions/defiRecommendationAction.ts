@@ -26,6 +26,7 @@ import {
   Memory,
   ModelType,
   State,
+  parseKeyValueXml,
 } from "@elizaos/core";
 import { DefiLlamaService } from "../services/defiLlamaService";
 
@@ -89,21 +90,19 @@ The user might express investment requests in various ways:
 - "Conservative DeFi with $100k" → investmentAmount: 100000, riskTolerance: "low", minTvl: 1000000000
 - "Aggressive yield strategies" → riskTolerance: "high", targetApy: 20
 
-Extract and return ONLY a JSON object following DeFiLlama API format:
-{
-  "targetApy": number (desired APY percentage, default 8),
-  "riskTolerance": "low/medium/high (investment risk preference)",
-  "investmentAmount": number (investment amount in USD if mentioned),
-  "minTvl": number (minimum protocol TVL for safety),
-  "chains": ["Chain names as per API: Ethereum/Polygon/Arbitrum/Optimism/BSC/Avalanche"],
-  "categories": ["Protocol categories: Dexs/Lending/Liquid Staking/Derivatives/Yield/CDP"],
-  "timeHorizon": "short/medium/long (investment timeframe)",
-  "strategy": "conservative/balanced/aggressive/yield_focused",
-  "excludeRisky": true/false (if user wants to avoid high-risk protocols),
-  "diversified": true/false (if user wants diversified recommendations)
-}
-
-Return only the JSON object, no other text.`;
+Respond with parameters in this exact format:
+<response>
+  <targetApy>8</targetApy>
+  <riskTolerance>low/medium/high</riskTolerance>
+  <investmentAmount>0</investmentAmount>
+  <minTvl>10000000</minTvl>
+  <chains>Ethereum,Polygon,Arbitrum,Optimism,BSC,Avalanche</chains>
+  <categories>Dexs,Lending,Liquid Staking,Derivatives,Yield,CDP</categories>
+  <timeHorizon>short/medium/long</timeHorizon>
+  <strategy>conservative/balanced/aggressive/yield_focused</strategy>
+  <excludeRisky>true/false</excludeRisky>
+  <diversified>true/false</diversified>
+</response>`;
 
 export const defiRecommendationAction: Action = {
   name: "DEFI_RECOMMENDATIONS",
@@ -158,30 +157,29 @@ export const defiRecommendationAction: Action = {
 
         if (response) {
           try {
-            // Strip markdown code blocks if present
-            const cleanedResponse = response
-              .replace(/^```(?:json)?\n?/, "")
-              .replace(/\n?```$/, "")
-              .trim();
-            const parsed = JSON.parse(cleanedResponse);
+            const parsed = parseKeyValueXml(response);
+
+            if (!parsed) {
+              throw new Error("Failed to parse XML response");
+            }
 
             extractedParams = {
-              targetApy: parsed.targetApy || 8,
+              targetApy: parsed.targetApy ? parseFloat(parsed.targetApy) : 8,
               riskTolerance: parsed.riskTolerance || "medium",
-              investmentAmount: parsed.investmentAmount || 0,
+              investmentAmount: parsed.investmentAmount ? parseFloat(parsed.investmentAmount) : 0,
               minTvl:
-                parsed.minTvl ||
+                parsed.minTvl ? parseFloat(parsed.minTvl) :
                 (parsed.riskTolerance === "low"
                   ? 100000000
                   : parsed.riskTolerance === "high"
                     ? 1000000
                     : 10000000),
-              chains: parsed.chains || [],
-              categories: parsed.categories || [],
+              chains: parsed.chains ? parsed.chains.split(',').map((s: string) => s.trim()) : [],
+              categories: parsed.categories ? parsed.categories.split(',').map((s: string) => s.trim()) : [],
               timeHorizon: parsed.timeHorizon || "medium",
               strategy: parsed.strategy || "balanced",
-              excludeRisky: parsed.excludeRisky || false,
-              diversified: parsed.diversified || true,
+              excludeRisky: parsed.excludeRisky === 'true',
+              diversified: parsed.diversified === 'true',
             };
 
             logger.info(

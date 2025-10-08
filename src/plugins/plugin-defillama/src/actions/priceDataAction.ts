@@ -26,6 +26,7 @@ import {
   Memory,
   ModelType,
   State,
+  parseKeyValueXml,
 } from "@elizaos/core";
 import { DefiLlamaService } from "../services/defiLlamaService";
 
@@ -49,21 +50,15 @@ The user might express price requests in various ways:
 - "Price of Solana and Cardano" → full token names
 - "What's the current worth of MATIC?" → alternative names
 
-Extract and return ONLY a JSON object following DeFiLlama API format:
-{
-  "tokens": [
-    {
-      "identifier": "Symbol, name, or contract address",
-      "chain": "LOWERCASE chain identifier (ethereum/polygon/arbitrum/optimism/bsc/avax/fantom) as per DeFiLlama API",
-      "type": "symbol/name/address/coingecko_id"
-    }
-  ],
-  "requestType": "single/multiple/comparison",
-  "includeDetails": true/false (if user wants detailed info beyond just price),
-  "searchWidth": "4h/24h/48h (time window for price search if mentioned)"
-}
+Respond with token information in this exact format:
+<response>
+  <tokens>ethereum:symbol,polygon:0xAddress,coingecko:bitcoin</tokens>
+  <requestType>single/multiple/comparison</requestType>
+  <includeDetails>true/false</includeDetails>
+  <searchWidth>4h/24h/48h</searchWidth>
+</response>
 
-Return only the JSON object, no other text.`;
+Note: For tokens field, use format chain:identifier (e.g. ethereum:USDC,polygon:0x123)`;
 
 export const priceDataAction: Action = {
   name: "PRICE_DATA",
@@ -132,22 +127,28 @@ export const priceDataAction: Action = {
 
         if (response) {
           try {
-            // Strip markdown code blocks if present
-            const cleanedResponse = response
-              .replace(/^```(?:json)?\n?/, "")
-              .replace(/\n?```$/, "")
-              .trim();
-            const parsed = JSON.parse(cleanedResponse);
+            const parsed = parseKeyValueXml(response);
 
-            if (parsed.tokens && Array.isArray(parsed.tokens)) {
-              for (const tokenInfo of parsed.tokens) {
-                const resolvedToken = resolveTokenToId(
-                  tokenInfo.identifier,
-                  tokenInfo.chain,
-                  tokenInfo.type,
-                );
-                if (resolvedToken) {
-                  tokens.push(resolvedToken);
+            if (!parsed) {
+              throw new Error("Failed to parse XML response");
+            }
+
+            if (parsed.tokens) {
+              // Parse comma-separated tokens
+              const tokenEntries = parsed.tokens.split(',').map((s: string) => s.trim());
+              for (const tokenEntry of tokenEntries) {
+                // Check if it's already in chain:address or coingecko:id format
+                if (tokenEntry.includes(':')) {
+                  tokens.push(tokenEntry);
+                } else {
+                  // Try to resolve as symbol
+                  const tokenMap = getTokenMappings();
+                  const lowerToken = tokenEntry.toLowerCase();
+                  if (tokenMap[lowerToken]) {
+                    tokens.push(tokenMap[lowerToken]);
+                  } else {
+                    tokens.push(`coingecko:${lowerToken}`);
+                  }
                 }
               }
 
@@ -161,7 +162,7 @@ export const priceDataAction: Action = {
               );
             } else {
               logger.warn(
-                "[PRICE_DATA] LLM response missing tokens array, falling back to regex",
+                "[PRICE_DATA] LLM response missing tokens field, falling back to regex",
               );
               tokens = extractTokensFromQueryLegacy(userQuestion, "");
             }

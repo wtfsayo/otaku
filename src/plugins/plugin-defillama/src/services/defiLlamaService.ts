@@ -532,7 +532,7 @@ export class DefiLlamaService extends Service {
         const data = await response.json();
         return data;
       } catch (error) {
-        logger.error(`DeFiLlama API error (attempt ${attempt + 1}):`, error);
+        logger.error(`DeFiLlama API error (attempt ${attempt + 1}):`, (error as Error).message);
 
         // Check if this is the last attempt or if we shouldn't retry this error
         const isLastAttempt = attempt >= this.defiConfig.retryAttempts - 1;

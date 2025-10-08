@@ -26,6 +26,7 @@ import {
   Memory,
   ModelType,
   State,
+  parseKeyValueXml,
 } from "@elizaos/core";
 import { DefiLlamaService } from "../services/defiLlamaService";
 
@@ -101,21 +102,19 @@ The user might express cross-chain requests in various ways:
 - "Multi-chain lending protocols" → focus: ["lending"], analysis: "comparison"
 - "Migrate from Ethereum to cheaper chains" → sourceChain: "Ethereum", analysis: "migration"
 
-Extract and return ONLY a JSON object following DeFiLlama API format:
-{
-  "targetChains": ["Chain names as per DeFiLlama API: Ethereum/Arbitrum/Optimism/Polygon/Avalanche/Fantom/BSC"],
-  "sourceChain": "Source chain if migration mentioned",
-  "analysisType": "comparison/arbitrage/yield/bridge/migration/general",
-  "focusCategories": ["Category focus: lending/dex/staking/bridge/yield if mentioned"],
-  "minTvlPreference": "large/medium/small/any (based on user preference)",
-  "riskTolerance": "low/medium/high (if mentioned)",
-  "specificProtocols": ["Protocol names if specifically mentioned"],
-  "metrics": ["tvl/volume/fees/apy if specific metrics requested"],
-  "timeframe": "24h/7d/30d if historical comparison mentioned",
-  "includeDetails": true/false (if user wants detailed breakdown)
-}
-
-Return only the JSON object, no other text.`;
+Respond with parameters in this exact format:
+<response>
+  <targetChains>Ethereum,Arbitrum,Optimism,Polygon,Avalanche,Fantom,BSC</targetChains>
+  <sourceChain>source chain if migration mentioned</sourceChain>
+  <analysisType>comparison/arbitrage/yield/bridge/migration/general</analysisType>
+  <focusCategories>lending,dex,staking,bridge,yield</focusCategories>
+  <minTvlPreference>large/medium/small/any</minTvlPreference>
+  <riskTolerance>low/medium/high</riskTolerance>
+  <specificProtocols>Protocol1,Protocol2</specificProtocols>
+  <metrics>tvl,volume,fees,apy</metrics>
+  <timeframe>24h/7d/30d</timeframe>
+  <includeDetails>true/false</includeDetails>
+</response>`;
 
 export const crossChainAction: Action = {
   name: "CROSS_CHAIN_ANALYSIS",
@@ -171,18 +170,17 @@ export const crossChainAction: Action = {
 
         if (response) {
           try {
-            // Strip markdown code blocks if present
-            const cleanedResponse = response
-              .replace(/^```(?:json)?\n?/, "")
-              .replace(/\n?```$/, "")
-              .trim();
-            const parsed = JSON.parse(cleanedResponse);
+            const parsed = parseKeyValueXml(response);
+
+            if (!parsed) {
+              throw new Error("Failed to parse XML response");
+            }
 
             criteria = {
-              targetChains: parsed.targetChains || [],
+              targetChains: parsed.targetChains ? parsed.targetChains.split(',').map((s: string) => s.trim()) : [],
               analysisType: parsed.analysisType || "general",
               minTvl: parseMinTvlFromPreference(parsed.minTvlPreference),
-              focusCategories: parsed.focusCategories || [],
+              focusCategories: parsed.focusCategories ? parsed.focusCategories.split(',').map((s: string) => s.trim()) : [],
             };
 
             // Ensure we have target chains

@@ -26,6 +26,7 @@ import {
   Memory,
   ModelType,
   State,
+  parseKeyValueXml,
 } from "@elizaos/core";
 import { DefiLlamaService } from "../services/defiLlamaService";
 import type { ProtocolFees, DexVolume } from "../types";
@@ -68,21 +69,19 @@ The user might express fees/volume requests in various ways:
 - "Protocol economics on Polygon" → chains: ["Polygon"], analysisType: "both"
 - "Daily fees for lending protocols" → category: "lending", analysisType: "fees"
 
-Extract and return ONLY a JSON object following DeFiLlama API format:
-{
-  "protocols": ["Protocol names if mentioned: Uniswap/Aave/Compound/Curve"],
-  "chains": ["Chain names as per API: Ethereum/Polygon/Arbitrum/Optimism/BSC/Avalanche"],
-  "analysisType": "fees/volume/both (what user wants to analyze)",
-  "category": ["dex/lending/derivatives if mentioned"],
-  "timeframe": "24h/7d/30d (time period if specified)",
-  "metrics": ["revenue/volume/fees/efficiency if specifically requested"],
-  "sortBy": "fees/volume/name/change (how to sort results)",
-  "count": number (how many results, default 10),
-  "includeBreakdown": true/false (if user wants detailed breakdown),
-  "compareMode": true/false (if user wants comparison analysis)
-}
-
-Return only the JSON object, no other text.`;
+Respond with parameters in this exact format:
+<response>
+  <protocols>Uniswap,Aave,Compound,Curve</protocols>
+  <chains>Ethereum,Polygon,Arbitrum,Optimism,BSC,Avalanche</chains>
+  <analysisType>fees/volume/both</analysisType>
+  <category>dex,lending,derivatives</category>
+  <timeframe>24h/7d/30d</timeframe>
+  <metrics>revenue,volume,fees,efficiency</metrics>
+  <sortBy>fees/volume/name/change</sortBy>
+  <count>10</count>
+  <includeBreakdown>true/false</includeBreakdown>
+  <compareMode>true/false</compareMode>
+</response>`;
 
 export const feesVolumeAction: Action = {
   name: "FEE_VOLUME_DATA",
@@ -137,24 +136,23 @@ export const feesVolumeAction: Action = {
 
         if (response) {
           try {
-            // Strip markdown code blocks if present
-            const cleanedResponse = response
-              .replace(/^```(?:json)?\n?/, "")
-              .replace(/\n?```$/, "")
-              .trim();
-            const parsed = JSON.parse(cleanedResponse);
+            const parsed = parseKeyValueXml(response);
+
+            if (!parsed) {
+              throw new Error("Failed to parse XML response");
+            }
 
             extractedParams = {
-              protocols: parsed.protocols || [],
-              chains: parsed.chains || [],
+              protocols: parsed.protocols ? parsed.protocols.split(',').map((s: string) => s.trim()) : [],
+              chains: parsed.chains ? parsed.chains.split(',').map((s: string) => s.trim()) : [],
               analysisType: parsed.analysisType || "both",
-              category: parsed.category || [],
+              category: parsed.category ? parsed.category.split(',').map((s: string) => s.trim()) : [],
               timeframe: parsed.timeframe || "24h",
-              metrics: parsed.metrics || [],
+              metrics: parsed.metrics ? parsed.metrics.split(',').map((s: string) => s.trim()) : [],
               sortBy: parsed.sortBy || "volume",
-              count: parsed.count || 10,
-              includeBreakdown: parsed.includeBreakdown || false,
-              compareMode: parsed.compareMode || false,
+              count: parsed.count ? parseInt(parsed.count) : 10,
+              includeBreakdown: parsed.includeBreakdown === 'true',
+              compareMode: parsed.compareMode === 'true',
             };
 
             logger.info(

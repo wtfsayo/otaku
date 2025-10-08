@@ -26,6 +26,7 @@ import {
   Memory,
   ModelType,
   State,
+  parseKeyValueXml,
 } from "@elizaos/core";
 import { DefiLlamaService } from "../services/defiLlamaService";
 import type { ProtocolDetails, Chain, HistoricalData } from "../types";
@@ -97,21 +98,19 @@ The user might express historical data requests in various ways:
 - "Protocol performance since January" → timeframe: "custom", analysisType: "performance"
 - "Weekly growth analysis for lending protocols" → category: "Lending", timeframe: "7d", analysisType: "growth"
 
-Extract and return ONLY a JSON object following DeFiLlama API format:
-{
-  "protocols": ["Protocol names if mentioned: Aave/Uniswap/Compound/Curve"],
-  "chains": ["Chain names as per API: Ethereum/Polygon/Arbitrum/Optimism/BSC/Avalanche"],
-  "timeframe": "24h/7d/30d/90d/180d/1y/custom (time period requested)",
-  "dataType": "tvl/volume/fees/price (what historical data to analyze)",
-  "analysisType": "growth/comparison/trends/performance/market_overview",
-  "category": ["Lending/Dexs/Derivatives if mentioned"],
-  "granularity": "daily/weekly/monthly (data point frequency if specified)",
-  "includeBreakdown": true/false (if user wants chain/token breakdown),
-  "compareToMarket": true/false (if user wants market comparison),
-  "count": number (how many protocols/chains to analyze, default 10)
-}
-
-Return only the JSON object, no other text.`;
+Respond with parameters in this exact format:
+<response>
+  <protocols>Aave,Uniswap,Compound,Curve</protocols>
+  <chains>Ethereum,Polygon,Arbitrum,Optimism,BSC,Avalanche</chains>
+  <timeframe>24h/7d/30d/90d/180d/1y/custom</timeframe>
+  <dataType>tvl/volume/fees/price</dataType>
+  <analysisType>growth/comparison/trends/performance/market_overview</analysisType>
+  <category>Lending,Dexs,Derivatives</category>
+  <granularity>daily/weekly/monthly</granularity>
+  <includeBreakdown>true/false</includeBreakdown>
+  <compareToMarket>true/false</compareToMarket>
+  <count>10</count>
+</response>`;
 
 export const historicalDataAction: Action = {
   name: "HISTORICAL_DATA",
@@ -166,24 +165,23 @@ export const historicalDataAction: Action = {
 
         if (response) {
           try {
-            // Strip markdown code blocks if present
-            const cleanedResponse = response
-              .replace(/^```(?:json)?\n?/, "")
-              .replace(/\n?```$/, "")
-              .trim();
-            const parsed = JSON.parse(cleanedResponse);
+            const parsed = parseKeyValueXml(response);
+
+            if (!parsed) {
+              throw new Error("Failed to parse XML response");
+            }
 
             extractedParams = {
-              protocols: parsed.protocols || [],
-              chains: parsed.chains || [],
+              protocols: parsed.protocols ? parsed.protocols.split(',').map((s: string) => s.trim()) : [],
+              chains: parsed.chains ? parsed.chains.split(',').map((s: string) => s.trim()) : [],
               timeframe: parsed.timeframe || "30d",
               dataType: parsed.dataType || "tvl",
               analysisType: parsed.analysisType || "trends",
-              category: parsed.category || [],
+              category: parsed.category ? parsed.category.split(',').map((s: string) => s.trim()) : [],
               granularity: parsed.granularity || "daily",
-              includeBreakdown: parsed.includeBreakdown || false,
-              compareToMarket: parsed.compareToMarket || false,
-              count: parsed.count || 10,
+              includeBreakdown: parsed.includeBreakdown === 'true',
+              compareToMarket: parsed.compareToMarket === 'true',
+              count: parsed.count ? parseInt(parsed.count) : 10,
             };
 
             logger.info(

@@ -26,6 +26,7 @@ import {
   Memory,
   ModelType,
   State,
+  parseKeyValueXml,
 } from "@elizaos/core";
 import { DefiLlamaService } from "../services/defiLlamaService";
 
@@ -62,20 +63,18 @@ The user might express stablecoin requests in various ways:
 - "Top 5 stablecoins by market cap" → count: 5, sortBy: "circulation"
 - "Fiat-backed stablecoins" → pegMechanism: "fiat-backed"
 
-Extract and return ONLY a JSON object following DeFiLlama API format:
-{
-  "stablecoins": ["Stablecoin symbols if mentioned: USDT/USDC/DAI/FRAX/BUSD/TUSD"],
-  "chains": ["Chain names as per /stablecoins endpoint: Ethereum/Tron/BSC/Polygon/Arbitrum"],
-  "pegMechanism": ["fiat-backed/crypto-backed/algorithmic if mentioned"],
-  "metrics": ["circulation/market_cap/peg_stability/depeg_risk/price if requested"],
-  "analysisType": "overview/comparison/ranking/stability_analysis/risk_assessment",
-  "sortBy": "circulation/price/name (how to sort results)",
-  "count": number (how many results, default 10),
-  "includePrices": true/false (if user wants current prices),
-  "timeframe": "current/historical if mentioned"
-}
-
-Return only the JSON object, no other text.`;
+Respond with parameters in this exact format:
+<response>
+  <stablecoins>USDT,USDC,DAI,FRAX,BUSD,TUSD</stablecoins>
+  <chains>Ethereum,Tron,BSC,Polygon,Arbitrum</chains>
+  <pegMechanism>fiat-backed,crypto-backed,algorithmic</pegMechanism>
+  <metrics>circulation,market_cap,peg_stability,depeg_risk,price</metrics>
+  <analysisType>overview/comparison/ranking/stability_analysis/risk_assessment</analysisType>
+  <sortBy>circulation/price/name</sortBy>
+  <count>10</count>
+  <includePrices>true/false</includePrices>
+  <timeframe>current/historical</timeframe>
+</response>`;
 
 export const stablecoinAction: Action = {
   name: "STABLECOIN_ANALYSIS",
@@ -145,22 +144,21 @@ export const stablecoinAction: Action = {
 
         if (response) {
           try {
-            // Strip markdown code blocks if present
-            const cleanedResponse = response
-              .replace(/^```(?:json)?\n?/, "")
-              .replace(/\n?```$/, "")
-              .trim();
-            const parsed = JSON.parse(cleanedResponse);
+            const parsed = parseKeyValueXml(response);
+
+            if (!parsed) {
+              throw new Error("Failed to parse XML response");
+            }
 
             extractedParams = {
-              stablecoins: parsed.stablecoins || [],
-              chains: parsed.chains || [],
-              pegMechanism: parsed.pegMechanism || [],
-              metrics: parsed.metrics || [],
+              stablecoins: parsed.stablecoins ? parsed.stablecoins.split(',').map((s: string) => s.trim()) : [],
+              chains: parsed.chains ? parsed.chains.split(',').map((s: string) => s.trim()) : [],
+              pegMechanism: parsed.pegMechanism ? parsed.pegMechanism.split(',').map((s: string) => s.trim()) : [],
+              metrics: parsed.metrics ? parsed.metrics.split(',').map((s: string) => s.trim()) : [],
               analysisType: parsed.analysisType || "overview",
               sortBy: parsed.sortBy || "circulation",
-              count: parsed.count || 10,
-              includePrices: parsed.includePrices || false,
+              count: parsed.count ? parseInt(parsed.count) : 10,
+              includePrices: parsed.includePrices === 'true',
               timeframe: parsed.timeframe || "current",
             };
 
