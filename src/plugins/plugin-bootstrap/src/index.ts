@@ -162,8 +162,6 @@ Summarize what the assistant has done so far and provide a final response to the
 This indicates whether the user has a configured Coinbase CDP wallet and includes basic details (address, provider, chain). If no wallet is present, on-chain actions (transfers, swaps, bridging) are unavailable until a wallet is created.
 {{walletState}}
 
-# Conversation Summary
-Below is the user’s original request and conversation so far:
 {{recentMessages}}
 
 # Execution Trace
@@ -212,16 +210,6 @@ interface MultiStepActionResult {
   text?: string;
   error?: string | Error;
   values?: Record<string, any>;
-}
-
-/**
- * Multi-step workflow state
- */
-interface MultiStepState extends State {
-  data: {
-    actionResults: MultiStepActionResult[];
-    [key: string]: any;
-  };
 }
 
 const latestResponseIds = new Map<string, Map<string, string>>();
@@ -1254,13 +1242,13 @@ async function runMultiStepCore({ runtime, message, state, callback }: { runtime
           text: success ? providerResult.text : undefined,
           error: success ? undefined : providerResult?.text,
         });
-        if (callback) {
-          await callback({
-            text: `🔎 Provider executed: ${providerName}`,
-            actions: [providerName],
-            thought: thought ?? '',
-          });
-        }
+        // if (callback) {
+        //   await callback({
+        //     text: `🔎 Provider executed: ${providerName}`,
+        //     actions: [providerName],
+        //     thought: thought ?? '',
+        //   });
+        // }
       }
 
       if (action) {
