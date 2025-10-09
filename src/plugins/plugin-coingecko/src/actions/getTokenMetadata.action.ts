@@ -84,32 +84,26 @@ export const getTokenMetadataAction: Action = {
         .filter(Boolean);
       if (!ids.length) throw new Error("No valid token ids parsed from message");
 
-      const results: any[] = [];
-      for (const id of ids) {
-        try {
-          const meta = await svc.getTokenMetadata(id);
-          results.push(meta);
-        } catch (e) {
-          logger.warn(`[GET_TOKEN_METADATA] Failed to fetch id ${id}:`, e instanceof Error ? e.message : String(e));
-        }
-      }
+      const serviceResults = await svc.getTokenMetadata(ids);
+      const successes = serviceResults.filter((r) => r.success);
+      const failures = serviceResults.filter((r) => !r.success);
 
-      if (results.length === 0) throw new Error("No metadata fetched for provided ids");
+      const text = `Fetched metadata for ${successes.length} token(s)` + (failures.length ? `, ${failures.length} failed` : "");
 
       if (callback) {
         await callback({
-          text: `Fetched metadata for ${results.length} token(s)`,
+          text,
           actions: ["GET_TOKEN_METADATA"],
-          content: results as any,
+          content: serviceResults as any,
           source: message.content.source,
         });
       }
 
       return {
-        text: `Fetched metadata for ${results.length} token(s)`,
-        success: true,
-        data: results,
-        values: results,
+        text,
+        success: successes.length > 0,
+        data: serviceResults,
+        values: serviceResults,
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);

@@ -44,76 +44,109 @@ export class CoinGeckoService extends Service {
   async stop(): Promise<void> {}
 
   /**
-   * Get token metadata by CoinGecko coin id.
+   * Get token metadata for one or more identifiers (CoinGecko ids, symbols, names, or contract addresses).
    * Uses Pro API when COINGECKO_API_KEY is set; otherwise public API.
-   * @param id CoinGecko coin id, e.g. "eigenlayer", "ethereum"
+   * Never throws for per-id failures; returns an entry with error message instead.
    */
-  async getTokenMetadata(id: string): Promise<any> {
+  async getTokenMetadata(ids: string | string[]): Promise<Array<{ id: string; success: boolean; data?: any; error?: string }>> {
+    const normalizedIds = (Array.isArray(ids) ? ids : [ids])
+      .map((s) => (s || "").trim())
+      .filter(Boolean);
     const isPro = Boolean(this.proApiKey);
     const baseUrl = isPro ? "https://pro-api.coingecko.com/api/v3" : "https://api.coingecko.com/api/v3";
 
-    const q = (id || "").trim();
+    const results: Array<{ id: string; success: boolean; data?: any; error?: string }> = [];
 
-    // Address handling: EVM 0x... and Solana Base58
-    if (isEvmAddress(q)) {
-      const platforms = [
-        "ethereum",
-        "base",
-        "arbitrum-one",
-        "optimistic-ethereum",
-        "polygon-pos",
-        "bsc",
-      ];
-      const byContract = await this.fetchByContractAddress(baseUrl, q, platforms);
-      if (byContract) return byContract;
-      throw new Error(`No CoinGecko match for EVM address: ${q}`);
-    }
+    for (const rawId of normalizedIds) {
+      const q = (rawId || "").trim();
 
-    if (isSolanaAddress(q)) {
-      const byContract = await this.fetchByContractAddress(baseUrl, q, ["solana"]);
-      if (byContract) return byContract;
-      throw new Error(`No CoinGecko match for Solana address: ${q}`);
-    }
-
-    // Resolve symbol/name/id via local index
-    const resolvedId = await this.resolveIdFromCache(q);
-    if (!resolvedId) {
-      throw new Error(`Unknown coin id/symbol/name: ${id}`);
-    }
-    const endpoint = `/coins/${encodeURIComponent(resolvedId)}`;
-    const url = `${baseUrl}${endpoint}`;
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-
-    try {
-      logger.debug(`[CoinGecko] GET ${url}`);
-      const res = await fetch(url, {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          ...(isPro && this.proApiKey ? { "x-cg-pro-api-key": this.proApiKey } : {}),
-          "User-Agent": "ElizaOS-CoinGecko-Plugin/1.0",
-        },
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeout);
-
-      if (!res.ok) {
-        const body = await safeReadJson(res);
-        throw new Error(`CoinGecko error ${res.status}: ${res.statusText}${body ? ` - ${JSON.stringify(body)}` : ""}`);
+      // Contract address handling
+      if (isEvmAddress(q)) {
+        try {
+          const platforms = ["ethereum", "base", "arbitrum-one", "optimistic-ethereum", "polygon-pos", "bsc"];
+          const byContract = await this.fetchByContractAddress(baseUrl, q, platforms);
+          if (byContract) {
+            results.push({ id: q, success: true, data: byContract });
+          } else {
+            results.push({ id: q, success: false, error: `No CoinGecko match for EVM address: ${q}` });
+          }
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          logger.warn(`[CoinGecko] EVM address lookup failed for ${q}: ${msg}`);
+          results.push({ id: q, success: false, error: msg });
+        }
+        continue;
       }
 
-      const data = (await res.json()) as CoinGeckoTokenMetadata;
-      return formatCoinMetadata(resolvedId, data as any);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      logger.error(`[CoinGecko] request failed: ${msg}`);
-      throw err as Error;
-    } finally {
-      clearTimeout(timeout);
+      if (isSolanaAddress(q)) {
+        try {
+          const byContract = await this.fetchByContractAddress(baseUrl, q, ["solana"]);
+          if (byContract) {
+            results.push({ id: q, success: true, data: byContract });
+          } else {
+            results.push({ id: q, success: false, error: `No CoinGecko match for Solana address: ${q}` });
+          }
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          logger.warn(`[CoinGecko] Solana address lookup failed for ${q}: ${msg}`);
+          results.push({ id: q, success: false, error: msg });
+        }
+        continue;
+      }
+
+      // Resolve symbol/name/id via local index
+      let resolvedId: string | null = null;
+      try {
+        resolvedId = await this.resolveIdFromCache(q);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        logger.warn(`[CoinGecko] resolveIdFromCache failed for ${q}: ${msg}`);
+      }
+
+      if (!resolvedId) {
+        results.push({ id: q, success: false, error: `Unknown coin id/symbol/name: ${q}` });
+        continue;
+      }
+
+      const endpoint = `/coins/${encodeURIComponent(resolvedId)}`;
+      const url = `${baseUrl}${endpoint}`;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+
+      try {
+        logger.debug(`[CoinGecko] GET ${url}`);
+        const res = await fetch(url, {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            ...(isPro && this.proApiKey ? { "x-cg-pro-api-key": this.proApiKey } : {}),
+            "User-Agent": "ElizaOS-CoinGecko-Plugin/1.0",
+          },
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeout);
+
+        if (!res.ok) {
+          const body = await safeReadJson(res);
+          const msg = `CoinGecko error ${res.status}: ${res.statusText}${body ? ` - ${JSON.stringify(body)}` : ""}`;
+          logger.warn(`[CoinGecko] request failed for ${resolvedId}: ${msg}`);
+          results.push({ id: q, success: false, error: msg });
+          continue;
+        }
+
+        const data = (await res.json()) as CoinGeckoTokenMetadata;
+        results.push({ id: q, success: true, data: formatCoinMetadata(resolvedId, data as any) });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error(`[CoinGecko] request failed for ${resolvedId ?? q}: ${msg}`);
+        results.push({ id: q, success: false, error: msg });
+      } finally {
+        clearTimeout(timeout);
+      }
     }
+
+    return results;
   }
 
   private async fetchByContractAddress(
