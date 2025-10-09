@@ -72,8 +72,6 @@ Use the lists below only to understand capabilities for later steps and to craft
 
 {{actionsWithDescriptions}}
 
-{{providersWithDescriptions}}
-
 <keys>
 "thought" Explain whether the user has shown intent and your next step.
 "isCreateWallet" Set to true only if the user explicitly shows intent to create a wallet now. Otherwise set to false.
@@ -106,11 +104,10 @@ This indicates whether the user has a configured Coinbase CDP wallet and include
 
 In each step, decide:
 
-1. **Which providers (if any)** should be called to gather necessary data.
-2. **Which action (if any)** should be executed after providers return.
-3. Decide whether the task is complete. If so, set \`isFinish: true\`. Do not select the \`REPLY\` action; replies are handled separately after task completion.
+1. **Which action (if any)** should be executed after providers return.
+2. Decide whether the task is complete. If so, set \`isFinish: true\`.
 
-You can select **multiple providers** and at most **one action** per step.
+You can select at most **one action** per step.
 
 If the task is fully resolved and no further steps are needed, mark the step as \`isFinish: true\`.
 
@@ -118,27 +115,25 @@ If the task is fully resolved and no further steps are needed, mark the step as 
 
 {{actionsWithDescriptions}}
 
-{{providersWithDescriptions}}
-
-These are the actions or data provider calls that have already been used in this run. Use this to avoid redundancy and guide your next move.
+These are the actions calls that have already been used in this run. Use this to avoid redundancy and guide your next move.
 
 {{actionResults}}
 
 <keys>
 "thought" Clearly explain your reasoning for the selected providers and/or action, and how this step contributes to resolving the user's request.
 "action"  Name of the action to execute after providers return (must be selected from the list of **Available Actions** shown above; can be empty if no action is needed).
-"providers"  List of provider names to call in this step (must be selected from the list of **Available Providers** shown above; can be empty if none are needed).
 "isFinish" Set to true only if the task is fully complete.
 "searchQuery" If the selected action is WEB_SEARCH, optionally provide the precise web search query to run.
 </keys>
 
 ⚠️ IMPORTANT: Do **not** mark the task as \`isFinish: true\` immediately after calling an action. Wait for the action to complete before deciding the task is finished.
 
+- Your final output MUST be in this XML format:
+
 <output>
 <response>
   <thought>Your thought here</thought>
   <action>ACTION</action>
-  <providers>PROVIDER1,PROVIDER2</providers>
   <isFinish>true | false</isFinish>
   <searchQuery>Optional specific query for WEB_SEARCH</searchQuery>
 </response>
@@ -171,8 +166,6 @@ Here are the actions taken by the assistant to fulfill the request:
 {{actionResults}}
 
 {{actionsWithDescriptions}}
-
-{{providersWithDescriptions}}
 
 # Assistant’s Last Reasoning Step
 {{recentMessage}}
