@@ -20,7 +20,7 @@ export const cdpWalletBalance: Action = {
     "CDP_LIST_BALANCES",
   ],
   description:
-    "List token balances for the user's CDP EVM account using Coinbase CDP",
+    "Use this action when you need to list token balances for the user's Coinbase CDP EVM account.",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
     try {
       // Check if services are available

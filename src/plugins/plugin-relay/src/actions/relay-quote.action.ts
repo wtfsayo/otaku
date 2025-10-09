@@ -87,7 +87,7 @@ const resolveChainNameToId = (chainName: string): number | null => {
 
 const quoteTemplate = `# Cross-Chain Quote Request
 
-## User Request
+## Conversation Context
 {{recentMessages}}
 
 ## Available Networks
@@ -102,7 +102,7 @@ const quoteTemplate = `# Cross-Chain Quote Request
 - linea (Linea)
 
 ## Instructions
-Extract the quote details from the user's request.
+Determine and extract the user's quote details from the conversation context.
 
 **Important Notes:**
 - Use lowercase chain names ONLY (e.g., "ethereum", "base", "arbitrum")
@@ -111,18 +111,18 @@ Extract the quote details from the user's request.
 - Use token symbols (eth, usdc, usdt, weth, etc.)
 
 Respond with the quote parameters in this exact format:
-<quoteParams>
-<originChain>ethereum</originChain>
-<destinationChain>base</destinationChain>
-<currency>eth</currency>
-<toCurrency>eth</toCurrency>
-<amount>0.1</amount>
-<tradeType>EXACT_INPUT</tradeType>
-</quoteParams>`;
+<response>
+  <originChain>ethereum</originChain>
+  <destinationChain>base</destinationChain>
+  <currency>eth</currency>
+  <toCurrency>eth</toCurrency>
+  <amount>0.1</amount>
+  <tradeType>EXACT_INPUT</tradeType>
+</response>`;
 
 export const relayQuoteAction: Action = {
   name: "GET_RELAY_QUOTE",
-  description: "Get a quote for cross-chain bridging or swapping using Relay Link",
+  description: "Use this action when you need a cross-chain bridge/swap quote.",
   similes: [
     "QUOTE_BRIDGE",
     "QUOTE_CROSS_CHAIN",

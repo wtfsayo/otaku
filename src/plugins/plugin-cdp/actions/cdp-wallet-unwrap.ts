@@ -17,7 +17,7 @@ import { type CdpNetwork } from "../types";
 
 const unwrapTemplate = `# CDP WETH Unwrap Request
 
-## User Request
+## Conversation Context
 {{recentMessages}}
 
 ## Available Networks
@@ -29,7 +29,7 @@ const unwrapTemplate = `# CDP WETH Unwrap Request
 - polygon
 
 ## Instructions
-Extract the unwrap details from the user's request. If any detail is missing, use reasonable defaults.
+Determine and extract the user's unwrap details from the conversation context. If any detail is missing, use reasonable defaults.
 
 **Important Notes:**
 - **Default network is "base"** - only specify another network if explicitly mentioned by the user
@@ -38,10 +38,10 @@ Extract the unwrap details from the user's request. If any detail is missing, us
 - This action unwraps WETH to native ETH
 
 Respond with the unwrap parameters in this exact format:
-<unwrapParams>
-<network>base</network>
-<amount>10.5</amount>
-</unwrapParams>`;
+<response>
+  <network>base</network>
+  <amount>10.5</amount>
+</response>`;
 
 interface UnwrapParams {
   network: CdpNetwork;
@@ -95,7 +95,7 @@ export const cdpWalletUnwrap: Action = {
     "UNWRAP_WETH_CDP",
     "WETH_TO_ETH_CDP",
   ],
-  description: "Unwrap WETH to native ETH on EVM Based Chains",
+  description: "Use this action when you need to unwrap WETH to native ETH.",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
     try {
       // Check if services are available

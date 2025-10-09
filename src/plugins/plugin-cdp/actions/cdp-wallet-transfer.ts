@@ -18,7 +18,7 @@ import { type CdpNetwork } from "../types";
 
 const transferTemplate = `# CDP Token Transfer Request
 
-## User Request
+## Conversation Context
 {{recentMessages}}
 
 ## Supported Networks
@@ -40,7 +40,7 @@ Common tokens (can use symbol):
 Or use token contract address like: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
 
 ## Instructions
-Extract the transfer details from the user's request. All fields are required.
+Determine and extract the user's transfer details from the conversation context. All fields are required.
 
 **Important Notes:**
 - Amount should be in human-readable format (e.g., "10.5" for 10.5 tokens)
@@ -50,12 +50,12 @@ Extract the transfer details from the user's request. All fields are required.
 - Default to base network if not specified
 
 Respond with the transfer parameters in this exact format:
-<transferParams>
-<network>base</network>
-<to>0x1234567890123456789012345678901234567890</to>
-<token>usdc</token>
-<amount>10.5</amount>
-</transferParams>`;
+<response>
+  <network>base</network>
+  <to>0x1234567890123456789012345678901234567890</to>
+  <token>usdc</token>
+  <amount>10.5</amount>
+</response>`;
 
 interface TransferParams {
   network: CdpNetwork;
@@ -98,7 +98,7 @@ export const cdpWalletTransfer: Action = {
     "TRANSFER_TOKENS_CDP",
     "PAY_WITH_CDP",
   ],
-  description: "Transfer tokens to another address using Coinbase CDP",
+  description: "Use this action when you need to transfer tokens.",
   validate: async (_runtime: IAgentRuntime, message: Memory) => {
     try {
       // Check if services are available

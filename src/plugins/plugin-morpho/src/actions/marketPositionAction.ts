@@ -8,6 +8,7 @@ import {
   ActionResult,
   ModelType,
   parseKeyValueXml,
+  composePromptFromState,
 } from "@elizaos/core";
 import { MorphoService } from "../services";
 import { MorphoMarketData, UserPosition } from "../types";
@@ -18,19 +19,18 @@ import { privateKeyToAccount } from "viem/accounts";
 /* =========================
  * Prompt helper
  * ========================= */
-function getPositionXmlPrompt(userMessage: string): string {
-  return `<task>Extract an optional Morpho market identifier from the user's message for positions lookup.</task>
+function getPositionXmlTemplate(): string {
+  return `<task>Determine and extract an optional Morpho market identifier from the conversation context for positions lookup.</task>
 
-<message>
-${userMessage}
-</message>
+## Conversation Context
+{{recentMessages}}
 
 <instructions>
 Return ONLY the following XML structure. Do not add extra text or explanations:
 
-<request>
+<response>
     <market>wstETH/WETH</market>
-</request>
+</response>
 
 Rules:
 - Leave out <market> if no specific market is mentioned.
@@ -53,7 +53,7 @@ export const marketPositionsAction: Action = {
     "MORPHO_MARKET_POSITIONS",
   ],
   description:
-    "Get your Morpho market positions (borrows/supplies), optionally for a specific market (pair or marketId). This action does not include vaults.",
+    "Use this action when you need your Morpho market positions (supplies and borrows).",
   validate: async (runtime: IAgentRuntime) => {
     const morphoService = runtime.getService(
       MorphoService.serviceType,
@@ -106,10 +106,10 @@ export const marketPositionsAction: Action = {
         throw new Error("Wallet address not available. Please create or connect a wallet.");
       }
 
-      const userText = message.content.text || "";
-      const prompt = getPositionXmlPrompt(userText);
+      const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
+      const context = composePromptFromState({ state: composedState, template: getPositionXmlTemplate() });
       const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt,
+        prompt: context,
       });
       const parsed = parseKeyValueXml(xmlResponse);
       const params = { market: parsed?.market || undefined };

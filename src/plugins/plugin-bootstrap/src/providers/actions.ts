@@ -59,7 +59,7 @@ export const actionsProvider: Provider = {
     const actionNames = `Possible response actions: ${formatActionNames(actionsData)}`;
 
     const actionsWithDescriptions =
-      actionsData.length > 0 ? addHeader('# Available Actions', formatActions(actionsData)) : '';
+      actionsData.length > 0 ? addHeader('# Available Actions (List of callable tools/functions the assistant can execute)', formatActions(actionsData)) : '';
 
     const actionExamples =
       actionsData.length > 0

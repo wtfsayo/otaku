@@ -8,26 +8,26 @@ import {
   ActionResult,
   ModelType,
   parseKeyValueXml,
+  composePromptFromState,
 } from "@elizaos/core";
 import { MorphoService } from "../services";
 import { CdpService } from "../../../plugin-cdp/services/cdp.service";
 
-function getMarketTransferXmlPrompt(userMessage: string): string {
-  return `<task>Extract intent, market, amount, and optional parameters for a Morpho market operation.</task>
+function getMarketTransferXmlTemplate(): string {
+  return `<task>Determine and extract intent, market, amount, and optional parameters for a Morpho market operation from the conversation context.</task>
 
-<message>
-${userMessage}
-</message>
+## Conversation Context
+{{recentMessages}}
 
 <instructions>
 Return ONLY the following XML structure. Do not add extra text or explanations:
 
-<request>
+<response>
   <intent>supply</intent>
   <market>WETH/USDC</market>
   <assets>1</assets>
   <fullRepayment>false</fullRepayment>
-</request>
+</response>
 
 Rules:
 - <intent> must be one of: "supply", "supplyCollateral", "borrow", "repay", "withdraw", "withdrawCollateral"
@@ -113,7 +113,7 @@ export const marketTransferAction: Action = {
     "PROVIDE_COLLATERAL",
   ],
   description:
-    "Perform market operations on Morpho Blue: supply, supplyCollateral, borrow, repay, withdraw, or withdrawCollateral",
+    "Use this action when you need to perform Morpho market operations (supply/borrow/repay/withdraw/collateral).",
   validate: async (runtime: IAgentRuntime) => {
     const svc = runtime.getService(MorphoService.serviceType) as MorphoService;
     if (!svc) {
@@ -188,9 +188,9 @@ export const marketTransferAction: Action = {
         return await fail(`Unable to initialize CDP wallet: ${msg}`);
       }
 
-      const userText = message.content.text || "";
-      const prompt = getMarketTransferXmlPrompt(userText);
-      const xml = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+      const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
+      const context = composePromptFromState({ state: composedState, template: getMarketTransferXmlTemplate() });
+      const xml = await runtime.useModel(ModelType.TEXT_LARGE, { prompt: context });
       const parsed = parseKeyValueXml(xml) || {};
 
       const rawIntent = parsed.intent?.toString().trim().toLowerCase();

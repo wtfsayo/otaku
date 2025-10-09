@@ -70,7 +70,7 @@ export const webSearch: Action = {
     ],
     suppressInitialMessage: true,
     description:
-        "Perform a web search to find information related to the message.",
+        "Use this action when other actions/providers can’t provide accurate or current info, or when facts must be confirmed via the web.",
     validate: async (
         runtime: IAgentRuntime,
         _message: Memory,
@@ -97,13 +97,20 @@ export const webSearch: Action = {
                 throw new Error("WebSearchService not initialized");
             }
 
-            // Build query via template + XML parsing
-            const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
-            const context = composePromptFromState({ state: composedState, template: webSearchTemplate });
-            const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, { prompt: context });
-            const parsed = parseKeyValueXml(xmlResponse || "");
+            // Prefer query from working memory if set by multiStepDecisionTemplate
+            const composedState = await runtime.composeState(message, ["ACTION_STATE", "RECENT_MESSAGES"], true);
+            const memQuery: string | undefined = composedState?.data?.webSearch?.query;
 
-            const query = parsed?.query?.trim();
+            let query: string | undefined = memQuery?.trim();
+            let parsed: Record<string, any> | null = null;
+
+            if (!query) {
+                // Fallback: Build query via template + XML parsing
+                const context = composePromptFromState({ state: composedState, template: webSearchTemplate });
+                const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, { prompt: context });
+                parsed = parseKeyValueXml(xmlResponse || "");
+                query = parsed?.query?.trim();
+            }
             if (!query) {
                 const emptyResult: ActionResult = {
                     text: "Please specify what to search for.",
@@ -116,7 +123,7 @@ export const webSearch: Action = {
                 return emptyResult;
             }
 
-            logger.info("WEB_SEARCH query (from template):", query);
+            logger.info("WEB_SEARCH query:", query);
 
             const limit = parsed?.limit ? Number(parsed.limit) : undefined;
             const type = (parsed?.type as "news" | "general" | undefined) ?? undefined;

@@ -2,7 +2,6 @@ import {
   addHeader,
   ChannelType,
   CustomMetadata,
-  formatMessages,
   formatPosts,
   getEntityDetails,
   type Entity,
@@ -11,7 +10,78 @@ import {
   type Provider,
   type UUID,
   logger,
+  Content,
+  formatTimestamp,
 } from '@elizaos/core';
+
+export const formatMessages = ({
+  messages,
+  entities,
+}: {
+  messages: Memory[];
+  entities: Entity[];
+}) => {
+  const messageStrings = messages
+    .reverse()
+    .filter((message: Memory) => message.entityId)
+    .map((message: Memory) => {
+      const messageText = (message.content as Content).text;
+
+      const messageActions = (message.content as Content).actions;
+      const messageThought = (message.content as Content).thought;
+      const formattedName =
+        entities.find((entity: Entity) => entity.id === message.entityId)?.names[0] ||
+        'Unknown User';
+
+      const attachments = (message.content as Content).attachments;
+
+      const attachmentString =
+        attachments && attachments.length > 0
+          ? ` (Attachments: ${attachments
+              .map((media) => {
+                const lines = [`[${media.id} - ${media.title} (${media.url})]`];
+                if (media.text) lines.push(`Text: ${media.text}`);
+                if (media.description) lines.push(`Description: ${media.description}`);
+                return lines.join('\n');
+              })
+              .join(
+                // Use comma separator only if all attachments are single-line (no text/description)
+                attachments.every((media) => !media.text && !media.description) ? ', ' : '\n'
+              )})`
+          : null;
+
+      const messageTime = new Date(message.createdAt || 0);
+      const hours = messageTime.getHours().toString().padStart(2, '0');
+      const minutes = messageTime.getMinutes().toString().padStart(2, '0');
+      const timeString = `${hours}:${minutes}`;
+
+      const timestamp = formatTimestamp(message.createdAt || 0);
+
+      // const shortId = message.entityId.slice(-5);
+
+      const thoughtString = messageThought
+        ? `(${formattedName}'s internal thought: ${messageThought})`
+        : null;
+
+      const timestampString = `${timeString} (${timestamp})`;
+      const textString = messageText ? `${timestampString} ${formattedName}: ${messageText}` : null;
+      const actionString =
+        messageActions && messageActions.length > 0
+          ? `${
+              textString ? '' : timestampString
+            } (${formattedName}'s actions: ${messageActions.join(', ')})`
+          : null;
+
+      // for each thought, action, text or attachment, add a new line, with text first, then thought, then action, then attachment
+      const messageString = [textString, thoughtString, actionString, attachmentString]
+        .filter(Boolean)
+        .join('\n');
+
+      return messageString;
+    })
+    .join('\n');
+  return messageStrings;
+};
 
 // Move getRecentInteractions outside the provider
 /**

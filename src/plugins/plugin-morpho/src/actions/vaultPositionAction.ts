@@ -8,6 +8,7 @@ import {
   ActionResult,
   ModelType,
   parseKeyValueXml,
+  composePromptFromState,
 } from "@elizaos/core";
 import { MorphoService } from "../services";
 import type { UserVaultPosition } from "../types";
@@ -20,19 +21,18 @@ import { privateKeyToAccount } from "viem/accounts";
 /* =========================
  * Prompt helper (optional single vault filter)
  * ========================= */
-function getVaultPositionXmlPrompt(userMessage: string): string {
-  return `<task>Extract an optional vault identifier from the user's message for VAULT positions lookup.</task>
+function getVaultPositionXmlTemplate(): string {
+  return `<task>Determine and extract an optional vault identifier from the conversation context for VAULT positions lookup.</task>
   
-  <message>
-  ${userMessage}
-  </message>
+  ## Conversation Context
+  {{recentMessages}}
   
   <instructions>
   Return ONLY the following XML structure. Do not add extra text or explanations:
   
-  <request>
+  <response>
       <vault>Spark USDC Vault</vault>
-  </request>
+  </response>
   
   Rules:
   - Leave out <vault> if the user did not specify a particular vault.
@@ -54,7 +54,7 @@ export const vaultPositionsAction: Action = {
     "MORPHO_VAULT_POSITIONS",
   ],
   description:
-    "Get your Morpho vault positions (deposit balances and APYs). Supports an optional vault filter by name or address. This action does not include markets.",
+    "Use this action when you need your Morpho vault positions (balances and APYs).",
   validate: async (runtime: IAgentRuntime) => {
     const morphoService = runtime.getService(
       MorphoService.serviceType,
@@ -107,10 +107,10 @@ export const vaultPositionsAction: Action = {
         throw new Error("Wallet address not available. Please create or connect a wallet.");
       }
 
-      const userText = message.content.text || "";
-      const prompt = getVaultPositionXmlPrompt(userText);
+      const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
+      const context = composePromptFromState({ state: composedState, template: getVaultPositionXmlTemplate() });
       const xmlResponse = await runtime.useModel(ModelType.TEXT_LARGE, {
-        prompt,
+        prompt: context,
       });
       const parsed = parseKeyValueXml(xmlResponse);
       const params = { vault: parsed?.vault || undefined }; // address or name-substring

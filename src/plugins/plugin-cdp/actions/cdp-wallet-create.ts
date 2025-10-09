@@ -14,7 +14,7 @@ export const cdpCreateWallet: Action = {
   name: "CDP_CREATE_WALLET",
   similes: ["CREATE_CDP_WALLET", "NEW_CDP_WALLET", "CDP_EVM_CREATE"],
   description:
-    "Create an EVM account via Coinbase CDP",
+    "Use this action when you need to create an EVM account via Coinbase CDP.",
   validate: async (runtime: IAgentRuntime, message: Memory) => {
     try {
       // Check if services are available

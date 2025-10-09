@@ -8,6 +8,7 @@ import {
   State,
   logger,
   parseKeyValueXml,
+  composePromptFromState,
 } from "@elizaos/core";
 import { z } from "zod";
 import { TokenDeploySchema } from "../types";
@@ -51,21 +52,20 @@ function safeStringify(obj: any): any {
   return obj;
 }
 
-export function getTokenDeployXmlPrompt(userMessage: string): string {
-  return `<task>Extract structured token deployment parameters from the user's message.</task>
+export function getTokenDeployXmlTemplate(): string {
+  return `<task>Determine and extract structured token deployment parameters from the conversation context.</task>
 
-<message>
-${userMessage}
-</message>
+## Conversation Context
+{{recentMessages}}
 
 <instructions>
-You MUST extract only the token-related deployment parameters from the message. Return the output using this exact XML format. Do NOT add explanations.
+You MUST extract only the token-related deployment parameters from the conversation. Return the output using this exact XML format. Do NOT add explanations.
 
-Only include fields that are present or clearly implied in the user's message. All fields are optional EXCEPT for name and symbol, which are REQUIRED.
+Only include fields that are present or clearly implied. All fields are optional EXCEPT for name and symbol, which are REQUIRED.
 
 Respond with:
 
-<deploy>
+<response>
   <name>Token name (required, max 50 chars)</name>
   <symbol>Token symbol (required, all uppercase, 2–10 chars)</symbol>
   <vanity>true|false (optional)</vanity>
@@ -75,23 +75,22 @@ Respond with:
     <url>https://... (optional)</url>
     ...
   </socialMediaUrls>
-  <devBuy>0.05</devBuy> <!-- Optional float -->
-</deploy>
+  <devBuy>0.05</devBuy>
+</response>
 
 IMPORTANT:
-- Use <vanity>true</vanity> only if the message clearly asks for a vanity/custom address.
+- Use <vanity>true</vanity> only if the conversation clearly asks for a vanity/custom address.
 - Use <image> only if an IPFS URL is provided.
-- Include <devBuy> only if user mentions dev or initial buy ETH amount.
-- socialMediaUrls may include website, Twitter, etc. as individual <url> tags.
-- Do NOT wrap the entire response in a code block.
-- DO NOT include any other tags or explanations — return ONLY the <deploy> block.
+- Include <devBuy> only if dev or initial buy ETH amount is mentioned.
+- Do NOT wrap the response in a code block.
+- Return ONLY the <deploy> block.
 </instructions>`;
 }
 
 export const tokenDeployAction: Action = {
   name: "DEPLOY_TOKEN",
   similes: ["CREATE_TOKEN", "LAUNCH_TOKEN", "MINT_TOKEN"],
-  description: "Deploy a new token on Base L2 using Clanker protocol",
+  description: "Use this action when you need to deploy a new token on Base via Clanker.",
 
   validate: async (
     runtime: IAgentRuntime,
@@ -150,10 +149,10 @@ export const tokenDeployAction: Action = {
         throw new Error("Required services not available");
       }
 
-      // Parse parameters from message
-      const text = message.content.text || "";
-      const prompt = getTokenDeployXmlPrompt(text);
-      const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
+      // Parse parameters from conversation context
+      const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
+      const context = composePromptFromState({ state: composedState, template: getTokenDeployXmlTemplate() });
+      const response = await runtime.useModel(ModelType.TEXT_LARGE, { prompt: context });
 
       logger.info(`Model response for token deployment: ${response}`);
 
@@ -161,7 +160,7 @@ export const tokenDeployAction: Action = {
 
       if (!parsed) {
         logger.error(
-          `Failed to parse token deployment parameters from message. Parsed: ${JSON.stringify(parsed)}, Response: ${response}, Text: ${text}`,
+          `Failed to parse token deployment parameters from message. Parsed: ${JSON.stringify(parsed)}, Response: ${response}`,
         );
         throw new Error(
           "Failed to parse token deployment parameters from message. Please provide token name and symbol clearly.",
