@@ -52,8 +52,31 @@ export class CoinGeckoService extends Service {
     const isPro = Boolean(this.proApiKey);
     const baseUrl = isPro ? "https://pro-api.coingecko.com/api/v3" : "https://api.coingecko.com/api/v3";
 
-    // Align with user example: Pro path example used /coins/eth; standard expects full id
-    const resolvedId = await this.resolveIdFromCache(id);
+    const q = (id || "").trim();
+
+    // Address handling: EVM 0x... and Solana Base58
+    if (isEvmAddress(q)) {
+      const platforms = [
+        "ethereum",
+        "base",
+        "arbitrum-one",
+        "optimistic-ethereum",
+        "polygon-pos",
+        "bsc",
+      ];
+      const byContract = await this.fetchByContractAddress(baseUrl, q, platforms);
+      if (byContract) return byContract;
+      throw new Error(`No CoinGecko match for EVM address: ${q}`);
+    }
+
+    if (isSolanaAddress(q)) {
+      const byContract = await this.fetchByContractAddress(baseUrl, q, ["solana"]);
+      if (byContract) return byContract;
+      throw new Error(`No CoinGecko match for Solana address: ${q}`);
+    }
+
+    // Resolve symbol/name/id via local index
+    const resolvedId = await this.resolveIdFromCache(q);
     if (!resolvedId) {
       throw new Error(`Unknown coin id/symbol/name: ${id}`);
     }
@@ -91,6 +114,40 @@ export class CoinGeckoService extends Service {
     } finally {
       clearTimeout(timeout);
     }
+  }
+
+  private async fetchByContractAddress(
+    baseUrl: string,
+    address: string,
+    platforms: string[],
+  ): Promise<any | null> {
+    for (const platform of platforms) {
+      const url = `${baseUrl}/coins/${platform}/contract/${address}`;
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const res = await fetch(url, {
+          method: "GET",
+          headers: {
+            Accept: "application/json",
+            ...(this.proApiKey ? { "x-cg-pro-api-key": this.proApiKey } : {}),
+            "User-Agent": "ElizaOS-CoinGecko-Plugin/1.0",
+          },
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (!res.ok) {
+          continue;
+        }
+
+        const data = (await res.json()) as Record<string, any>;
+        return formatCoinMetadata((data && typeof data === "object" ? (data as any).id : undefined) ?? platform, data, platform);
+      } catch {
+        // try next platform
+      }
+    }
+    return null;
   }
 
   private async loadCoinsIndex(): Promise<void> {
@@ -256,6 +313,14 @@ export class CoinGeckoService extends Service {
       return ids;
     }
   }
+}
+
+function isEvmAddress(s: string): boolean {
+  return /^0x[a-fA-F0-9]{40}$/.test(s);
+}
+
+function isSolanaAddress(s: string): boolean {
+  return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(s);
 }
 
 

@@ -11,26 +11,31 @@ import {
   logger,
 } from "@elizaos/core";
 import { CoinGeckoService } from "../services/coingecko.service";
-function getTokenIdsXmlTemplate(): string {
+function getTokenIdsXmlTemplate(userText: string): string {
     return `<task>
-Identify the token identifiers mentioned by the user from the conversation context.
+Identify the token identifiers requested by the user, using recent context to disambiguate, but selecting only what the latest user request asks to fetch now.
 </task>
 
-## Conversation Context
+## Recent Conversation
 {{recentMessages}}
 
+## Latest User Message
+${userText}
+
 <instructions>
-Return only this exact XML:
+Return only this exact XML (no extra text):
 
 <response>
   <ids>TOKEN_ID1, TOKEN_ID2</ids>
 </response>
 
 Rules:
-- Extract the tokens exactly as the user stated (symbols, names, or ids).
-- Do NOT transform, expand, or guess CoinGecko ids.
-- Use comma-separated values without extra text.
-- Do NOT include contract addresses unless the user explicitly provided them.
+- Focus on the latest user message intent; extract only the tokens the user is asking to fetch now.
+- Use earlier messages only to resolve pronouns or vague references (e.g., "those", "same ones").
+- Extract exactly as stated (symbols, names, CoinGecko ids, or contract addresses like EVM 0x... or Solana Base58).
+- Do NOT add tokens mentioned earlier unless the latest message refers to them implicitly.
+- Use comma-separated values, no explanations.
+- Remove duplicates while preserving order of mention.
 </instructions>`;
 }
 export const getTokenMetadataAction: Action = {
@@ -41,7 +46,8 @@ export const getTokenMetadataAction: Action = {
     "GET_COIN_INFO",
     "TOKEN_INFO",
   ],
-  description: "Fetch token metadata by CoinGecko coin id using CoinGecko API (Pro if key configured)",
+  description:
+    "Use this action to fetch token metadata by id, symbol, name, or contract address (EVM 0x..., Solana Base58).",
 
   validate: async (runtime: IAgentRuntime): Promise<boolean> => {
     const svc = runtime.getService(CoinGeckoService.serviceType) as CoinGeckoService | undefined;
@@ -64,10 +70,11 @@ export const getTokenMetadataAction: Action = {
       if (!svc) throw new Error("CoinGeckoService not available");
 
       const composedState = await runtime.composeState(message, ["RECENT_MESSAGES"], true);
-      const prompt = composePromptFromState({ state: composedState, template: getTokenIdsXmlTemplate() });
+      const userText = message.content.text || "";
+      const prompt = composePromptFromState({ state: composedState, template: getTokenIdsXmlTemplate(userText) });
       const raw = await runtime.useModel(ModelType.TEXT_LARGE, { prompt });
       const parsed = parseKeyValueXml(raw);
-      
+
       const idsRaw: string = parsed?.ids || "";
       if (!idsRaw) throw new Error("No token ids found in user message");
 
@@ -119,12 +126,12 @@ export const getTokenMetadataAction: Action = {
     [
       {
         name: "{{user}}",
-        content: { text: "Get metadata for eigenlayer and aster-2" },
+        content: { text: "Get metadata for aster, HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC, and 0x2081ab0d9ec9e4303234ab26d86b20b3367946ee" },
       },
       {
         name: "{{agent}}",
         content: {
-          text: "Fetched metadata for 2 token(s)",
+          text: "Fetched metadata for 3 token(s)",
           actions: ["GET_TOKEN_METADATA"],
         },
       },

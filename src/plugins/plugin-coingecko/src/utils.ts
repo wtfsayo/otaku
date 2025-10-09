@@ -89,10 +89,20 @@ function usd(obj: any, path: string[]): number | null {
   }
 }
 
-function choosePlatform(data: any): { platformKey: string | null; address: string | null; decimals: number | null } {
+function choosePlatform(
+  data: any,
+  preferredPlatform?: string | null,
+): { platformKey: string | null; address: string | null; decimals: number | null } {
   const detail = data?.detail_platforms || {};
   const platforms = data?.platforms || {};
   const preferred = ["ethereum", "base", "arbitrum-one", "optimistic-ethereum", "polygon-pos", "bsc"];
+  // If caller hints a specific platform (e.g., resolved via contract endpoint), honor it first
+  if (preferredPlatform && (detail[preferredPlatform] || platforms[preferredPlatform])) {
+    const d = detail[preferredPlatform];
+    const address: string | null = (d?.contract_address as string) || (platforms?.[preferredPlatform] as string) || null;
+    const decimals: number | null = typeof d?.decimal_place === "number" ? d.decimal_place : null;
+    return { platformKey: preferredPlatform, address, decimals };
+  }
   const keys = Object.keys(detail).length > 0 ? Object.keys(detail) : Object.keys(platforms);
   const pick = preferred.find((k) => keys.includes(k)) || keys[0] || null;
   if (!pick) return { platformKey: null, address: null, decimals: null };
@@ -121,10 +131,10 @@ function platformToNet(p?: string | null): string {
   }
 }
 
-export function formatCoinMetadata(requestId: string, data: any): any {
+export function formatCoinMetadata(requestId: string, data: any, preferredPlatform?: string | null): any {
   const md: any = data?.market_data || {};
   const image = data?.image || {};
-  const { platformKey, address, decimals } = choosePlatform(data);
+  const { platformKey, address, decimals } = choosePlatform(data, preferredPlatform);
   const netCode = platformToNet(platformKey);
   const addrLower = address ? address.toLowerCase() : null;
   const objId = addrLower ? `${netCode}_${addrLower}` : (data?.id as string);
