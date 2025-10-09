@@ -47,7 +47,7 @@ export const getTokenMetadataAction: Action = {
     "TOKEN_INFO",
   ],
   description:
-    "Use this action to fetch token metadata by id, symbol, name, or contract address (EVM 0x..., Solana Base58).",
+    "Use this action when the user asks about a specific token/coin or wants core token details or high-level market info. Examples: 'what is <token>?', symbol/name/contract lookups, decimals, logo, networks/addresses, current price, market cap, volume, ATH/ATL, and basic performance. Not for portfolio balances, swaps/trades, or protocol-level TVL. Accepts CoinGecko id, symbol, name, or a contract address (EVM 0x..., Solana Base58).",
 
   validate: async (runtime: IAgentRuntime): Promise<boolean> => {
     const svc = runtime.getService(CoinGeckoService.serviceType) as CoinGeckoService | undefined;
