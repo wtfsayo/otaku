@@ -101,8 +101,6 @@ export const webSearch: Action = {
             const composedState = await runtime.composeState(message, ["ACTION_STATE", "RECENT_MESSAGES"], true);
             const memQuery: string | undefined = composedState?.data?.webSearch?.query;
 
-            console.log("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! [WEB_SEARCH] memQuery:", memQuery);
-
             let query: string | undefined = memQuery?.trim();
             let parsed: Record<string, any> | null = null;
 
