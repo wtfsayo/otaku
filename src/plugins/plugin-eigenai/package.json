@@ -37,9 +37,6 @@
     "plugin"
   ],
   "dependencies": {
-    "@ai-sdk/openai": "^0.0.70",
-    "ai": "^3.4.33",
-    "undici": "^6.21.3"
   },
   "peerDependencies": {
     "@elizaos/core": "*"

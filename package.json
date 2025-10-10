@@ -55,7 +55,11 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^4.1.10",
     "viem": "^2.8.0",
-    "zod": "^4.1.11"
+    "zod": "^4.1.11",
+    "@tavily/core": "^0.0.2",
+    "@ai-sdk/openai": "^0.0.70",
+    "ai": "^3.4.33",
+    "undici": "^6.21.3"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",
@@ -93,8 +97,5 @@
     "access": "public"
   },
   "gitHead": "b165ad83e5f7a21bc1edbd83374ca087e3cd6b33",
-  "private": true,
-  "workspaces": [
-    "src/plugins/*"
-  ]
+  "private": true
 }

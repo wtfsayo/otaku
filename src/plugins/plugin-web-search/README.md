@@ -82,14 +82,14 @@ const result = await webSearch.handler(
 );
 ```
 
-### Token Management
+### Response Length Management
 
 ```typescript
-// The plugin automatically handles token limits
-const DEFAULT_MAX_WEB_SEARCH_TOKENS = 4000;
+// The plugin caps response length by characters
+const DEFAULT_MAX_WEB_SEARCH_CHARS = 4000;
 
-// Example of token-limited response
-const response = MaxTokens(searchResult, DEFAULT_MAX_WEB_SEARCH_TOKENS);
+// Example of length-limited response
+const response = MaxTokens(searchResult, DEFAULT_MAX_WEB_SEARCH_CHARS);
 ```
 
 ## Development
@@ -115,7 +115,6 @@ pnpm run dev
 ## Dependencies
 
 - `@elizaos/core`: Core Eliza functionality
-- `js-tiktoken`: Token counting and management
 - `tsup`: Build tool
 - Other standard dependencies listed in package.json
 
@@ -229,7 +228,6 @@ Contributions are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) fil
 This plugin integrates with and builds upon several key technologies:
 
 - [Tavily API](https://tavily.com/): Advanced search and content analysis API
-- [js-tiktoken](https://github.com/dqbd/tiktoken): Token counting for API responses
 - [Zod](https://github.com/colinhacks/zod): TypeScript-first schema validation
 
 Special thanks to:
@@ -239,7 +237,7 @@ Special thanks to:
 For more information about the search capabilities and tools:
 
 - [Tavily API Documentation](https://docs.tavily.com/)
-- [Token Management Guide](https://github.com/dqbd/tiktoken#readme)
+ 
 - [Search API Best Practices](https://docs.tavily.com/docs/guides/best-practices)
 
 ## License
