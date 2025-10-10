@@ -10,12 +10,10 @@ import {
     type State,
     logger,
 } from "@elizaos/core";
-import { encodingForModel, type TiktokenModel } from "js-tiktoken";
 import { WebSearchService } from "../services/webSearchService";
 import type { SearchResult } from "../types";
 
-const DEFAULT_MAX_WEB_SEARCH_TOKENS = 4000;
-const DEFAULT_MODEL_ENCODING = "gpt-3.5-turbo";
+const DEFAULT_MAX_WEB_SEARCH_CHARS = 16000;
 
 const webSearchTemplate = `# Web Search Request
 
@@ -37,22 +35,12 @@ Respond ONLY with the following XML format:
     <includeAnswer>true</includeAnswer>
 </response>`;
 
-function getTotalTokensFromString(
-    str: string,
-    encodingName: TiktokenModel = DEFAULT_MODEL_ENCODING
-) {
-    const encoding = encodingForModel(encodingName);
-    return encoding.encode(str).length;
-}
-
 function MaxTokens(
     data: string,
-    maxTokens: number = DEFAULT_MAX_WEB_SEARCH_TOKENS
+    maxTokens: number = DEFAULT_MAX_WEB_SEARCH_CHARS
 ): string {
-    if (getTotalTokensFromString(data) >= maxTokens) {
-        return data.slice(0, maxTokens);
-    }
-    return data;
+    // Character-based truncation to cap response length
+    return data.length > maxTokens ? data.slice(0, maxTokens) : data;
 }
 
 export const webSearch: Action = {
@@ -157,7 +145,7 @@ export const webSearch: Action = {
                     : "";
 
                 const result: ActionResult = {
-                    text: MaxTokens(responseList, DEFAULT_MAX_WEB_SEARCH_TOKENS),
+                    text: MaxTokens(responseList, DEFAULT_MAX_WEB_SEARCH_CHARS),
                     success: true,
                     data: searchResponse,
                 };
