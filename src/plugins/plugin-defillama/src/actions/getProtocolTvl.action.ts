@@ -90,20 +90,30 @@ export const getProtocolTvlAction: Action = {
         throw new Error("No protocols matched the provided names");
       }
 
+      const successes = results.filter((r: any) => r && r.success && r.data);
+      const failed = results.filter((r: any) => !r || !r.success);
+      if (successes.length === 0) {
+        throw new Error("No protocols matched the provided names");
+      }
+
+      const messageText = failed.length > 0
+        ? `Fetched TVL for ${successes.length} protocol(s); ${failed.length} not matched`
+        : `Fetched TVL for ${successes.length} protocol(s)`;
+
       if (callback) {
         await callback({
-          text: `Fetched TVL for ${results.length} protocol(s)`,
+          text: messageText,
           actions: ["GET_PROTOCOL_TVL"],
-          content: results as any,
+          content: results as any, // include successes and failures with error messages
           source: message.content.source,
         });
       }
 
       return {
-        text: `Fetched TVL for ${results.length} protocol(s)`,
+        text: messageText,
         success: true,
-        data: results,
-        values: results,
+        data: results, // full per-input results including errors
+        values: successes.map((r: any) => r.data), // successful shaped protocols only
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
