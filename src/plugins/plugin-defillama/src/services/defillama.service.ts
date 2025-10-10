@@ -34,25 +34,36 @@ export class DefiLlamaService extends Service {
 
   async stop(): Promise<void> {}
 
-  async getProtocolsByNames(names: string[]): Promise<any[]> {
+  async getProtocolsByNames(names: string[]): Promise<Array<{ id: string; success: boolean; data?: any; error?: string }>> {
     await this.ensureFresh();
-    const queries = names.map((n) => n.trim().toLowerCase()).filter(Boolean);
-    const pickedById = new Set<string>();
-    const picks: DefiLlamaProtocol[] = [];
+    const inputs = Array.isArray(names) ? names : [];
+    const results: Array<{ id: string; success: boolean; data?: any; error?: string }> = [];
 
-    for (const q of queries) {
+    for (const raw of inputs) {
+      const q = (raw || "").trim();
+      if (!q) {
+        results.push({ id: q, success: false, error: "Empty protocol name" });
+        continue;
+      }
+
+      const qLower = q.toLowerCase();
+
       let picked: DefiLlamaProtocol | null = null;
 
-      for (const p of this.cache) { const n = (p.name || "").toLowerCase(); if (n === q) { picked = p; break; } }
-      if (!picked) { for (const p of this.cache) { const s = (p.symbol || "").toLowerCase(); if (s && s === q) { picked = p; break; } } }
-      if (!picked) { for (const p of this.cache) { const slug = (p as any).slug ? String((p as any).slug).toLowerCase() : ""; if (slug && slug === q) { picked = p; break; } } }
-      if (!picked) { for (const p of this.cache) { const n = (p.name || "").toLowerCase(); if (n.startsWith(q)) { picked = p; break; } } }
-      if (!picked) { for (const p of this.cache) { const slug = (p as any).slug ? String((p as any).slug).toLowerCase() : ""; if (slug.startsWith(q)) { picked = p; break; } } }
+      for (const p of this.cache) { const n = (p.name || "").toLowerCase(); if (n === qLower) { picked = p; break; } }
+      if (!picked) { for (const p of this.cache) { const s = (p.symbol || "").toLowerCase(); if (s && s === qLower) { picked = p; break; } } }
+      if (!picked) { for (const p of this.cache) { const slug = (p as any).slug ? String((p as any).slug).toLowerCase() : ""; if (slug && slug === qLower) { picked = p; break; } } }
+      if (!picked) { for (const p of this.cache) { const n = (p.name || "").toLowerCase(); if (n.startsWith(qLower)) { picked = p; break; } } }
+      if (!picked) { for (const p of this.cache) { const slug = (p as any).slug ? String((p as any).slug).toLowerCase() : ""; if (slug.startsWith(qLower)) { picked = p; break; } } }
 
-      if (picked && !pickedById.has(picked.id)) { pickedById.add(picked.id); picks.push(picked); }
+      if (picked) {
+        results.push({ id: q, success: true, data: shapeProtocol(picked) });
+      } else {
+        results.push({ id: q, success: false, error: `No protocol match for: ${q}` });
+      }
     }
 
-    return picks.map((p) => shapeProtocol(p));
+    return results;
   }
 
   private async ensureFresh(): Promise<void> {
